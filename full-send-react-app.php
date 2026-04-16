@@ -91,7 +91,14 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            if (isset($params['member_type']) && $params['member_type'] === 'junior') {
+            // 1. Identify Member Category
+            $member_type = $params['member_type'] ?? '';
+            
+            $is_junior = in_array($member_type, ['junior', 'junior_racing', 'junior_supporting']);
+            $is_adult  = in_array($member_type, ['racing', 'supporting']);
+
+            // 2. Junior-Specific Logic (Parent Linkage)
+            if ($is_junior) {
                 $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
                 $parent_email = sanitize_email($raw_email);
                 
@@ -108,16 +115,13 @@ add_action('rest_api_init', function () {
                 ]);
 
                 if (!$parent_query->have_posts()) {
-                    return new WP_Error(
-                        'parent_not_found', 
-                        "No registered member found with email: '{$parent_email}'. Your parent/guardian must register first.", 
-                        ['status' => 400]
-                    );
+                    return new WP_Error('parent_not_found', "No registered member found for '{$parent_email}'.", ['status' => 400]);
                 }
                 
                 $params['parent_id'] = $parent_query->posts[0]->ID;
             }
 
+            // 3. Create the Member Post
             $post_id = wp_insert_post([
                 'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
                 'post_type'    => 'fs_member',
@@ -128,23 +132,36 @@ add_action('rest_api_init', function () {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
 
+            // 4. Metadata Mapping
             foreach ($params as $key => $value) {
                 $target_key = $key;
-                if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
-                if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
+                
+                // Normalize guardian field names
+                if (in_array($key, ['parent_guardian_email', 'guardian_email'])) $target_key = 'parent_email';
+                if (in_array($key, ['parent_guardian_name', 'guardian_name'])) $target_key = 'parent_name';
 
                 $meta_key = '_' . $target_key;
-                if (is_array($value)) {
+                
+                // Ensure sim_platforms is always an array, even if empty (common for Supporting members)
+                if ($key === 'sim_platforms') {
+                    $platforms = is_array($value) ? $value : [];
+                    update_post_meta($post_id, $meta_key, $platforms);
+                } elseif (is_array($value)) {
                     update_post_meta($post_id, $meta_key, $value);
                 } else {
                     update_post_meta($post_id, $meta_key, sanitize_text_field($value));
                 }
             }
             
+            // Explicitly set initial status
             update_post_meta($post_id, '_status', 'pending');
 
-            // --- FIXED: Return the email so the frontend can trigger the setup-account phase ---
-            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
+            return [
+                'status' => 'success', 
+                'message' => 'Application Submitted!', 
+                'id' => $post_id, 
+                'member_type' => $member_type
+            ];
         }
     ]);
 
