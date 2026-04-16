@@ -5,14 +5,11 @@ import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider } from '@/lib/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 
-// Components
-import Header from '@/components/Header'; // Added global header
-
 // Layouts
 import AdminLayout from '@/components/admin/AdminLayout';
 
 // Pages
-import Join from '@/components/join/JoinForm';
+import Join from '@/pages/Join'; // Ensure this points to your original Join.jsx
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminMembers from '@/pages/AdminMembers';
@@ -33,35 +30,31 @@ export default function App() {
     <QueryClientProvider client={queryClientInstance}>
       <AuthProvider>
         <HashRouter>
-          {/* Global Layout Wrapper */}
-          <div className="min-h-screen flex flex-col bg-background">
-            <Header /> 
-            <main className="flex-grow">
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<Join />} />
-                <Route path="/meetings" element={<Meetings />} />
-                
-                {/* Account Setup Route */}
-                <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
-                
-                {/* Member Protected Route */}
-                <Route path="/my-profile" element={<MyProfile />} />
-                
-                {/* Admin Routes grouped under the AdminLayout */}
-                <Route path="/admin" element={<AdminLayout />}>
-                  <Route index element={<AdminDashboard />} />
-                  <Route path="members" element={<AdminMembers />} />
-                  <Route path="members/:id" element={<MemberDetail />} />
-                  <Route path="agm" element={<AdminAGM />} />
-                  <Route path="email" element={<AdminEmail />} />
-                  <Route path="users" element={<AdminUsers />} />
-                </Route>
+          <div className="min-h-screen bg-background">
+            {/* NO GLOBAL HEADER HERE - it's handled inside the pages/layouts */}
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Join />} />
+              <Route path="/meetings" element={<Meetings />} />
+              
+              {/* Account Setup Route */}
+              <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
+              
+              {/* Member Protected Route */}
+              <Route path="/my-profile" element={<MyProfile />} />
+              
+              {/* Admin Routes (Header is inside AdminLayout) */}
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="members" element={<AdminMembers />} />
+                <Route path="members/:id" element={<MemberDetail />} />
+                <Route path="agm" element={<AdminAGM />} />
+                <Route path="email" element={<AdminEmail />} />
+                <Route path="users" element={<AdminUsers />} />
+              </Route>
 
-                {/* Fallback */}
-                <Route path="*" element={<PageNotFound />} />
-              </Routes>
-            </main>
+              <Route path="*" element={<PageNotFound />} />
+            </Routes>
           </div>
         </HashRouter>
         <Toaster />
