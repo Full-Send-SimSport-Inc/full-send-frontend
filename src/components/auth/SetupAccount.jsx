@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
+import { useParams } from 'react-router-dom'; // IMPORT ADDED HERE
 
-export default function SetupAccount({ memberId, email }) {
+export default function SetupAccount() {
+  // EXTRACT PARAMS FROM URL INSTEAD OF PROPS
+  // Assuming your route in App.js is defined as something like: path="/setup-account/:id/:email"
+  const { id, email } = useParams(); 
+
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: ''
@@ -32,10 +37,9 @@ export default function SetupAccount({ memberId, email }) {
     setErrorMessage('');
 
     try {
-      // FIXED: Added the email to the payload so WordPress can create the user account
       await base44.post('/setup-account', {
-        member_id: memberId,
-        email: email, 
+        member_id: id, // USING 'id' FROM URL PARAMS
+        email: decodeURIComponent(email), // decode in case the email has special characters in the URL
         password: formData.password
       });
       setStatus('success');
