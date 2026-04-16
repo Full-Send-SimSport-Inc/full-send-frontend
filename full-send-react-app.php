@@ -237,41 +237,52 @@ add_action('rest_api_init', function () {
 
     // Change the route name from /setup-password to /setup-account to match the React app
     register_rest_route($namespace, '/setup-account', [
-        'methods' => 'POST',
-        'permission_callback' => '__return_true',
-        'callback' => function($request) {
-            $params = $request->get_json_params();
-            $member_id = $params['member_id'] ?? null;
-            $email     = sanitize_email($params['email'] ?? '');
-            $password  = $params['password'] ?? '';
+    'methods' => 'POST',
+    'permission_callback' => '__return_true',
+    'callback' => function($request) {
+        $params = $request->get_json_params();
+        
+        // Extract required fields
+        $member_id = $params['member_id'] ?? $params['id'] ?? null;
+        $email = sanitize_email($params['email'] ?? '');
+        $password = $params['password'] ?? '';
 
-            if (!$member_id || !$email || !$password) {
-                return new WP_Error('missing_data', 'Missing required account details.', ['status' => 400]);
-            }
-
-            // Check if user already exists
-            if (email_exists($email)) {
-                return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
-            }
-
-            // Create WordPress User
-            $user_id = wp_create_user($email, $password, $email);
-            
-            if (is_wp_error($user_id)) {
-                return new WP_Error('create_failed', $user_id->get_error_message(), ['status' => 500]);
-            }
-
-            // Link the Member Record to the User Account
-            update_user_meta($user_id, 'fs_member_id', $member_id);
-            update_post_meta($member_id, '_wp_user_id', $user_id);
-            update_post_meta($member_id, '_status', 'active');
-
-            return [
-                'status' => 'success',
-                'message' => 'Account created successfully. You can now log in.'
-            ];
+        // Check if data is missing
+        if (!$member_id || !$email || !$password) {
+            return new WP_Error('missing_data', 'Missing required account details.', ['status' => 400]);
         }
-    ]);
+
+        // Verify the Member record exists
+        $member_post = get_post($member_id);
+        if (!$member_post || $member_post->post_type !== 'fs_member') {
+            return new WP_Error('invalid_member', 'Invalid member record.', ['status' => 400]);
+        }
+
+        // Check if user already exists
+        if (email_exists($email)) {
+            return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
+        }
+
+        // Create the WordPress User
+        $username = $email; // Using email as username for simplicity
+        $user_id = wp_create_user($username, $password, $email);
+
+        if (is_wp_error($user_id)) {
+            return $user_id;
+        }
+
+        // Link the WP User to the FS Member record
+        update_user_meta($user_id, 'fs_member_id', $member_id);
+        update_post_meta($member_id, '_wp_user_id', $user_id);
+        update_post_meta($member_id, '_status', 'active');
+
+        return [
+            'status' => 'success',
+            'message' => 'Account created successfully. You can now log in.',
+            'user_id' => $user_id
+        ];
+    }
+]);
 
     register_rest_route($namespace, '/update-me', [
         'methods' => 'POST',
