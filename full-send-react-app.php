@@ -84,15 +84,26 @@ add_action('rest_api_init', function () {
         'methods' => 'GET',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
         'callback' => function() {
-            $users = get_users();
+            // Pull all fs_member posts
+            $query = new WP_Query([
+                'post_type' => 'fs_member', 
+                'posts_per_page' => -1,
+                'post_status' => 'publish'
+            ]);
+            
             $members = [];
-            foreach ($users as $u) {
+            foreach ($query->posts as $post) {
+                $meta = get_post_meta($post->ID);
                 $members[] = [
-                    'id' => $u->ID,
-                    'email' => $u->user_email,
-                    'first_name' => get_user_meta($u->ID, 'first_name', true),
-                    'last_name' => get_user_meta($u->ID, 'last_name', true),
-                    'status' => get_user_meta($u->ID, 'membership_status', true) ?: 'pending'
+                    'id' => $post->ID,
+                    'first_name' => $meta['_first_name'][0] ?? '',
+                    'last_name' => $meta['_last_name'][0] ?? '',
+                    'email' => $meta['_email'][0] ?? '',
+                    'phone' => $meta['_phone'][0] ?? '',
+                    'city' => $meta['_city'][0] ?? '',
+                    'state' => $meta['_state'][0] ?? '',
+                    'status' => $meta['_status'][0] ?? 'pending',
+                    'created_date' => $post->post_date, // This feeds the "Date Joined" column
                 ];
             }
             return $members;
