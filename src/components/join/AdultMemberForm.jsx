@@ -269,7 +269,7 @@ export default function AdultMemberForm({ onBack }) {
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-blue-50 text-blue-700 rounded-lg text-sm flex gap-3">
                     <MessageSquare className="w-5 h-5 shrink-0" />
                     <div>
-                      <p className="font-semibold">Discord is required for league communication.</p>
+                      <p className="font-semibold">Discord is required for communication.</p>
                       <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="underline font-bold">Create an account here</a> then return to complete your application.
                     </div>
                   </motion.div>
