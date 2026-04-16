@@ -11,7 +11,9 @@ import { useParams } from 'react-router-dom'; // IMPORT ADDED HERE
 export default function SetupAccount() {
   // EXTRACT PARAMS FROM URL INSTEAD OF PROPS
   // Assuming your route in App.js is defined as something like: path="/setup-account/:id/:email"
-  const { id, email } = useParams(); 
+  const params = useParams();
+  const finalId = params.id || params.memberId; 
+  const finalEmail = params.email;
 
   const [formData, setFormData] = useState({
     password: '',
@@ -38,8 +40,8 @@ export default function SetupAccount() {
 
     try {
       await base44.post('/setup-account', {
-        member_id: id, // USING 'id' FROM URL PARAMS
-        email: decodeURIComponent(email), // decode in case the email has special characters in the URL
+        member_id: finalId, // Now uses the safe fallback ID
+        email: decodeURIComponent(finalEmail), 
         password: formData.password
       });
       setStatus('success');
