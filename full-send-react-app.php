@@ -241,26 +241,12 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
             $params = $request->get_json_params();
-            
-            // Extract parameters
             $member_id = $params['member_id'] ?? null;
             $email     = $params['email'] ?? null;
             $password  = $params['password'] ?? null;
 
-            // 1. Check for missing parameters (The likely cause of the 400)
-            if (!$member_id) {
-                return new WP_Error('missing_id', 'Member ID is missing from the request.', ['status' => 400]);
-            }
-            if (!$email) {
-                return new WP_Error('missing_email', 'Email is missing from the request.', ['status' => 400]);
-            }
-            if (!$password) {
-                return new WP_Error('missing_password', 'Password is missing from the request.', ['status' => 400]);
-            }
-
-            // 2. Check if the WordPress user already exists
-            if (email_exists($email)) {
-                return new WP_Error('user_exists', 'A WordPress user with this email already exists.', ['status' => 400]);
+            if (!$member_id || !$password || !$email) {
+                return new WP_Error('missing_params', 'Missing required fields.', ['status' => 400]);
             }
 
             $member_post = get_post($member_id);
@@ -268,10 +254,13 @@ add_action('rest_api_init', function () {
                 return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
             }
 
-            // Verification check: check both '_email' and 'email' keys just in case
-            $stored_email = get_post_meta($member_id, '_email', true) ?: get_post_meta($member_id, 'email', true);
+            $stored_email = get_post_meta($member_id, '_email', true);
             if (strtolower($stored_email) !== strtolower($email)) {
-                return new WP_Error('verification_failed', 'Email does not match the member record.', ['status' => 403]);
+                return new WP_Error('verification_failed', 'Email verification failed.', ['status' => 403]);
+            }
+
+            if (email_exists($email)) {
+                return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
             // Create the WordPress User
@@ -284,13 +273,14 @@ add_action('rest_api_init', function () {
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
             
+            // Link the WordPress User to the Member Post
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
 
             return [
                 'status' => 'success',
-                'message' => 'Account created successfully.'
+                'message' => 'Account created! You can now log in.'
             ];
         }
     ]);
