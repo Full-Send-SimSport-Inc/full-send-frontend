@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, UserCircle, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, UserCircle, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
 
 const SIM_PLATFORMS = [
   "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
@@ -28,7 +28,6 @@ export default function MyProfile() {
   const [status, setStatus] = useState('idle'); // idle, saving, success, error
   const [message, setMessage] = useState('');
 
-  // Pre-fill the form when the user data loads
   useEffect(() => {
     if (user?.member_details) {
       const details = user.member_details;
@@ -52,16 +51,10 @@ export default function MyProfile() {
     setMessage('');
 
     try {
-      // Hit the new WP endpoint
       await base44.post('/update-me', form);
-      
-      // Refresh local user context to ensure app has latest data
       await checkLoginStatus(); 
-      
       setStatus('success');
       setMessage('Profile updated successfully!');
-      
-      // Clear success message after 3 seconds
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
       setStatus('error');
@@ -95,17 +88,38 @@ export default function MyProfile() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Update My Details</CardTitle>
+          <CardTitle>Member Information</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             
-            {/* Read Only Email */}
-            <div className="space-y-2">
-              <Label>Email Address (Cannot be changed here)</Label>
-              <Input disabled value={user.email} className="bg-muted" />
+            {/* Locked Admin-Controlled Fields */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed">
+              <div className="md:col-span-2 flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
+                <Lock className="w-3 h-3" /> ADMIN CONTROLLED FIELDS
+              </div>
+              <div className="space-y-2">
+                <Label>First Name</Label>
+                <Input disabled value={details.first_name || ''} className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label>Last Name</Label>
+                <Input disabled value={details.last_name || ''} className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label>Date of Birth</Label>
+                <Input disabled value={details.dob || ''} className="bg-muted" />
+              </div>
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input disabled value={user.email} className="bg-muted" />
+              </div>
+              <p className="md:col-span-2 text-xs text-muted-foreground italic">
+                Please contact an administrator to update your name, birthdate, or email.
+              </p>
             </div>
 
+            {/* Editable Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Phone Number</Label>
@@ -118,7 +132,7 @@ export default function MyProfile() {
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-semibold text-lg">Location</h3>
+              <h3 className="font-semibold text-lg text-primary">Location</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label>Street Address</Label>
@@ -143,10 +157,10 @@ export default function MyProfile() {
             </div>
 
             <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-semibold text-lg">Sim Platforms</h3>
+              <h3 className="font-semibold text-lg text-primary">Sim Platforms</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {SIM_PLATFORMS.map(p => (
-                  <label key={p} className="flex items-center gap-2 cursor-pointer">
+                  <label key={p} className="flex items-center gap-2 cursor-pointer group">
                     <Checkbox 
                       checked={form.sim_platforms.includes(p)}
                       onCheckedChange={checked => handleChange('sim_platforms', checked 
@@ -154,26 +168,25 @@ export default function MyProfile() {
                         : form.sim_platforms.filter(x => x !== p)
                       )} 
                     />
-                    <span className="text-sm">{p}</span>
+                    <span className="text-sm group-hover:text-primary transition-colors">{p}</span>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* Status Messages */}
             {status === 'success' && (
-              <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700 bg-green-50 p-3 rounded-lg border border-green-200">
                 <CheckCircle2 className="w-5 h-5" /> {message}
               </div>
             )}
             {status === 'error' && (
-              <div className="flex items-center gap-2 text-destructive bg-destructive/10 p-3 rounded-lg">
+              <div className="flex items-center gap-2 text-destructive bg-destructive/10 p-3 rounded-lg border border-destructive/20">
                 <AlertCircle className="w-5 h-5" /> {message}
               </div>
             )}
 
-            <Button type="submit" disabled={status === 'saving'} className="w-full">
-              {status === 'saving' ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Saving...</> : 'Save Changes'}
+            <Button type="submit" disabled={status === 'saving'} className="w-full h-12 text-lg">
+              {status === 'saving' ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Saving Changes...</> : 'Save Changes'}
             </Button>
           </form>
         </CardContent>

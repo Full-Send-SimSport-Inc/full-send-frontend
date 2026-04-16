@@ -285,11 +285,26 @@ add_action('rest_api_init', function () {
             }
 
             // Create the WordPress User
+            // Create the WordPress User
             $user_id = wp_create_user($email, $password, $email);
             
             if (is_wp_error($user_id)) {
                 return new WP_Error('creation_failed', $user_id->get_error_message(), ['status' => 500]);
             }
+
+            // --- NEW: Retrieve names from the Member Post ---
+            $first_name = get_post_meta($member_id, '_first_name', true);
+            $last_name  = get_post_meta($member_id, '_last_name', true);
+            $full_name  = trim("$first_name $last_name");
+
+            // --- NEW: Update the User Record with names ---
+            wp_update_user([
+                'ID'           => $user_id,
+                'first_name'   => $first_name,
+                'last_name'    => $last_name,
+                'display_name' => $full_name ? $full_name : $email,
+                'nickname'     => $first_name ? $first_name : $email,
+            ]);
 
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
@@ -301,7 +316,7 @@ add_action('rest_api_init', function () {
 
             return [
                 'status' => 'success',
-                'message' => 'Account created! You can now log in.'
+                'message' => 'Account created! Welcome, ' . ($first_name ?: $email)
             ];
         }
     ]);
@@ -337,4 +352,17 @@ add_shortcode('full_send_app', function() {
         'nonce'   => wp_create_nonce('wp_rest')
     ]);
     return '<div id="root"></div>';
+});
+
+/**
+ * Redirect non-admins away from wp-admin to the React Portal
+ */
+add_action('admin_init', function() {
+    if (defined('DOING_AJAX') && DOING_AJAX) return;
+    
+    // If they aren't an admin, send them to the frontend portal
+    if (!current_user_can('manage_options')) {
+        wp_redirect(home_url('/member-portal')); // Change this to your actual React route
+        exit;
+    }
 });
