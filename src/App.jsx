@@ -36,7 +36,7 @@ export default function App() {
               {/* Public Routes */}
               <Route path="/" element={<Join />} />
               <Route path="/meetings" element={<Meetings />} />
-              
+              <Route path="/my-profile" element={<MyProfile />} />
               {/* Account Setup Route */}
               <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
               
