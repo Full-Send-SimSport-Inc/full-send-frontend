@@ -62,6 +62,7 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
+            // --- STRICT PARENT VALIDATION ---
             if (isset($params['member_type']) && $params['member_type'] === 'junior') {
                 $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
                 $parent_email = sanitize_email($raw_email);
@@ -78,9 +79,15 @@ add_action('rest_api_init', function () {
                     'post_status' => 'any'
                 ]);
 
-                if ($parent_query->have_posts()) {
-                    $params['parent_id'] = $parent_query->posts[0]->ID;
+                if (!$parent_query->have_posts()) {
+                    return new WP_Error(
+                        'parent_not_found', 
+                        "No registered member found with email: '{$parent_email}'. Your parent/guardian must register first.", 
+                        ['status' => 400]
+                    );
                 }
+                
+                $params['parent_id'] = $parent_query->posts[0]->ID;
             }
 
             $post_id = wp_insert_post([
@@ -153,7 +160,6 @@ add_action('rest_api_init', function () {
             $post = get_post($data['id']);
             if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
 
-            // Handle Junior -> Parent link
             $parent_id = get_post_meta($post->ID, '_parent_id', true);
             $parent_name = get_post_meta($post->ID, '_parent_name', true);
             $parent_email = get_post_meta($post->ID, '_parent_email', true);
@@ -163,17 +169,10 @@ add_action('rest_api_init', function () {
                 $parent_email = get_post_meta($parent_id, '_email', true);
             }
 
-            // --- NEW: TWO WAY LINKAGE (Find Children) ---
             $children = [];
             $child_query = new WP_Query([
                 'post_type' => 'fs_member',
-                'meta_query' => [
-                    [
-                        'key' => '_parent_id',
-                        'value' => $post->ID,
-                        'compare' => '='
-                    ]
-                ]
+                'meta_query' => [['key' => '_parent_id', 'value' => $post->ID, 'compare' => '=']]
             ]);
 
             foreach ($child_query->posts as $cp) {
@@ -202,7 +201,7 @@ add_action('rest_api_init', function () {
                 'parent_id'         => $parent_id,
                 'parent_name'       => $parent_name,
                 'parent_email'      => $parent_email,
-                'children'          => $children // Added for two-way link
+                'children'          => $children
             ];
         }
     ]);
