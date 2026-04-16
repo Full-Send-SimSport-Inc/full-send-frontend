@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gamepad2, Heart } from 'lucide-react'; // Added icons
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -20,6 +20,7 @@ const SIM_PLATFORMS = [
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 export default function JuniorMemberForm({ onBack }) {
+  const [memberType, setMemberType] = useState('junior_racing'); // New state for selection
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     street_address: '', city: '', state: '',
@@ -30,7 +31,7 @@ export default function JuniorMemberForm({ onBack }) {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [submittedData, setSubmittedData] = useState(null); // Fixed state naming
+  const [submittedData, setSubmittedData] = useState(null);
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -47,7 +48,7 @@ export default function JuniorMemberForm({ onBack }) {
     try {
       const response = await base44.post('/join', {
         ...form,
-        member_type: 'junior'
+        member_type: memberType // Uses the selected type: 'junior_racing' or 'junior_supporting'
       });
       
       setSubmittedData({
@@ -103,6 +104,32 @@ export default function JuniorMemberForm({ onBack }) {
         <CardContent className="p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
             
+            {/* Membership Selection Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setMemberType('junior_racing')}
+                className={cn(
+                  "flex flex-col items-center p-4 rounded-xl border-2 transition-all gap-2",
+                  memberType === 'junior_racing' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
+                )}
+              >
+                <Gamepad2 className={cn("w-6 h-6", memberType === 'junior_racing' ? "text-primary" : "text-muted-foreground")} />
+                <span className="font-bold">Racing Junior</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMemberType('junior_supporting')}
+                className={cn(
+                  "flex flex-col items-center p-4 rounded-xl border-2 transition-all gap-2",
+                  memberType === 'junior_supporting' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
+                )}
+              >
+                <Heart className={cn("w-6 h-6", memberType === 'junior_supporting' ? "text-primary" : "text-muted-foreground")} />
+                <span className="font-bold">Supporting Junior</span>
+              </button>
+            </div>
+
             {/* Parent/Guardian Details */}
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
               <div className="flex items-center gap-2 mb-4 text-primary">
@@ -190,28 +217,30 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
             </div>
 
-            {/* Sim Racing */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Sim Racing Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Discord Username</Label>
-                  <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#1234" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Sim Platforms</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SIM_PLATFORMS.map(p => (
-                      <label key={p} className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox checked={form.sim_platforms.includes(p)}
-                          onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
-                        <span className="text-sm">{p}</span>
-                      </label>
-                    ))}
+            {/* Conditional Sim Racing Details - Only shows if 'junior_racing' is selected */}
+            {memberType === 'junior_racing' && (
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Sim Racing Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Discord Username</Label>
+                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#1234" />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Sim Platforms</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {SIM_PLATFORMS.map(p => (
+                        <label key={p} className="flex items-center gap-2 cursor-pointer">
+                          <Checkbox checked={form.sim_platforms.includes(p)}
+                            onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
+                          <span className="text-sm">{p}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
