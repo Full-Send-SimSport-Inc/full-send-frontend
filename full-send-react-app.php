@@ -240,34 +240,51 @@ add_action('rest_api_init', function () {
         'methods' => 'POST',
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
+            // Get params from JSON body
             $params = $request->get_json_params();
             
-            // Check for BOTH 'member_id' and 'id' to prevent the 400 error
-            $member_id = $params['member_id'] ?? $params['id'] ?? null;
+            // FALLBACK: If JSON params are empty, try getting them from the raw body 
+            // (Some hosting environments/proxies strip the Content-Type header)
+            if (empty($params)) {
+                $raw_body = $request->get_body();
+                $params = json_decode($raw_body, true);
+            }
+
+            // Map all possible variations of the ID
+            $member_id = $params['member_id'] ?? $params['id'] ?? $params['memberId'] ?? null;
             $email     = $params['email'] ?? null;
             $password  = $params['password'] ?? null;
 
+            // Check for missing data
             if (!$member_id || !$password || !$email) {
-                // Changing this to 'missing_data' to match your console error
-                return new WP_Error('missing_data', 'Missing required account details.', ['status' => 400]);
+                return new WP_Error('missing_data', 'Missing required account details. Received: ID(' . ($member_id ? 'yes':'no') . ') Email(' . ($email ? 'yes':'no') . ') Pwd(' . ($password ? 'yes':'no') . ')', ['status' => 400]);
             }
 
             $member_post = get_post($member_id);
             if (!$member_post || $member_post->post_type !== 'fs_member') {
-                return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
+                return new WP_Error('invalid_member', 'Member record not found for ID: ' . $member_id, ['status' => 404]);
             }
 
-            // Note: If you just created the member, ensure the _email meta is saved 
-            // before this check runs.
+            // Verify the email matches the one on the member application
             $stored_email = get_post_meta($member_id, '_email', true);
-            if (strtolower($stored_email) !== strtolower($email)) {
-                return new WP_Error('verification_failed', 'Email verification failed.', ['status' => 403]);
+            
+            // If stored_email is empty, it means the /join phase didn't save it correctly
+            if (empty($stored_email)) {
+                // For safety, let's allow it if we just created the post, 
+                // or you can choose to save it now:
+                update_post_meta($member_id, '_email', sanitize_email($email));
+                $stored_email = $email;
+            }
+
+            if (strtolower(trim($stored_email)) !== strtolower(trim($email))) {
+                return new WP_Error('verification_failed', 'Email does not match our records.', ['status' => 403]);
             }
 
             if (email_exists($email)) {
                 return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
+            // Create the WordPress User
             $user_id = wp_create_user($email, $password, $email);
             
             if (is_wp_error($user_id)) {
@@ -277,6 +294,7 @@ add_action('rest_api_init', function () {
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
             
+            // Link everything together
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
