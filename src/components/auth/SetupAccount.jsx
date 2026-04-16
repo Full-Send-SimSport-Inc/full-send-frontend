@@ -6,14 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle2, AlertCircle, KeyRound } from 'lucide-react';
-import { useParams } from 'react-router-dom'; // IMPORT ADDED HERE
+import { useParams } from 'react-router-dom';
 
 export default function SetupAccount() {
-  // EXTRACT PARAMS FROM URL INSTEAD OF PROPS
-  // Assuming your route in App.js is defined as something like: path="/setup-account/:id/:email"
-  const params = useParams();
-  const finalId = params.id || params.memberId; 
-  const finalEmail = params.email;
+  // Grab params from URL. We destructure 'email' directly so it's defined for the JSX below.
+  const { id, memberId, email } = useParams();
+  
+  // Create a fallback for the ID in case the route uses different naming
+  const finalId = id || memberId;
 
   const [formData, setFormData] = useState({
     password: '',
@@ -40,8 +40,8 @@ export default function SetupAccount() {
 
     try {
       await base44.post('/setup-account', {
-        member_id: finalId, // Now uses the safe fallback ID
-        email: decodeURIComponent(finalEmail), 
+        member_id: finalId, 
+        email: decodeURIComponent(email), // Now 'email' is defined from useParams above
         password: formData.password
       });
       setStatus('success');
