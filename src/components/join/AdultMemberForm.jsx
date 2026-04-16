@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart, MessageSquare } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart, MessageSquare, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -18,10 +18,21 @@ const SIM_PLATFORMS = [
 ];
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
+const COMMON_COUNTRIES = ["Australia", "New Zealand", "United Kingdom", "United States", "Canada"];
+
+const getStatePlaceholder = (country) => {
+  switch (country) {
+    case "United States": return "e.g. California";
+    case "Canada": return "e.g. Ontario";
+    case "New Zealand": return "e.g. Auckland";
+    case "United Kingdom": return "e.g. Greater London or County";
+    default: return "State / Province / Region";
+  }
+};
 
 export default function AdultMemberForm({ onBack }) {
   const [memberType, setMemberType] = useState('');
-  const [hasDiscord, setHasDiscord] = useState(null); // null, true, or false
+  const [hasDiscord, setHasDiscord] = useState(null);
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     street_address: '', city: '', state: '',
@@ -171,111 +182,70 @@ export default function AdultMemberForm({ onBack }) {
             <div className="space-y-4">
               <Label className="text-base font-semibold">Select Member Type *</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => setMemberType('racing')}
-                  className={cn(
-                    "flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2",
-                    memberType === 'racing' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
-                  )}
-                >
+                <button type="button" onClick={() => setMemberType('racing')} className={cn("flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2", memberType === 'racing' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40")}>
                   <Gamepad2 className={cn("w-6 h-6", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Racing Member</span>
-                  <span className="text-xs text-muted-foreground">Competes in official events</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setMemberType('supporting')}
-                  className={cn(
-                    "flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2",
-                    memberType === 'supporting' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
-                  )}
-                >
+                <button type="button" onClick={() => setMemberType('supporting')} className={cn("flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2", memberType === 'supporting' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40")}>
                   <Heart className={cn("w-6 h-6", memberType === 'supporting' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Supporting Member</span>
-                  <span className="text-xs text-muted-foreground">Supporter/Parent/Guardian</span>
                 </button>
               </div>
             </div>
 
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>First Name *</Label>
-                  <Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Last Name *</Label>
-                  <Input required value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} />
-                </div>
+                <div className="space-y-2"><Label>First Name *</Label><Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Last Name *</Label><Input required value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} /></div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Email Address *</Label>
-                  <Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
-                </div>
+                <div className="space-y-2"><Label>Email Address *</Label><Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Phone Number</Label><Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Street Address</Label>
-                <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-4 pt-4 border-t">
                 <div className="space-y-2">
-                  <Label>City *</Label>
-                  <Input required value={form.city} onChange={e => handleChange('city', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>State *</Label>
-                  <Select value={form.state} onValueChange={v => handleChange('state', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <Label className="flex items-center gap-2"><Globe className="w-4 h-4" /> Country *</Label>
+                  <Select value={form.country} onValueChange={v => { handleChange('country', v); handleChange('state', ''); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {COMMON_COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      <SelectItem value="Other">Other / International</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Postcode</Label>
-                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
+
+                <div className="space-y-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2"><Label>City *</Label><Input required value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
+                  <div className="space-y-2">
+                    <Label>{form.country === 'Australia' ? 'State *' : 'State/Province *'}</Label>
+                    {form.country === 'Australia' ? (
+                      <Select value={form.state} onValueChange={v => handleChange('state', v)}>
+                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                        <SelectContent>{AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                      </Select>
+                    ) : (
+                      <Input required value={form.state} onChange={e => handleChange('state', e.target.value)} placeholder={getStatePlaceholder(form.country)} />
+                    )}
+                  </div>
+                  <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} /></div>
                 </div>
               </div>
 
-              {/* Discord Logic Block */}
               <div className="space-y-4 p-4 bg-muted/50 rounded-xl border border-dashed">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4" /> Do you have a Discord account? *
-                </Label>
+                <Label className="text-sm font-semibold flex items-center gap-2"><MessageSquare className="w-4 h-4" /> Do you have a Discord account? *</Label>
                 <div className="flex gap-4">
-                  <Button 
-                    type="button" 
-                    variant={hasDiscord === true ? "default" : "outline"} 
-                    onClick={() => setHasDiscord(true)}
-                    className="flex-1"
-                  >Yes</Button>
-                  <Button 
-                    type="button" 
-                    variant={hasDiscord === false ? "default" : "outline"} 
-                    onClick={() => { setHasDiscord(false); handleChange('discord_username', ''); }}
-                    className="flex-1"
-                  >No</Button>
+                  <Button type="button" variant={hasDiscord === true ? "default" : "outline"} onClick={() => setHasDiscord(true)} className="flex-1">Yes</Button>
+                  <Button type="button" variant={hasDiscord === false ? "default" : "outline"} onClick={() => { setHasDiscord(false); handleChange('discord_username', ''); }} className="flex-1">No</Button>
                 </div>
-
                 <AnimatePresence mode="wait">
                   {hasDiscord === true && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 pt-2">
                       <Label>Discord Username *</Label>
-                      <Input 
-                        required 
-                        value={form.discord_username} 
-                        onChange={e => handleChange('discord_username', e.target.value)} 
-                        placeholder="username#0000" 
-                      />
+                      <Input required value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
                     </motion.div>
                   )}
                   {hasDiscord === false && (
@@ -292,10 +262,7 @@ export default function AdultMemberForm({ onBack }) {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-2">
                     {SIM_PLATFORMS.map(p => (
                       <label key={p} className="flex items-center gap-2 cursor-pointer group">
-                        <Checkbox
-                          checked={form.sim_platforms.includes(p)}
-                          onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))}
-                        />
+                        <Checkbox checked={form.sim_platforms.includes(p)} onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
                         <span className="text-sm group-hover:text-primary transition-colors">{p}</span>
                       </label>
                     ))}
@@ -306,17 +273,11 @@ export default function AdultMemberForm({ onBack }) {
 
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg border">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-1" />
-              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer font-normal">
-                I agree to become a member of Full Send SimSports Inc. and consent to my personal information being stored for membership management purposes. *
-              </Label>
+              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer font-normal">I agree to become a member of Full Send SimSports Inc. and consent to my personal information being stored for membership management purposes. *</Label>
             </div>
 
-            {error && (
-              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 border border-destructive/20 rounded-lg px-4 py-3">
-                <AlertCircle className="w-4 h-4 shrink-0" />{error}
-              </div>
-            )}
-
+            {error && <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 border border-destructive/20 rounded-lg px-4 py-3"><AlertCircle className="w-4 h-4 shrink-0" />{error}</div>}
+            
             <Button type="submit" disabled={submitting} size="lg" className="w-full text-base font-semibold shadow-lg shadow-primary/20">
               {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Application'}
             </Button>
