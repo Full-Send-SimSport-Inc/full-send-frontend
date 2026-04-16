@@ -109,6 +109,31 @@ add_action('rest_api_init', function () {
             return $members;
         }
     ]);
+	
+	// Get Single Member
+    register_rest_route($namespace, '/members/(?P<id>\d+)', [
+        'methods' => 'GET',
+        'permission_callback' => function() { return current_user_can('edit_posts'); },
+        'callback' => function($data) {
+            $post = get_post($data['id']);
+            if (!$post || $post->post_type !== 'fs_member') return new WP_Error('no_member', 'Not found', ['status' => 404]);
+            
+            $meta = get_post_meta($post->ID);
+            return [
+                'id' => $post->ID,
+                'first_name' => $meta['_first_name'][0] ?? '',
+                'last_name' => $meta['_last_name'][0] ?? '',
+                'email' => $meta['_email'][0] ?? '',
+                'phone' => $meta['_phone'][0] ?? '',
+                'city' => $meta['_city'][0] ?? '',
+                'state' => $meta['_state'][0] ?? '',
+                'status' => $meta['_status'][0] ?? 'pending',
+                'member_type' => $meta['_member_type'][0] ?? 'adult',
+                'created_date' => $post->post_date,
+                'notes' => $meta['_notes'][0] ?? ''
+            ];
+        }
+    ]);
 });
 
 // 3. Enqueue the React App on a specific page
