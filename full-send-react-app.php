@@ -40,6 +40,8 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true'
     ]);
 
+// NEW: Handle Form Submission (Join)
+    register_rest_route($namespace, '/join', [
     // Get All Members
     register_rest_route($namespace, '/members', [
         'methods' => 'GET',
