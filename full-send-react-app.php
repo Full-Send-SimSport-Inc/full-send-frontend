@@ -37,14 +37,17 @@ add_action('init', function() {
 });
 
 add_action('rest_api_init', function () {
-    // --- UPDATED: Namespace changed to match React frontend requests ---
     $namespace = 'full-send/v1';
 
     register_rest_route($namespace, '/me', [
         'methods' => 'GET',
         'callback' => function() {
+            // --- FIXED: Return 200 OK for guests instead of 401 Error ---
             if (!is_user_logged_in()) {
-                return new WP_Error('no_auth', 'Not logged in', ['status' => 401]);
+                return rest_ensure_response([
+                    'authenticated' => false,
+                    'user' => null
+                ]);
             }
 
             $user = wp_get_current_user();
@@ -70,13 +73,14 @@ add_action('rest_api_init', function () {
                 ];
             }
 
-            return [
+            return rest_ensure_response([
+                'authenticated'  => true,
                 'id'             => $user->ID,
                 'email'          => $user->user_email,
                 'display_name'   => $user->display_name,
                 'roles'          => $user->roles,
                 'member_details' => $member_details
-            ];
+            ]);
         },
         'permission_callback' => '__return_true'
     ]);
@@ -139,7 +143,8 @@ add_action('rest_api_init', function () {
             
             update_post_meta($post_id, '_status', 'pending');
 
-            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id];
+            // --- FIXED: Return the email so the frontend can trigger the setup-account phase ---
+            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
         }
     ]);
 
@@ -303,7 +308,6 @@ add_action('rest_api_init', function () {
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
     wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
-    // --- UPDATED: restUrl updated to match new namespace ---
     wp_localize_script('fs-react-js', 'appParams', [
         'restUrl' => esc_url_raw(rest_url('full-send/v1')),
         'nonce'   => wp_create_nonce('wp_rest')
