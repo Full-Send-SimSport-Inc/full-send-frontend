@@ -31,6 +31,7 @@ export default function JuniorMemberForm({ onBack }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submittedData, setSubmittedData] = useState(null); // Fixed state naming
+  const [memberType, setMemberType] = useState('junior_racing'); // Default to racing
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -40,6 +41,12 @@ export default function JuniorMemberForm({ onBack }) {
       setError("You must agree to the terms to continue.");
       return;
     }
+    
+    const payload = { 
+        ...form, 
+        member_type: memberType, // Ensure this is sent to PHP
+        status: 'pending' 
+    };
 
     setSubmitting(true);
     setError('');
@@ -123,6 +130,39 @@ export default function JuniorMemberForm({ onBack }) {
                 Your parent/guardian will receive an email to approve this junior membership application.
               </p>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+            <button
+                type="button"
+                onClick={() => setMemberType('junior_racing')}
+                className={cn(
+                "flex flex-col items-center p-4 rounded-xl border-2 transition-all gap-2",
+                memberType === 'junior_racing' ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                )}
+            >
+                <Gamepad2 className="w-6 h-6" />
+                <span className="font-bold">Racing Junior</span>
+            </button>
+            <button
+                type="button"
+                onClick={() => setMemberType('junior_supporting')}
+                className={cn(
+                "flex flex-col items-center p-4 rounded-xl border-2 transition-all gap-2",
+                memberType === 'junior_supporting' ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                )}
+            >
+                <Heart className="w-6 h-6" />
+                <span className="font-bold">Supporting Junior</span>
+            </button>
+            </div>
+
+            {/* Only show Sim Platforms if Racing is selected */}
+            {memberType === 'junior_racing' && (
+            <div className="space-y-4">
+                <Label>Sim Platforms</Label>
+                {/* ... Sim Platform Checkboxes ... */}
+            </div>
+            )}
 
             {/* Junior Personal Details */}
             <div>

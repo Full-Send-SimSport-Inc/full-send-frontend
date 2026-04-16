@@ -238,49 +238,37 @@ add_action('rest_api_init', function () {
     // Change the route name from /setup-password to /setup-account to match the React app
     register_rest_route($namespace, '/setup-account', [
         'methods' => 'POST',
-        'permission_callback' => '__return_true', 
+        'permission_callback' => '__return_true',
         'callback' => function($request) {
             $params = $request->get_json_params();
             $member_id = $params['member_id'] ?? null;
-            $email     = $params['email'] ?? null;
-            $password  = $params['password'] ?? null;
+            $email     = sanitize_email($params['email'] ?? '');
+            $password  = $params['password'] ?? '';
 
-            if (!$member_id || !$password || !$email) {
-                return new WP_Error('missing_params', 'Missing required fields.', ['status' => 400]);
+            if (!$member_id || !$email || !$password) {
+                return new WP_Error('missing_data', 'Missing required account details.', ['status' => 400]);
             }
 
-            $member_post = get_post($member_id);
-            if (!$member_post || $member_post->post_type !== 'fs_member') {
-                return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
-            }
-
-            $stored_email = get_post_meta($member_id, '_email', true);
-            if (strtolower($stored_email) !== strtolower($email)) {
-                return new WP_Error('verification_failed', 'Email verification failed.', ['status' => 403]);
-            }
-
+            // Check if user already exists
             if (email_exists($email)) {
                 return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
-            // Create the WordPress User
+            // Create WordPress User
             $user_id = wp_create_user($email, $password, $email);
             
             if (is_wp_error($user_id)) {
-                return new WP_Error('creation_failed', $user_id->get_error_message(), ['status' => 500]);
+                return new WP_Error('create_failed', $user_id->get_error_message(), ['status' => 500]);
             }
 
-            $user = new WP_User($user_id);
-            $user->set_role('subscriber');
-            
-            // Link the WordPress User to the Member Post
+            // Link the Member Record to the User Account
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
 
             return [
                 'status' => 'success',
-                'message' => 'Account created! You can now log in.'
+                'message' => 'Account created successfully. You can now log in.'
             ];
         }
     ]);
