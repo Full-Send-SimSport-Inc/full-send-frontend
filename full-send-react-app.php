@@ -7,6 +7,25 @@
 
 if (!defined('ABSPATH')) exit;
 
+function fs_register_member_post_type() {
+    register_post_type('fs_member', [
+        'labels' => [
+            'name' => 'FS Members',
+            'singular_name' => 'Member',
+            'add_new' => 'Add New Member',
+            'edit_item' => 'Edit Member',
+        ],
+        'public' => false,
+        'show_ui' => true,      // This puts it in the sidebar
+        'show_in_menu' => true,
+        'menu_position' => 5,
+        'menu_icon' => 'dashicons-groups', // A nice group icon
+        'supports' => ['title', 'custom-fields'],
+        'has_archive' => false,
+    ]);
+}
+add_action('init', 'fs_register_member_post_type');
+
 // 1. Register AGM Meetings (Custom Post Type)
 add_action('init', function() {
     register_post_type('agm_meeting', [
@@ -51,12 +70,24 @@ add_action('rest_api_init', function () {
             $title = sanitize_text_field($params['first_name'] . ' ' . $params['last_name'] . ' - Application');
 
             // 2. Insert into the 'agm_meeting' Post Type (or you can create a new 'applications' CPT)
-            $post_id = wp_insert_post([
-                'post_title'    => $title,
-                'post_type'     => 'agm_meeting', // Saving it here so you can see it in your sidebar
-                'post_status'   => 'publish',
-                'post_content'  => 'New Membership Application received.',
-            ]);
+            // Inside your /join callback:
+			$post_id = wp_insert_post([
+				'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
+				'post_type'    => 'fs_member', // Changed from agm_meeting
+				'post_status'  => 'publish',
+				'post_content' => 'New Membership Application received.',
+			]);
+
+			if ($post_id) {
+				// Store all the metadata so the React Dashboard can find it later
+				update_post_meta($post_id, '_first_name', sanitize_text_field($params['first_name']));
+				update_post_meta($post_id, '_last_name', sanitize_text_field($params['last_name']));
+				update_post_meta($post_id, '_email', sanitize_email($params['email']));
+				update_post_meta($post_id, '_phone', sanitize_text_field($params['phone'] ?? ''));
+				update_post_meta($post_id, '_city', sanitize_text_field($params['city'] ?? ''));
+				update_post_meta($post_id, '_state', sanitize_text_field($params['state'] ?? ''));
+				update_post_meta($post_id, '_status', 'pending'); // Always start as pending
+			}
 
             if (is_wp_error($post_id)) {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
@@ -80,35 +111,29 @@ add_action('rest_api_init', function () {
     ]);
 
     // Get All Members
-    register_rest_route($namespace, '/members', [
-        'methods' => 'GET',
-        'permission_callback' => function() { return current_user_can('edit_posts'); },
-        'callback' => function() {
-            // Pull all fs_member posts
-            $query = new WP_Query([
-                'post_type' => 'fs_member', 
-                'posts_per_page' => -1,
-                'post_status' => 'publish'
-            ]);
-            
-            $members = [];
-            foreach ($query->posts as $post) {
-                $meta = get_post_meta($post->ID);
-                $members[] = [
-                    'id' => $post->ID,
-                    'first_name' => $meta['_first_name'][0] ?? '',
-                    'last_name' => $meta['_last_name'][0] ?? '',
-                    'email' => $meta['_email'][0] ?? '',
-                    'phone' => $meta['_phone'][0] ?? '',
-                    'city' => $meta['_city'][0] ?? '',
-                    'state' => $meta['_state'][0] ?? '',
-                    'status' => $meta['_status'][0] ?? 'pending',
-                    'created_date' => $post->post_date, // This feeds the "Date Joined" column
-                ];
-            }
-            return $members;
-        }
-    ]);
+	register_rest_route($namespace, '/members', [
+		'methods' => 'GET',
+		'permission_callback' => function() { return current_user_can('edit_posts'); },
+		'callback' => function() {
+			$query = new WP_Query([
+				'post_type' => 'fs_member', // Pulling from members now!
+				'posts_per_page' => -1,
+			]);
+			
+			$members = [];
+			foreach ($query->posts as $post) {
+				$members[] = [
+					'id' => $post->ID,
+					'first_name' => get_post_meta($post->ID, '_first_name', true),
+					'last_name' => get_post_meta($post->ID, '_last_name', true),
+					'email' => get_post_meta($post->ID, '_email', true),
+					'status' => get_post_meta($post->ID, '_status', true) ?: 'pending',
+					'created_date' => $post->post_date,
+				];
+			}
+			return $members;
+		}
+	]);
 	
 	// Get Single Member
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
