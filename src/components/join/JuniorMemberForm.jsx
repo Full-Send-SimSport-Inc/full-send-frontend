@@ -1,0 +1,224 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { base44 } from '@/api/base44Client';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+
+const SIM_PLATFORMS = [
+  "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
+  "rFactor 2", "Automobilista 2", "Gran Turismo", "F1 Series",
+  "LMU", "Project Motor Racing", "Rennsport", "Other"
+];
+
+const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
+
+export default function JuniorMemberForm({ onBack }) {
+  const [form, setForm] = useState({
+    first_name: '', last_name: '', email: '', phone: '',
+    street_address: '', city: '', state: '',
+    postcode: '', country: 'Australia', discord_username: '',
+    sim_platforms: [], agreed_to_terms: false,
+    dob_day: '', dob_month: '', dob_year: '',
+    parent_email: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.agreed_to_terms) {
+      setError("You must agree to the terms.");
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await base44.post('/join', {
+        ...form,
+        member_type: 'junior'
+      });
+      setSubmitted(true);
+    } catch (err) {
+      // EXTRACT WORDPRESS ERROR MESSAGE
+      const serverMessage = err.response?.data?.message || err.message || "Submission failed.";
+      setError(serverMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <Card className="border-0 shadow-xl overflow-hidden bg-white/80 backdrop-blur">
+        <CardContent className="pt-12 pb-12 px-6 text-center">
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-3xl font-black mb-4">Application Received!</h2>
+            <p className="text-muted-foreground mb-8 text-lg">
+              Thank you for applying. The committee will review your application shortly.
+            </p>
+            <Button onClick={onBack} variant="outline" size="lg">Return to Home</Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+      className="max-w-2xl mx-auto py-10 px-6">
+      <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-1">
+        ← Back to membership options
+      </button>
+
+      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+        <ShieldCheck className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Junior Membership (Under 18)</p>
+          <p className="text-xs text-amber-700 mt-1">
+            A parent or guardian must be a <strong>registered member</strong> of Full Send SimSports.
+            Enter their registered email below — they will be contacted to confirm consent before this application is approved.
+          </p>
+        </div>
+      </div>
+
+      <Card className="border-0 shadow-xl shadow-primary/5">
+        <CardContent className="p-6 md:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
+              <Label className="font-semibold">Parent / Guardian Registered Member Email *</Label>
+              <p className="text-xs text-muted-foreground">This must be the email address of an existing Full Send SimSports member.</p>
+              <Input
+                type="email"
+                required
+                value={form.parent_email}
+                onChange={e => handleChange('parent_email', e.target.value)}
+                placeholder="parent@example.com"
+              />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Junior's Personal Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>First Name *</Label>
+                  <Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} placeholder="Alex" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Last Name *</Label>
+                  <Input required value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} placeholder="Smith" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email Address *</Label>
+                  <Input required type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} placeholder="alex@example.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Phone Number</Label>
+                  <Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="0400 000 000" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Date of Birth *</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Select required value={form.dob_day} onValueChange={v => handleChange('dob_day', v)}>
+                      <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
+                      <SelectContent>{Array.from({ length: 31 }, (_, i) => i + 1).map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select required value={form.dob_month} onValueChange={v => handleChange('dob_month', v)}>
+                      <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
+                      <SelectContent>{['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Select required value={form.dob_year} onValueChange={v => handleChange('dob_year', v)}>
+                      <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
+                      <SelectContent>{Array.from({ length: 17 }, (_, i) => new Date().getFullYear() - 8 - i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Address</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Street Address</Label>
+                  <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" />
+                </div>
+                <div className="space-y-2">
+                  <Label>City / Suburb</Label>
+                  <Input value={form.city} onChange={e => handleChange('city', e.target.value)} placeholder="Melbourne" />
+                </div>
+                <div className="space-y-2">
+                  <Label>State</Label>
+                  <Select value={form.state} onValueChange={v => handleChange('state', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                    <SelectContent>{AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Postcode</Label>
+                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} placeholder="3000" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Country</Label>
+                  <Input value={form.country} onChange={e => handleChange('country', e.target.value)} />
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Sim Racing Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Discord Username</Label>
+                  <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#1234" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Sim Platforms (select all that apply)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SIM_PLATFORMS.map(p => (
+                      <label key={p} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox checked={form.sim_platforms.includes(p)}
+                          onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
+                        <span className="text-sm">{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
+              <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
+              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+                I agree to become a junior member of Full Send SimSports Inc. I understand that my parent or guardian must confirm consent before my membership is activated. *
+              </Label>
+            </div>
+
+            {error && (
+              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-lg px-4 py-3">
+                <AlertCircle className="w-4 h-4 shrink-0" />{error}
+              </div>
+            )}
+
+            <Button type="submit" disabled={submitting} size="lg" className="w-full text-base font-semibold">
+              {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Junior Application'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
