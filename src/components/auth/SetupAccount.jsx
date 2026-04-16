@@ -32,8 +32,10 @@ export default function SetupAccount({ memberId, email }) {
     setErrorMessage('');
 
     try {
+      // FIXED: Added the email to the payload so WordPress can create the user account
       await base44.post('/setup-account', {
         member_id: memberId,
+        email: email, 
         password: formData.password
       });
       setStatus('success');
