@@ -42,6 +42,43 @@ add_action('rest_api_init', function () {
 
 // NEW: Handle Form Submission (Join)
     register_rest_route($namespace, '/join', [
+        'methods' => 'POST',
+        'permission_callback' => '__return_true',
+        'callback' => function($request) {
+            $params = $request->get_json_params();
+            
+            // 1. Create a "Title" for the application entry
+            $title = sanitize_text_field($params['first_name'] . ' ' . $params['last_name'] . ' - Application');
+
+            // 2. Insert into the 'agm_meeting' Post Type (or you can create a new 'applications' CPT)
+            $post_id = wp_insert_post([
+                'post_title'    => $title,
+                'post_type'     => 'agm_meeting', // Saving it here so you can see it in your sidebar
+                'post_status'   => 'publish',
+                'post_content'  => 'New Membership Application received.',
+            ]);
+
+            if (is_wp_error($post_id)) {
+                return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
+            }
+
+            // 3. Save all the form data as "Custom Fields" (Metadata)
+            foreach ($params as $key => $value) {
+                if (is_array($value)) {
+                    update_post_meta($post_id, '_' . $key, implode(', ', $value));
+                } else {
+                    update_post_meta($post_id, '_' . $key, sanitize_text_field($value));
+                }
+            }
+
+            return [
+                'status' => 'success',
+                'message' => 'Application Submitted!',
+                'id' => $post_id
+            ];
+        }
+    ]);
+
     // Get All Members
     register_rest_route($namespace, '/members', [
         'methods' => 'GET',
