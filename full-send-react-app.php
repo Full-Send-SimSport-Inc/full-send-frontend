@@ -70,12 +70,11 @@ add_action('rest_api_init', function () {
             $title = sanitize_text_field($params['first_name'] . ' ' . $params['last_name'] . ' - Application');
 
             // 2. Insert into the 'agm_meeting' Post Type (or you can create a new 'applications' CPT)
-            // Inside your /join callback:
+			// Inside your /join callback
 			$post_id = wp_insert_post([
 				'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
-				'post_type'    => 'fs_member', // Changed from agm_meeting
+				'post_type'    => 'fs_member',
 				'post_status'  => 'publish',
-				'post_content' => 'New Membership Application received.',
 			]);
 
 			if ($post_id) {
@@ -90,21 +89,21 @@ add_action('rest_api_init', function () {
 				update_post_meta($post_id, '_city', sanitize_text_field($params['city']));
 				update_post_meta($post_id, '_state', sanitize_text_field($params['state']));
 				update_post_meta($post_id, '_postcode', sanitize_text_field($params['postcode']));
+				update_post_meta($post_id, '_country', sanitize_text_field($params['country'] ?? 'Australia'));
 				
-				// Membership Specifics
-				update_post_meta($post_id, '_member_type', sanitize_text_field($params['member_type'])); // adult or junior
+				// Membership & Social
+				update_post_meta($post_id, '_member_type', sanitize_text_field($params['member_type']));
 				update_post_meta($post_id, '_discord_username', sanitize_text_field($params['discord_username']));
 				update_post_meta($post_id, '_status', 'pending');
 				
-				// Platforms (Array handling)
-				if (!empty($params['sim_platforms'])) {
-					update_post_meta($post_id, '_sim_platforms', $params['sim_platforms']);
-				}
+				// Platforms (Saves the whole array)
+				update_post_meta($post_id, '_sim_platforms', $params['sim_platforms'] ?? []);
 
-				// Junior specific fields (if they exist)
-				if (isset($params['parent_name'])) {
+				// Junior Fields (captured if present)
+				if (!empty($params['parent_name'])) {
 					update_post_meta($post_id, '_parent_name', sanitize_text_field($params['parent_name']));
 					update_post_meta($post_id, '_parent_email', sanitize_email($params['parent_email']));
+					update_post_meta($post_id, '_parent_phone', sanitize_text_field($params['parent_phone']));
 				}
 			}
 
@@ -134,26 +133,28 @@ add_action('rest_api_init', function () {
 		'methods' => 'GET',
 		'permission_callback' => function() { return current_user_can('edit_posts'); },
 		'callback' => function() {
-			$query = new WP_Query([
-				'post_type' => 'fs_member', // Pulling from members now!
-				'posts_per_page' => -1,
-			]);
-			
-			$members = [];
-			foreach ($query->posts as $post) {
-				$members[] = [
-					'id'           => $post->ID,
-					'first_name'   => get_post_meta($post->ID, '_first_name', true),
-					'last_name'    => get_post_meta($post->ID, '_last_name', true),
-					'email'        => get_post_meta($post->ID, '_email', true),
-					'city'         => get_post_meta($post->ID, '_city', true),   // ADDED
-					'state'        => get_post_meta($post->ID, '_state', true),  // ADDED
-					'status'       => get_post_meta($post->ID, '_status', true) ?: 'pending',
-					'created_date' => $post->post_date,
-				];
-			}
-			return $members;
-		}
+            $query = new WP_Query([
+                'post_type' => 'fs_member',
+                'posts_per_page' => -1,
+            ]);
+            
+            $members = [];
+            foreach ($query->posts as $post) {
+                $members[] = [
+                    'id'           => $post->ID,
+                    'first_name'   => get_post_meta($post->ID, '_first_name', true),
+                    'last_name'    => get_post_meta($post->ID, '_last_name', true),
+                    'email'        => get_post_meta($post->ID, '_email', true),
+                    'phone'        => get_post_meta($post->ID, '_phone', true), // Added
+                    'city'         => get_post_meta($post->ID, '_city', true),
+                    'state'        => get_post_meta($post->ID, '_state', true),
+                    'member_type'  => get_post_meta($post->ID, '_member_type', true), // Added
+                    'status'       => get_post_meta($post->ID, '_status', true) ?: 'pending',
+                    'created_date' => $post->post_date,
+                ];
+            }
+            return $members;
+        }
 	]);
 	
 	// Get Single Member
@@ -161,23 +162,34 @@ add_action('rest_api_init', function () {
         'methods' => 'GET',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
         'callback' => function($data) {
-            $post = get_post($data['id']);
-            if (!$post || $post->post_type !== 'fs_member') return new WP_Error('no_member', 'Not found', ['status' => 404]);
-            
-            $meta = get_post_meta($post->ID);
-            return [
-                'id' => $post->ID,
-                'first_name' => $meta['_first_name'][0] ?? '',
-                'last_name' => $meta['_last_name'][0] ?? '',
-                'email' => $meta['_email'][0] ?? '',
-                'phone' => $meta['_phone'][0] ?? '',
-                'city' => $meta['_city'][0] ?? '',
-                'state' => $meta['_state'][0] ?? '',
-                'status' => $meta['_status'][0] ?? 'pending',
-                'member_type' => $meta['_member_type'][0] ?? 'adult',
-                'created_date' => $post->post_date,
-                'notes' => $meta['_notes'][0] ?? ''
-            ];
+			// callback for /members/{id}
+			$post = get_post($data['id']);
+			$meta = get_post_custom($post->ID);
+
+			// Helper to clean up WP's messy meta array format
+			$get_meta = function($key) use ($meta) {
+				return isset($meta[$key][0]) ? maybe_unserialize($meta[$key][0]) : '';
+			};
+
+			return [
+				'id'               => $post->ID,
+				'first_name'       => get_post_meta($post->ID, '_first_name', true),
+				'last_name'        => get_post_meta($post->ID, '_last_name', true),
+				'email'            => get_post_meta($post->ID, '_email', true),
+				'phone'            => get_post_meta($post->ID, '_phone', true),
+				'street_address'   => get_post_meta($post->ID, '_street_address', true),
+				'city'             => get_post_meta($post->ID, '_city', true),
+				'state'            => get_post_meta($post->ID, '_state', true),
+				'postcode'         => get_post_meta($post->ID, '_postcode', true),
+				'discord_username' => get_post_meta($post->ID, '_discord_username', true),
+				'member_type'      => get_post_meta($post->ID, '_member_type', true),
+				'sim_platforms'    => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
+				'status'           => get_post_meta($post->ID, '_status', true) ?: 'pending',
+				'created_date'     => $post->post_date,
+				// Parents (for juniors)
+				'parent_name'      => get_post_meta($post->ID, '_parent_name', true),
+				'parent_email'     => get_post_meta($post->ID, '_parent_email', true),
+			];
         }
     ]);
 });
