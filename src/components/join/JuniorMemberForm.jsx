@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -20,6 +20,7 @@ const SIM_PLATFORMS = [
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 export default function JuniorMemberForm({ onBack }) {
+  const [hasDiscord, setHasDiscord] = useState(null);
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     street_address: '', city: '', state: '',
@@ -29,7 +30,7 @@ export default function JuniorMemberForm({ onBack }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [submittedMemberId, setSubmittedMemberId] = useState(null); // Captured member ID
+  const [submittedMemberId, setSubmittedMemberId] = useState(null);
   const [password, setPassword] = useState('');
   const [accountCreated, setAccountCreated] = useState(false);
   const [error, setError] = useState('');
@@ -43,7 +44,6 @@ export default function JuniorMemberForm({ onBack }) {
     e.preventDefault();
 
     if (submitted) {
-      // Step 2: Create Account
       setSubmitting(true);
       setError('');
       try {
@@ -51,7 +51,7 @@ export default function JuniorMemberForm({ onBack }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            member_id: submittedMemberId, // Correctly passing the ID
+            member_id: submittedMemberId,
             email: form.email,
             password: password
           }),
@@ -67,7 +67,6 @@ export default function JuniorMemberForm({ onBack }) {
         setSubmitting(false);
       }
     } else {
-      // Step 1: Submit Application
       if (!form.agreed_to_terms) {
         setError('Parent/Guardian agreement is required.');
         return;
@@ -79,7 +78,7 @@ export default function JuniorMemberForm({ onBack }) {
       try {
         const res = await base44.entities.Member.create({ ...form, status: 'pending', member_type: 'junior' });
         
-        setSubmittedMemberId(res.id); // Capturing generated ID
+        setSubmittedMemberId(res.id);
         setSubmitted(true);
         window.scrollTo(0, 0);
       } catch (err) {
@@ -183,14 +182,14 @@ export default function JuniorMemberForm({ onBack }) {
                   <Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone Number *</Label>
-                  <Input required value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
+                  <Label>Phone Number</Label>
+                  <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Street Address *</Label>
-                <Input required value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
+                <Label>Street Address</Label>
+                <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -208,14 +207,42 @@ export default function JuniorMemberForm({ onBack }) {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Postcode *</Label>
-                  <Input required value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
+                  <Label>Postcode</Label>
+                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Discord Username (Optional)</Label>
-                <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
+              <div className="space-y-4 pt-2">
+                <Label className="text-sm font-semibold">Do you have a Discord account?</Label>
+                <div className="flex gap-4">
+                  <button 
+                    type="button" 
+                    onClick={() => setHasDiscord(true)}
+                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === true ? "bg-primary text-white" : "bg-background")}
+                  >Yes</button>
+                  <button 
+                    type="button" 
+                    onClick={() => {setHasDiscord(false); handleChange('discord_username', '');}}
+                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === false ? "bg-primary text-white" : "bg-background")}
+                  >No</button>
+                </div>
+
+                {hasDiscord === true && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
+                    <Label>Discord Username</Label>
+                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
+                  </motion.div>
+                )}
+
+                {hasDiscord === false && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-blue-50 text-blue-700 rounded-lg text-sm flex gap-3">
+                    <MessageSquare className="w-5 h-5 shrink-0" />
+                    <div>
+                      <p className="font-semibold">Discord is required for league communication.</p>
+                      <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="underline font-bold">Create an account here</a> then return to complete your application.
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               <div className="space-y-3 pt-2">
