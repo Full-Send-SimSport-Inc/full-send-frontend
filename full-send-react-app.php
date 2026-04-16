@@ -91,20 +91,12 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            // Log incoming request for debugging (Check your error_log if it fails)
-            error_log('Join Application Params: ' . print_r($params, true));
-
-            $member_type = $params['member_type'] ?? '';
-            
-            // Check if it's any flavor of Junior
-            $is_junior = str_contains($member_type, 'junior');
-
-            if ($is_junior) {
-                // Collect any possible variation of parent email
-                $parent_email = sanitize_email($params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '');
+            if (isset($params['member_type']) && $params['member_type'] === 'junior') {
+                $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
+                $parent_email = sanitize_email($raw_email);
                 
                 if (empty($parent_email)) {
-                    return new WP_Error('missing_parent', "Parent email is required for Junior applications.", ['status' => 400]);
+                    return new WP_Error('missing_email', "Parent email required for Juniors.", ['status' => 400]);
                 }
 
                 $parent_query = new WP_Query([
@@ -116,25 +108,32 @@ add_action('rest_api_init', function () {
                 ]);
 
                 if (!$parent_query->have_posts()) {
-                    return new WP_Error('parent_not_found', "No record found for parent: {$parent_email}. Parents must register first.", ['status' => 400]);
+                    return new WP_Error(
+                        'parent_not_found', 
+                        "No registered member found with email: '{$parent_email}'. Your parent/guardian must register first.", 
+                        ['status' => 400]
+                    );
                 }
+                
                 $params['parent_id'] = $parent_query->posts[0]->ID;
             }
 
-            // Create the post
             $post_id = wp_insert_post([
-                'post_title'   => sanitize_text_field(($params['first_name'] ?? '') . ' ' . ($params['last_name'] ?? '')),
+                'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
                 'post_type'    => 'fs_member',
                 'post_status'  => 'publish',
             ]);
 
             if (is_wp_error($post_id) || !$post_id) {
-                return new WP_Error('db_error', 'Failed to save application to database.', ['status' => 500]);
+                return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
 
-            // Map meta fields
             foreach ($params as $key => $value) {
-                $meta_key = '_' . $key;
+                $target_key = $key;
+                if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
+                if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
+
+                $meta_key = '_' . $target_key;
                 if (is_array($value)) {
                     update_post_meta($post_id, $meta_key, $value);
                 } else {
@@ -144,12 +143,8 @@ add_action('rest_api_init', function () {
             
             update_post_meta($post_id, '_status', 'pending');
 
-            // IMPORTANT: Return 'id' so the frontend can move to the password step
-            return [
-                'status' => 'success', 
-                'id' => $post_id, 
-                'message' => 'Application Submitted!'
-            ];
+            // --- FIXED: Return the email so the frontend can trigger the setup-account phase ---
+            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
         }
     ]);
 
@@ -246,26 +241,12 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
             $params = $request->get_json_params();
-            
-            // Extract parameters
             $member_id = $params['member_id'] ?? null;
             $email     = $params['email'] ?? null;
             $password  = $params['password'] ?? null;
 
-            // 1. Check for missing parameters (The likely cause of the 400)
-            if (!$member_id) {
-                return new WP_Error('missing_id', 'Member ID is missing from the request.', ['status' => 400]);
-            }
-            if (!$email) {
-                return new WP_Error('missing_email', 'Email is missing from the request.', ['status' => 400]);
-            }
-            if (!$password) {
-                return new WP_Error('missing_password', 'Password is missing from the request.', ['status' => 400]);
-            }
-
-            // 2. Check if the WordPress user already exists
-            if (email_exists($email)) {
-                return new WP_Error('user_exists', 'A WordPress user with this email already exists.', ['status' => 400]);
+            if (!$member_id || !$password || !$email) {
+                return new WP_Error('missing_params', 'Missing required fields.', ['status' => 400]);
             }
 
             $member_post = get_post($member_id);
@@ -273,10 +254,13 @@ add_action('rest_api_init', function () {
                 return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
             }
 
-            // Verification check: check both '_email' and 'email' keys just in case
-            $stored_email = get_post_meta($member_id, '_email', true) ?: get_post_meta($member_id, 'email', true);
+            $stored_email = get_post_meta($member_id, '_email', true);
             if (strtolower($stored_email) !== strtolower($email)) {
-                return new WP_Error('verification_failed', 'Email does not match the member record.', ['status' => 403]);
+                return new WP_Error('verification_failed', 'Email verification failed.', ['status' => 403]);
+            }
+
+            if (email_exists($email)) {
+                return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
             // Create the WordPress User
@@ -289,13 +273,14 @@ add_action('rest_api_init', function () {
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
             
+            // Link the WordPress User to the Member Post
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
 
             return [
                 'status' => 'success',
-                'message' => 'Account created successfully.'
+                'message' => 'Account created! You can now log in.'
             ];
         }
     ]);
