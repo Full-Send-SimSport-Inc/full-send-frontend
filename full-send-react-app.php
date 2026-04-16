@@ -73,14 +73,24 @@ add_action('rest_api_init', function () {
             }
 
             // CLEANED UP META SAVING: Save everything with the underscore prefix consistently
-            foreach ($params as $key => $value) {
-                $meta_key = '_' . $key;
-                if (is_array($value)) {
-                    update_post_meta($post_id, $meta_key, $value); // Save as array (WP handles serialization)
-                } else {
-                    update_post_meta($post_id, $meta_key, sanitize_text_field($value));
-                }
-            }
+			foreach ($params as $key => $value) {
+				// Standardize key names to ensure Junior data is always found
+				$target_key = $key;
+				if ($key === 'parent_guardian_email' || $key === 'guardian_email') {
+					$target_key = 'parent_email';
+				}
+				if ($key === 'parent_guardian_name' || $key === 'guardian_name') {
+					$target_key = 'parent_name';
+				}
+
+				$meta_key = '_' . $target_key;
+				
+				if (is_array($value)) {
+					update_post_meta($post_id, $meta_key, $value);
+				} else {
+					update_post_meta($post_id, $meta_key, sanitize_text_field($value));
+				}
+			}
             
             // Force status to pending on join
             update_post_meta($post_id, '_status', 'pending');
