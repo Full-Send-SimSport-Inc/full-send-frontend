@@ -79,14 +79,33 @@ add_action('rest_api_init', function () {
 			]);
 
 			if ($post_id) {
-				// Store all the metadata so the React Dashboard can find it later
+				// Basic Info
 				update_post_meta($post_id, '_first_name', sanitize_text_field($params['first_name']));
 				update_post_meta($post_id, '_last_name', sanitize_text_field($params['last_name']));
 				update_post_meta($post_id, '_email', sanitize_email($params['email']));
-				update_post_meta($post_id, '_phone', sanitize_text_field($params['phone'] ?? ''));
-				update_post_meta($post_id, '_city', sanitize_text_field($params['city'] ?? ''));
-				update_post_meta($post_id, '_state', sanitize_text_field($params['state'] ?? ''));
-				update_post_meta($post_id, '_status', 'pending'); // Always start as pending
+				update_post_meta($post_id, '_phone', sanitize_text_field($params['phone']));
+				
+				// Address
+				update_post_meta($post_id, '_street_address', sanitize_text_field($params['street_address']));
+				update_post_meta($post_id, '_city', sanitize_text_field($params['city']));
+				update_post_meta($post_id, '_state', sanitize_text_field($params['state']));
+				update_post_meta($post_id, '_postcode', sanitize_text_field($params['postcode']));
+				
+				// Membership Specifics
+				update_post_meta($post_id, '_member_type', sanitize_text_field($params['member_type'])); // adult or junior
+				update_post_meta($post_id, '_discord_username', sanitize_text_field($params['discord_username']));
+				update_post_meta($post_id, '_status', 'pending');
+				
+				// Platforms (Array handling)
+				if (!empty($params['sim_platforms'])) {
+					update_post_meta($post_id, '_sim_platforms', $params['sim_platforms']);
+				}
+
+				// Junior specific fields (if they exist)
+				if (isset($params['parent_name'])) {
+					update_post_meta($post_id, '_parent_name', sanitize_text_field($params['parent_name']));
+					update_post_meta($post_id, '_parent_email', sanitize_email($params['parent_email']));
+				}
 			}
 
             if (is_wp_error($post_id)) {
@@ -123,11 +142,13 @@ add_action('rest_api_init', function () {
 			$members = [];
 			foreach ($query->posts as $post) {
 				$members[] = [
-					'id' => $post->ID,
-					'first_name' => get_post_meta($post->ID, '_first_name', true),
-					'last_name' => get_post_meta($post->ID, '_last_name', true),
-					'email' => get_post_meta($post->ID, '_email', true),
-					'status' => get_post_meta($post->ID, '_status', true) ?: 'pending',
+					'id'           => $post->ID,
+					'first_name'   => get_post_meta($post->ID, '_first_name', true),
+					'last_name'    => get_post_meta($post->ID, '_last_name', true),
+					'email'        => get_post_meta($post->ID, '_email', true),
+					'city'         => get_post_meta($post->ID, '_city', true),   // ADDED
+					'state'        => get_post_meta($post->ID, '_state', true),  // ADDED
+					'status'       => get_post_meta($post->ID, '_status', true) ?: 'pending',
 					'created_date' => $post->post_date,
 				];
 			}
