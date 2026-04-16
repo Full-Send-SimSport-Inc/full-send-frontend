@@ -62,6 +62,34 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
+            // --- NEW: LINK PARENT ACCOUNT LOGIC ---
+            if (isset($params['member_type']) && $params['member_type'] === 'junior') {
+                // Catch any variation of the email key
+                $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
+                $parent_email = sanitize_email($raw_email);
+                
+                if (empty($parent_email)) {
+                    return new WP_Error('missing_email', "Parent/Guardian email is required for Junior memberships.", ['status' => 400]);
+                }
+
+                // Look for the parent in the database
+                $parent_query = new WP_Query([
+                    'post_type' => 'fs_member',
+                    'meta_key' => '_email',
+                    'meta_value' => $parent_email,
+                    'posts_per_page' => 1,
+                    'post_status' => 'any' // Find them even if they are pending
+                ]);
+
+                if (!$parent_query->have_posts()) {
+                    return new WP_Error('parent_not_found', "No registered adult found with the email: {$parent_email}. The parent must register first.", ['status' => 400]);
+                }
+                
+                // Parent found! Save their ID into the params array so the loop below saves it to metadata
+                $params['parent_id'] = $parent_query->posts[0]->ID;
+            }
+            // ---------------------------------------
+
             $post_id = wp_insert_post([
                 'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
                 'post_type'    => 'fs_member',
@@ -73,24 +101,24 @@ add_action('rest_api_init', function () {
             }
 
             // CLEANED UP META SAVING: Save everything with the underscore prefix consistently
-			foreach ($params as $key => $value) {
-				// Standardize key names to ensure Junior data is always found
-				$target_key = $key;
-				if ($key === 'parent_guardian_email' || $key === 'guardian_email') {
-					$target_key = 'parent_email';
-				}
-				if ($key === 'parent_guardian_name' || $key === 'guardian_name') {
-					$target_key = 'parent_name';
-				}
+            foreach ($params as $key => $value) {
+                // Standardize key names to ensure Junior data is always found
+                $target_key = $key;
+                if ($key === 'parent_guardian_email' || $key === 'guardian_email') {
+                    $target_key = 'parent_email';
+                }
+                if ($key === 'parent_guardian_name' || $key === 'guardian_name') {
+                    $target_key = 'parent_name';
+                }
 
-				$meta_key = '_' . $target_key;
-				
-				if (is_array($value)) {
-					update_post_meta($post_id, $meta_key, $value);
-				} else {
-					update_post_meta($post_id, $meta_key, sanitize_text_field($value));
-				}
-			}
+                $meta_key = '_' . $target_key;
+                
+                if (is_array($value)) {
+                    update_post_meta($post_id, $meta_key, $value);
+                } else {
+                    update_post_meta($post_id, $meta_key, sanitize_text_field($value));
+                }
+            }
             
             // Force status to pending on join
             update_post_meta($post_id, '_status', 'pending');
@@ -155,6 +183,20 @@ add_action('rest_api_init', function () {
             $post = get_post($data['id']);
             if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
 
+            // --- NEW: FETCH LINKED PARENT INFO ---
+            $parent_id = get_post_meta($post->ID, '_parent_id', true);
+            $parent_name = get_post_meta($post->ID, '_parent_name', true);
+            $parent_email = get_post_meta($post->ID, '_parent_email', true);
+
+            if ($parent_id) {
+                // Fetch the actual linked parent details dynamically in case they updated their account
+                $parent_first = get_post_meta($parent_id, '_first_name', true);
+                $parent_last = get_post_meta($parent_id, '_last_name', true);
+                $parent_name = trim($parent_first . ' ' . $parent_last);
+                $parent_email = get_post_meta($parent_id, '_email', true);
+            }
+            // -------------------------------------
+
             return [
                 'id'                => $post->ID,
                 'first_name'        => get_post_meta($post->ID, '_first_name', true),
@@ -170,8 +212,9 @@ add_action('rest_api_init', function () {
                 'sim_platforms'     => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
                 'status'            => get_post_meta($post->ID, '_status', true) ?: 'pending',
                 'created_date'      => $post->post_date,
-                'parent_name'       => get_post_meta($post->ID, '_parent_name', true),
-                'parent_email'      => get_post_meta($post->ID, '_parent_email', true),
+                'parent_id'         => $parent_id,      // Added
+                'parent_name'       => $parent_name,    // Dynamic
+                'parent_email'      => $parent_email,   // Dynamic
             ];
         }
     ]);
