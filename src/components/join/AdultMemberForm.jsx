@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,10 +57,8 @@ export default function AdultMemberForm({ onBack }) {
             password: password
           }),
         });
-
         const data = await response.json();
         if (!response.ok) throw new Error(data.message || 'Failed to create account');
-
         setAccountCreated(true);
       } catch (err) {
         setError(err.message);
@@ -70,6 +68,10 @@ export default function AdultMemberForm({ onBack }) {
     } else {
       if (!memberType) {
         setError('Please select a membership type.');
+        return;
+      }
+      if (hasDiscord === true && !form.discord_username) {
+        setError('Please provide your Discord username.');
         return;
       }
       if (!form.agreed_to_terms) {
@@ -83,7 +85,6 @@ export default function AdultMemberForm({ onBack }) {
       try {
         const payload = { ...form, status: 'pending', member_type: memberType };
         const res = await base44.entities.Member.create(payload);
-        
         setSubmittedMemberId(res.id);
         setSubmitted(true);
         window.scrollTo(0, 0);
@@ -180,6 +181,7 @@ export default function AdultMemberForm({ onBack }) {
                 >
                   <Gamepad2 className={cn("w-6 h-6", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Racing Member</span>
+                  <span className="text-xs text-muted-foreground">Competes in official events</span>
                 </button>
                 <button
                   type="button"
@@ -191,6 +193,7 @@ export default function AdultMemberForm({ onBack }) {
                 >
                   <Heart className={cn("w-6 h-6", memberType === 'supporting' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Supporting Member</span>
+                  <span className="text-xs text-muted-foreground">Supporter/Parent/Guardian</span>
                 </button>
               </div>
             </div>
@@ -243,37 +246,44 @@ export default function AdultMemberForm({ onBack }) {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-2">
-                <Label className="text-sm font-semibold">Do you have a Discord account?</Label>
+              {/* Discord Logic Block */}
+              <div className="space-y-4 p-4 bg-muted/50 rounded-xl border border-dashed">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" /> Do you have a Discord account? *
+                </Label>
                 <div className="flex gap-4">
-                  <button 
+                  <Button 
                     type="button" 
+                    variant={hasDiscord === true ? "default" : "outline"} 
                     onClick={() => setHasDiscord(true)}
-                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === true ? "bg-primary text-white" : "bg-background")}
-                  >Yes</button>
-                  <button 
+                    className="flex-1"
+                  >Yes</Button>
+                  <Button 
                     type="button" 
-                    onClick={() => {setHasDiscord(false); handleChange('discord_username', '');}}
-                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === false ? "bg-primary text-white" : "bg-background")}
-                  >No</button>
+                    variant={hasDiscord === false ? "default" : "outline"} 
+                    onClick={() => { setHasDiscord(false); handleChange('discord_username', ''); }}
+                    className="flex-1"
+                  >No</Button>
                 </div>
 
-                {hasDiscord === true && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
-                    <Label>Discord Username</Label>
-                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
-                  </motion.div>
-                )}
-
-                {hasDiscord === false && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-blue-50 text-blue-700 rounded-lg text-sm flex gap-3">
-                    <MessageSquare className="w-5 h-5 shrink-0" />
-                    <div>
-                      <p className="font-semibold">Discord is required for communication.</p>
-                      <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="underline font-bold">Create an account here</a> then return to complete your application.
-                    </div>
-                  </motion.div>
-                )}
+                <AnimatePresence mode="wait">
+                  {hasDiscord === true && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="space-y-2 pt-2">
+                      <Label>Discord Username *</Label>
+                      <Input 
+                        required 
+                        value={form.discord_username} 
+                        onChange={e => handleChange('discord_username', e.target.value)} 
+                        placeholder="username#0000" 
+                      />
+                    </motion.div>
+                  )}
+                  {hasDiscord === false && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-3 text-sm bg-blue-50 text-blue-700 rounded-lg border border-blue-100">
+                      No problem! You'll need Discord for club communications. You can <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="underline font-bold">create an account here</a> then update your profile later.
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {memberType === 'racing' && (
