@@ -62,33 +62,26 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            // --- NEW: LINK PARENT ACCOUNT LOGIC ---
             if (isset($params['member_type']) && $params['member_type'] === 'junior') {
-                // Catch any variation of the email key
                 $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
                 $parent_email = sanitize_email($raw_email);
                 
                 if (empty($parent_email)) {
-                    return new WP_Error('missing_email', "Parent/Guardian email is required for Junior memberships.", ['status' => 400]);
+                    return new WP_Error('missing_email', "Parent email required for Juniors.", ['status' => 400]);
                 }
 
-                // Look for the parent in the database
                 $parent_query = new WP_Query([
                     'post_type' => 'fs_member',
                     'meta_key' => '_email',
                     'meta_value' => $parent_email,
                     'posts_per_page' => 1,
-                    'post_status' => 'any' // Find them even if they are pending
+                    'post_status' => 'any'
                 ]);
 
-                if (!$parent_query->have_posts()) {
-                    return new WP_Error('parent_not_found', "No registered adult found with the email: {$parent_email}. The parent must register first.", ['status' => 400]);
+                if ($parent_query->have_posts()) {
+                    $params['parent_id'] = $parent_query->posts[0]->ID;
                 }
-                
-                // Parent found! Save their ID into the params array so the loop below saves it to metadata
-                $params['parent_id'] = $parent_query->posts[0]->ID;
             }
-            // ---------------------------------------
 
             $post_id = wp_insert_post([
                 'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
@@ -100,19 +93,12 @@ add_action('rest_api_init', function () {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
 
-            // CLEANED UP META SAVING: Save everything with the underscore prefix consistently
             foreach ($params as $key => $value) {
-                // Standardize key names to ensure Junior data is always found
                 $target_key = $key;
-                if ($key === 'parent_guardian_email' || $key === 'guardian_email') {
-                    $target_key = 'parent_email';
-                }
-                if ($key === 'parent_guardian_name' || $key === 'guardian_name') {
-                    $target_key = 'parent_name';
-                }
+                if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
+                if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
 
                 $meta_key = '_' . $target_key;
-                
                 if (is_array($value)) {
                     update_post_meta($post_id, $meta_key, $value);
                 } else {
@@ -120,30 +106,22 @@ add_action('rest_api_init', function () {
                 }
             }
             
-            // Force status to pending on join
             update_post_meta($post_id, '_status', 'pending');
 
-            return [
-                'status' => 'success',
-                'message' => 'Application Submitted!',
-                'id' => $post_id
-            ];
+            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id];
         }
     ]);
 
-    // --- NEW: UPDATE MEMBER ROUTE (Fixes the "Approve" button) ---
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
-        'methods' => 'POST', // Matches the .post() call in your React code
+        'methods' => 'POST',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
         'callback' => function($request) {
             $id = $request['id'];
             $params = $request->get_json_params();
-
             if (isset($params['status'])) {
                 update_post_meta($id, '_status', sanitize_text_field($params['status']));
-                return ['status' => 'success', 'message' => 'Member status updated to ' . $params['status']];
+                return ['status' => 'success', 'message' => 'Status updated'];
             }
-
             return new WP_Error('invalid_data', 'No status provided', ['status' => 400]);
         }
     ]);
@@ -152,11 +130,7 @@ add_action('rest_api_init', function () {
         'methods' => 'GET',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
         'callback' => function() {
-            $query = new WP_Query([
-                'post_type' => 'fs_member',
-                'posts_per_page' => -1,
-            ]);
-            
+            $query = new WP_Query(['post_type' => 'fs_member', 'posts_per_page' => -1]);
             $members = [];
             foreach ($query->posts as $post) {
                 $members[] = [
@@ -164,12 +138,8 @@ add_action('rest_api_init', function () {
                     'first_name'   => get_post_meta($post->ID, '_first_name', true),
                     'last_name'    => get_post_meta($post->ID, '_last_name', true),
                     'email'        => get_post_meta($post->ID, '_email', true),
-                    'phone'        => get_post_meta($post->ID, '_phone', true),
-                    'city'         => get_post_meta($post->ID, '_city', true),
-                    'state'        => get_post_meta($post->ID, '_state', true),
                     'member_type'  => get_post_meta($post->ID, '_member_type', true),
                     'status'       => get_post_meta($post->ID, '_status', true) ?: 'pending',
-                    'created_date' => $post->post_date,
                 ];
             }
             return $members;
@@ -183,19 +153,36 @@ add_action('rest_api_init', function () {
             $post = get_post($data['id']);
             if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
 
-            // --- NEW: FETCH LINKED PARENT INFO ---
+            // Handle Junior -> Parent link
             $parent_id = get_post_meta($post->ID, '_parent_id', true);
             $parent_name = get_post_meta($post->ID, '_parent_name', true);
             $parent_email = get_post_meta($post->ID, '_parent_email', true);
 
             if ($parent_id) {
-                // Fetch the actual linked parent details dynamically in case they updated their account
-                $parent_first = get_post_meta($parent_id, '_first_name', true);
-                $parent_last = get_post_meta($parent_id, '_last_name', true);
-                $parent_name = trim($parent_first . ' ' . $parent_last);
+                $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
                 $parent_email = get_post_meta($parent_id, '_email', true);
             }
-            // -------------------------------------
+
+            // --- NEW: TWO WAY LINKAGE (Find Children) ---
+            $children = [];
+            $child_query = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_query' => [
+                    [
+                        'key' => '_parent_id',
+                        'value' => $post->ID,
+                        'compare' => '='
+                    ]
+                ]
+            ]);
+
+            foreach ($child_query->posts as $cp) {
+                $children[] = [
+                    'id' => $cp->ID,
+                    'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
+                    'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
+                ];
+            }
 
             return [
                 'id'                => $post->ID,
@@ -212,34 +199,21 @@ add_action('rest_api_init', function () {
                 'sim_platforms'     => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
                 'status'            => get_post_meta($post->ID, '_status', true) ?: 'pending',
                 'created_date'      => $post->post_date,
-                'parent_id'         => $parent_id,      // Added
-                'parent_name'       => $parent_name,    // Dynamic
-                'parent_email'      => $parent_email,   // Dynamic
+                'parent_id'         => $parent_id,
+                'parent_name'       => $parent_name,
+                'parent_email'      => $parent_email,
+                'children'          => $children // Added for two-way link
             ];
         }
     ]);
 });
 
 add_shortcode('full_send_app', function() {
-    wp_enqueue_script(
-        'fs-react-js', 
-        plugin_dir_url(__FILE__) . 'dist/assets/index.js', 
-        array(), 
-        filemtime(plugin_dir_path(__FILE__) . 'dist/assets/index.js'), 
-        true
-    );
-
-    wp_enqueue_style(
-        'fs-react-css', 
-        plugin_dir_url(__FILE__) . 'dist/assets/index.css', 
-        array(), 
-        filemtime(plugin_dir_path(__FILE__) . 'dist/assets/index.css')
-    );
-
+    wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
+    wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
     wp_localize_script('fs-react-js', 'appParams', [
         'restUrl' => esc_url_raw(rest_url('fs/v1')),
         'nonce'   => wp_create_nonce('wp_rest')
     ]);
-
     return '<div id="root"></div>';
 });
