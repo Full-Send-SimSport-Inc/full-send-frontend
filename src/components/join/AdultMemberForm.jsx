@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart, MessageSquare } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -21,7 +21,6 @@ const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 export default function AdultMemberForm({ onBack }) {
   const [memberType, setMemberType] = useState('');
-  const [hasDiscord, setHasDiscord] = useState(null); // null, true, or false
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     street_address: '', city: '', state: '',
@@ -31,7 +30,7 @@ export default function AdultMemberForm({ onBack }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [submittedMemberId, setSubmittedMemberId] = useState(null);
+  const [submittedMemberId, setSubmittedMemberId] = useState(null); // Captured member ID
   const [password, setPassword] = useState('');
   const [accountCreated, setAccountCreated] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +44,7 @@ export default function AdultMemberForm({ onBack }) {
     e.preventDefault();
 
     if (submitted) {
+      // Step 2: Create WordPress Account
       setSubmitting(true);
       setError('');
       try {
@@ -52,7 +52,7 @@ export default function AdultMemberForm({ onBack }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            member_id: submittedMemberId,
+            member_id: submittedMemberId, // Correctly passing the captured ID
             email: form.email,
             password: password
           }),
@@ -68,6 +68,7 @@ export default function AdultMemberForm({ onBack }) {
         setSubmitting(false);
       }
     } else {
+      // Step 1: Submit Initial Application
       if (!memberType) {
         setError('Please select a membership type.');
         return;
@@ -84,7 +85,7 @@ export default function AdultMemberForm({ onBack }) {
         const payload = { ...form, status: 'pending', member_type: memberType };
         const res = await base44.entities.Member.create(payload);
         
-        setSubmittedMemberId(res.id);
+        setSubmittedMemberId(res.id); // Saving the generated ID
         setSubmitted(true);
         window.scrollTo(0, 0);
       } catch (err) {
@@ -167,6 +168,7 @@ export default function AdultMemberForm({ onBack }) {
         </div>
         <CardContent className="p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Membership Type Selection */}
             <div className="space-y-4">
               <Label className="text-base font-semibold">Select Member Type *</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -180,6 +182,7 @@ export default function AdultMemberForm({ onBack }) {
                 >
                   <Gamepad2 className={cn("w-6 h-6", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Racing Member</span>
+                  <span className="text-xs text-muted-foreground">Competes in official events</span>
                 </button>
                 <button
                   type="button"
@@ -191,10 +194,12 @@ export default function AdultMemberForm({ onBack }) {
                 >
                   <Heart className={cn("w-6 h-6", memberType === 'supporting' ? "text-primary" : "text-muted-foreground")} />
                   <span className="font-bold text-sm">Supporting Member</span>
+                  <span className="text-xs text-muted-foreground">Supporter/Parent/Guardian</span>
                 </button>
               </div>
             </div>
 
+            {/* Personal Details */}
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -213,14 +218,14 @@ export default function AdultMemberForm({ onBack }) {
                   <Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
+                  <Label>Phone Number *</Label>
+                  <Input required value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label>Street Address</Label>
-                <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
+                <Label>Street Address *</Label>
+                <Input required value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -238,42 +243,14 @@ export default function AdultMemberForm({ onBack }) {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Postcode</Label>
-                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
+                  <Label>Postcode *</Label>
+                  <Input required value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
                 </div>
               </div>
 
-              <div className="space-y-4 pt-2">
-                <Label className="text-sm font-semibold">Do you have a Discord account?</Label>
-                <div className="flex gap-4">
-                  <button 
-                    type="button" 
-                    onClick={() => setHasDiscord(true)}
-                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === true ? "bg-primary text-white" : "bg-background")}
-                  >Yes</button>
-                  <button 
-                    type="button" 
-                    onClick={() => {setHasDiscord(false); handleChange('discord_username', '');}}
-                    className={cn("px-4 py-2 rounded-md border text-sm transition-colors", hasDiscord === false ? "bg-primary text-white" : "bg-background")}
-                  >No</button>
-                </div>
-
-                {hasDiscord === true && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-2">
-                    <Label>Discord Username</Label>
-                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
-                  </motion.div>
-                )}
-
-                {hasDiscord === false && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-blue-50 text-blue-700 rounded-lg text-sm flex gap-3">
-                    <MessageSquare className="w-5 h-5 shrink-0" />
-                    <div>
-                      <p className="font-semibold">Discord is required for league communication.</p>
-                      <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="underline font-bold">Create an account here</a> then return to complete your application.
-                    </div>
-                  </motion.div>
-                )}
+              <div className="space-y-2">
+                <Label>Discord Username (Optional)</Label>
+                <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
               </div>
 
               {memberType === 'racing' && (
