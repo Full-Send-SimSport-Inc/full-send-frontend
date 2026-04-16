@@ -48,11 +48,9 @@ add_action('rest_api_init', function () {
 
             $user = wp_get_current_user();
             
-            // 1. Look for the linked member record ID
             $member_id = get_user_meta($user->ID, 'fs_member_id', true);
             $member_details = null;
 
-            // 2. If a link exists, fetch the profile data from the fs_member post
             if ($member_id) {
                 $member_details = [
                     'member_id'        => $member_id,
@@ -71,13 +69,12 @@ add_action('rest_api_init', function () {
                 ];
             }
 
-            // 3. Return the combined User and Member data
             return [
                 'id'             => $user->ID,
                 'email'          => $user->user_email,
                 'display_name'   => $user->display_name,
                 'roles'          => $user->roles,
-                'member_details' => $member_details // This will be null if they aren't linked yet
+                'member_details' => $member_details
             ];
         },
         'permission_callback' => '__return_true'
@@ -89,7 +86,6 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            // --- STRICT PARENT VALIDATION ---
             if (isset($params['member_type']) && $params['member_type'] === 'junior') {
                 $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
                 $parent_email = sanitize_email($raw_email);
@@ -146,20 +142,6 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    register_rest_route($namespace, '/members/(?P<id>\d+)', [
-        'methods' => 'POST',
-        'permission_callback' => function() { return current_user_can('edit_posts'); },
-        'callback' => function($request) {
-            $id = $request['id'];
-            $params = $request->get_json_params();
-            if (isset($params['status'])) {
-                update_post_meta($id, '_status', sanitize_text_field($params['status']));
-                return ['status' => 'success', 'message' => 'Status updated'];
-            }
-            return new WP_Error('invalid_data', 'No status provided', ['status' => 400]);
-        }
-    ]);
-
     register_rest_route($namespace, '/members', [
         'methods' => 'GET',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
@@ -179,7 +161,7 @@ add_action('rest_api_init', function () {
             return $members;
         }
     ]);
-    
+
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
         'methods' => 'GET',
         'permission_callback' => function() { return current_user_can('edit_posts'); },
@@ -232,37 +214,61 @@ add_action('rest_api_init', function () {
             ];
         }
     ]);
-});
 
-	// --- NEW: CREATE USER ACCOUNT ---
-    register_rest_route($namespace, '/setup-account', [
+    register_rest_route($namespace, '/members/(?P<id>\d+)', [
         'methods' => 'POST',
-        'permission_callback' => '__return_true', // Public so they can set up their first login
+        'permission_callback' => function() { return current_user_can('edit_posts'); },
+        'callback' => function($request) {
+            $id = $request['id'];
+            $params = $request->get_json_params();
+            if (isset($params['status'])) {
+                update_post_meta($id, '_status', sanitize_text_field($params['status']));
+                return ['status' => 'success', 'message' => 'Status updated'];
+            }
+            return new WP_Error('invalid_data', 'No status provided', ['status' => 400]);
+        }
+    ]);
+
+    // --- NEW/UPDATED: SETUP PASSWORD ---
+    register_rest_route($namespace, '/setup-password', [
+        'methods' => 'POST',
+        'permission_callback' => '__return_true', 
         'callback' => function($request) {
             $params = $request->get_json_params();
-            $member_id = $params['member_id'];
-            $password = $params['password'];
+            $member_id = $params['member_id'] ?? null;
+            $email     = $params['email'] ?? null;
+            $password  = $params['password'] ?? null;
+
+            if (!$member_id || !$password || !$email) {
+                return new WP_Error('missing_params', 'Missing required fields.', ['status' => 400]);
+            }
 
             $member_post = get_post($member_id);
             if (!$member_post || $member_post->post_type !== 'fs_member') {
                 return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
             }
 
-            $email = get_post_meta($member_id, '_email', true);
+            $stored_email = get_post_meta($member_id, '_email', true);
+            if (strtolower($stored_email) !== strtolower($email)) {
+                return new WP_Error('verification_failed', 'Email verification failed.', ['status' => 403]);
+            }
+
             if (email_exists($email)) {
                 return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
-            // Create the WordPress User
             $user_id = wp_create_user($email, $password, $email);
-            if (is_wp_error($user_id)) return $user_id;
+            
+            if (is_wp_error($user_id)) {
+                return new WP_Error('creation_failed', $user_id->get_error_message(), ['status' => 500]);
+            }
 
-            // Set role and link to post
             $user = new WP_User($user_id);
-            $user->set_role('subscriber'); // Or create a custom 'fs_member' role
+            $user->set_role('subscriber');
             
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
+            update_post_meta($member_id, '_status', 'active');
 
             return [
                 'status' => 'success',
@@ -271,7 +277,6 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    // --- NEW: UPDATE OWN DETAILS ---
     register_rest_route($namespace, '/update-me', [
         'methods' => 'POST',
         'permission_callback' => function() { return is_user_logged_in(); },
@@ -282,8 +287,6 @@ add_action('rest_api_init', function () {
             if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
             $params = $request->get_json_params();
-            
-            // Define allowed fields to prevent them from changing their own 'status' or 'member_type'
             $allowed_fields = ['phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
 
             foreach ($params as $key => $value) {
@@ -295,6 +298,7 @@ add_action('rest_api_init', function () {
             return ['status' => 'success', 'message' => 'Details updated!'];
         }
     ]);
+});
 
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);

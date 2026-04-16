@@ -5,6 +5,9 @@ import { queryClientInstance } from '@/lib/query-client';
 import { AuthProvider } from '@/lib/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 
+// Components
+import Header from '@/components/Header'; // Added global header
+
 // Layouts
 import AdminLayout from '@/components/admin/AdminLayout';
 
@@ -19,7 +22,7 @@ import AdminEmail from '@/pages/AdminEmail';
 import AdminUsers from '@/pages/AdminUsers';
 import MyProfile from '@/pages/MyProfile';
 
-// Auth Components (New)
+// Auth Components
 import SetupAccount from '@/components/auth/SetupAccount';
 
 // Lib / Error Pages
@@ -30,30 +33,36 @@ export default function App() {
     <QueryClientProvider client={queryClientInstance}>
       <AuthProvider>
         <HashRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Join />} />
-            <Route path="/meetings" element={<Meetings />} />
-            
-            {/* NEW: Account Setup Route */}
-            <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
-			
-			{/* Member Protected Route */}
-			<Route path="/my-profile" element={<MyProfile />} />
-            
-            {/* Admin Routes grouped under the AdminLayout */}
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="members" element={<AdminMembers />} />
-              <Route path="members/:id" element={<MemberDetail />} />
-              <Route path="agm" element={<AdminAGM />} />
-              <Route path="email" element={<AdminEmail />} />
-              <Route path="users" element={<AdminUsers />} />
-            </Route>
+          {/* Global Layout Wrapper */}
+          <div className="min-h-screen flex flex-col bg-background">
+            <Header /> 
+            <main className="flex-grow">
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Join />} />
+                <Route path="/meetings" element={<Meetings />} />
+                
+                {/* Account Setup Route */}
+                <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
+                
+                {/* Member Protected Route */}
+                <Route path="/my-profile" element={<MyProfile />} />
+                
+                {/* Admin Routes grouped under the AdminLayout */}
+                <Route path="/admin" element={<AdminLayout />}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="members" element={<AdminMembers />} />
+                  <Route path="members/:id" element={<MemberDetail />} />
+                  <Route path="agm" element={<AdminAGM />} />
+                  <Route path="email" element={<AdminEmail />} />
+                  <Route path="users" element={<AdminUsers />} />
+                </Route>
 
-            {/* Fallback */}
-            <Route path="*" element={<PageNotFound />} />
-          </Routes>
+                {/* Fallback */}
+                <Route path="*" element={<PageNotFound />} />
+              </Routes>
+            </main>
+          </div>
         </HashRouter>
         <Toaster />
       </AuthProvider>
