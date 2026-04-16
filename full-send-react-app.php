@@ -42,15 +42,42 @@ add_action('rest_api_init', function () {
     register_rest_route($namespace, '/me', [
         'methods' => 'GET',
         'callback' => function() {
-            if (!is_user_logged_in()) return new WP_Error('no_auth', 'Not logged in', ['status' => 401]);
+            if (!is_user_logged_in()) {
+                return new WP_Error('no_auth', 'Not logged in', ['status' => 401]);
+            }
+
             $user = wp_get_current_user();
+            
+            // 1. Look for the linked member record ID
+            $member_id = get_user_meta($user->ID, 'fs_member_id', true);
+            $member_details = null;
+
+            // 2. If a link exists, fetch the profile data from the fs_member post
+            if ($member_id) {
+                $member_details = [
+                    'member_id'        => $member_id,
+                    'first_name'       => get_post_meta($member_id, '_first_name', true),
+                    'last_name'        => get_post_meta($member_id, '_last_name', true),
+                    'phone'            => get_post_meta($member_id, '_phone', true),
+                    'street_address'   => get_post_meta($member_id, '_street_address', true),
+                    'city'             => get_post_meta($member_id, '_city', true),
+                    'state'            => get_post_meta($member_id, '_state', true),
+                    'postcode'         => get_post_meta($member_id, '_postcode', true),
+                    'dob'              => get_post_meta($member_id, '_dob', true),
+                    'discord_username' => get_post_meta($member_id, '_discord_username', true),
+                    'sim_platforms'    => get_post_meta($member_id, '_sim_platforms', true),
+                    'membership_type'  => get_post_meta($member_id, '_membership_type', true),
+                    'status'           => get_post_meta($member_id, '_status', true),
+                ];
+            }
+
+            // 3. Return the combined User and Member data
             return [
-                'id' => $user->ID,
-                'email' => $user->user_email,
-                'first_name' => get_user_meta($user->ID, 'first_name', true),
-                'last_name' => get_user_meta($user->ID, 'last_name', true),
-                'status' => get_user_meta($user->ID, 'membership_status', true) ?: 'pending',
-                'roles' => $user->roles
+                'id'             => $user->ID,
+                'email'          => $user->user_email,
+                'display_name'   => $user->display_name,
+                'roles'          => $user->roles,
+                'member_details' => $member_details // This will be null if they aren't linked yet
             ];
         },
         'permission_callback' => '__return_true'
@@ -206,6 +233,68 @@ add_action('rest_api_init', function () {
         }
     ]);
 });
+
+	// --- NEW: CREATE USER ACCOUNT ---
+    register_rest_route($namespace, '/setup-account', [
+        'methods' => 'POST',
+        'permission_callback' => '__return_true', // Public so they can set up their first login
+        'callback' => function($request) {
+            $params = $request->get_json_params();
+            $member_id = $params['member_id'];
+            $password = $params['password'];
+
+            $member_post = get_post($member_id);
+            if (!$member_post || $member_post->post_type !== 'fs_member') {
+                return new WP_Error('invalid_member', 'Member record not found.', ['status' => 404]);
+            }
+
+            $email = get_post_meta($member_id, '_email', true);
+            if (email_exists($email)) {
+                return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
+            }
+
+            // Create the WordPress User
+            $user_id = wp_create_user($email, $password, $email);
+            if (is_wp_error($user_id)) return $user_id;
+
+            // Set role and link to post
+            $user = new WP_User($user_id);
+            $user->set_role('subscriber'); // Or create a custom 'fs_member' role
+            
+            update_user_meta($user_id, 'fs_member_id', $member_id);
+            update_post_meta($member_id, '_wp_user_id', $user_id);
+
+            return [
+                'status' => 'success',
+                'message' => 'Account created! You can now log in.'
+            ];
+        }
+    ]);
+
+    // --- NEW: UPDATE OWN DETAILS ---
+    register_rest_route($namespace, '/update-me', [
+        'methods' => 'POST',
+        'permission_callback' => function() { return is_user_logged_in(); },
+        'callback' => function($request) {
+            $user_id = get_current_user_id();
+            $member_id = get_user_meta($user_id, 'fs_member_id', true);
+            
+            if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
+
+            $params = $request->get_json_params();
+            
+            // Define allowed fields to prevent them from changing their own 'status' or 'member_type'
+            $allowed_fields = ['phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
+
+            foreach ($params as $key => $value) {
+                if (in_array($key, $allowed_fields)) {
+                    update_post_meta($member_id, '_' . $key, $value);
+                }
+            }
+
+            return ['status' => 'success', 'message' => 'Details updated!'];
+        }
+    ]);
 
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
