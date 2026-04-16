@@ -37,7 +37,8 @@ add_action('init', function() {
 });
 
 add_action('rest_api_init', function () {
-    $namespace = 'fs/v1';
+    // --- UPDATED: Namespace changed to match React frontend requests ---
+    $namespace = 'full-send/v1';
 
     register_rest_route($namespace, '/me', [
         'methods' => 'GET',
@@ -229,7 +230,6 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    // --- NEW/UPDATED: SETUP PASSWORD ---
     register_rest_route($namespace, '/setup-password', [
         'methods' => 'POST',
         'permission_callback' => '__return_true', 
@@ -303,8 +303,9 @@ add_action('rest_api_init', function () {
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
     wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
+    // --- UPDATED: restUrl updated to match new namespace ---
     wp_localize_script('fs-react-js', 'appParams', [
-        'restUrl' => esc_url_raw(rest_url('fs/v1')),
+        'restUrl' => esc_url_raw(rest_url('full-send/v1')),
         'nonce'   => wp_create_nonce('wp_rest')
     ]);
     return '<div id="root"></div>';
