@@ -8,6 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 const SIM_PLATFORMS = [
   "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
@@ -24,18 +26,18 @@ export default function JuniorMemberForm({ onBack }) {
     postcode: '', country: 'Australia', discord_username: '',
     sim_platforms: [], agreed_to_terms: false,
     dob_day: '', dob_month: '', dob_year: '',
-    parent_email: ''
+    parent_name: '', parent_email: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [submittedData, setSubmittedData] = useState(null); // Fixed state naming
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.agreed_to_terms) {
-      setError("You must agree to the terms.");
+      setError("You must agree to the terms to continue.");
       return;
     }
 
@@ -43,36 +45,51 @@ export default function JuniorMemberForm({ onBack }) {
     setError('');
 
     try {
-      await base44.post('/join', {
+      const response = await base44.post('/join', {
         ...form,
         member_type: 'junior'
       });
-      setSubmitted(true);
+      
+      setSubmittedData({
+        id: response.data?.id || response.id, 
+        email: form.email
+      });
     } catch (err) {
-      // EXTRACT WORDPRESS ERROR MESSAGE
-      const serverMessage = err.response?.data?.message || err.message || "Submission failed.";
-      setError(serverMessage);
+      setError(err.response?.data?.message || "An error occurred during submission.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (submitted) {
+  if (submittedData) {
     return (
-      <Card className="border-0 shadow-xl overflow-hidden bg-white/80 backdrop-blur">
-        <CardContent className="pt-12 pb-12 px-6 text-center">
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <h2 className="text-3xl font-black mb-4">Application Received!</h2>
-            <p className="text-muted-foreground mb-8 text-lg">
-              Thank you for applying. The committee will review your application shortly.
-            </p>
-            <Button onClick={onBack} variant="outline" size="lg">Return to Home</Button>
-          </motion.div>
-        </CardContent>
-      </Card>
+      <div className="max-w-2xl mx-auto py-10 px-6">
+        <Card className="border-0 shadow-xl overflow-hidden bg-white/80 backdrop-blur">
+          <CardContent className="pt-12 pb-12 px-6 text-center">
+            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              <h2 className="text-3xl font-black mb-4">Application Received!</h2>
+              <p className="text-muted-foreground mb-8 text-lg">
+                Thank you for applying. A confirmation email has been sent to your parent/guardian for approval.
+              </p>
+              
+              <div className="space-y-3 max-w-sm mx-auto">
+                <Button asChild className="w-full" size="lg">
+                  <Link to={`/setup-account/${submittedData.id}/${submittedData.email}`}>
+                    Set Up My Account Password
+                  </Link>
+                </Button>
+                
+                <Button onClick={onBack} variant="outline" className="w-full">
+                  Return to Options
+                </Button>
+              </div>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -82,83 +99,82 @@ export default function JuniorMemberForm({ onBack }) {
       <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-1">
         ← Back to membership options
       </button>
-
-      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
-        <ShieldCheck className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-semibold text-amber-800">Junior Membership (Under 18)</p>
-          <p className="text-xs text-amber-700 mt-1">
-            A parent or guardian must be a <strong>registered member</strong> of Full Send SimSports.
-            Enter their registered email below — they will be contacted to confirm consent before this application is approved.
-          </p>
-        </div>
-      </div>
-
       <Card className="border-0 shadow-xl shadow-primary/5">
         <CardContent className="p-6 md:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl space-y-2">
-              <Label className="font-semibold">Parent / Guardian Registered Member Email *</Label>
-              <p className="text-xs text-muted-foreground">This must be the email address of an existing Full Send SimSports member.</p>
-              <Input
-                type="email"
-                required
-                value={form.parent_email}
-                onChange={e => handleChange('parent_email', e.target.value)}
-                placeholder="parent@example.com"
-              />
+          <form onSubmit={handleSubmit} className="space-y-8">
+            
+            {/* Parent/Guardian Details */}
+            <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+              <div className="flex items-center gap-2 mb-4 text-primary">
+                <ShieldCheck className="w-5 h-5" />
+                <h3 className="font-bold">Parent / Guardian Verification</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Parent Name *</Label>
+                  <Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} placeholder="Full Name" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Parent Email *</Label>
+                  <Input type="email" value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} placeholder="parent@example.com" required />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Your parent/guardian will receive an email to approve this junior membership application.
+              </p>
             </div>
 
+            {/* Junior Personal Details */}
             <div>
-              <h3 className="text-lg font-semibold mb-4">Junior's Personal Details</h3>
+              <h3 className="text-lg font-semibold mb-4">Junior Member Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name *</Label>
-                  <Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} placeholder="Alex" />
+                  <Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} placeholder="Junior's Name" required />
                 </div>
                 <div className="space-y-2">
                   <Label>Last Name *</Label>
-                  <Input required value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} placeholder="Smith" />
+                  <Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} placeholder="Surname" required />
                 </div>
                 <div className="space-y-2">
                   <Label>Email Address *</Label>
-                  <Input required type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} placeholder="alex@example.com" />
+                  <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} placeholder="junior@example.com" required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="0400 000 000" />
+                  <Label>Phone Number (Optional)</Label>
+                  <Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Date of Birth *</Label>
                   <div className="grid grid-cols-3 gap-2">
-                    <Select required value={form.dob_day} onValueChange={v => handleChange('dob_day', v)}>
+                    <Select value={form.dob_day} onValueChange={v => handleChange('dob_day', v)}>
                       <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
                       <SelectContent>{Array.from({ length: 31 }, (_, i) => i + 1).map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Select required value={form.dob_month} onValueChange={v => handleChange('dob_month', v)}>
+                    <Select value={form.dob_month} onValueChange={v => handleChange('dob_month', v)}>
                       <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
                       <SelectContent>{['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>)}</SelectContent>
                     </Select>
-                    <Select required value={form.dob_year} onValueChange={v => handleChange('dob_year', v)}>
+                    <Select value={form.dob_year} onValueChange={v => handleChange('dob_year', v)}>
                       <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
-                      <SelectContent>{Array.from({ length: 17 }, (_, i) => new Date().getFullYear() - 8 - i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                      <SelectContent>{Array.from({ length: 18 }, (_, i) => new Date().getFullYear() - i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Address */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Address</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2 md:col-span-2">
                   <Label>Street Address</Label>
-                  <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" />
+                  <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>City / Suburb</Label>
-                  <Input value={form.city} onChange={e => handleChange('city', e.target.value)} placeholder="Melbourne" />
+                  <Input value={form.city} onChange={e => handleChange('city', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>State</Label>
@@ -169,15 +185,12 @@ export default function JuniorMemberForm({ onBack }) {
                 </div>
                 <div className="space-y-2">
                   <Label>Postcode</Label>
-                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} placeholder="3000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <Input value={form.country} onChange={e => handleChange('country', e.target.value)} />
+                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
                 </div>
               </div>
             </div>
 
+            {/* Sim Racing */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Sim Racing Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -186,7 +199,7 @@ export default function JuniorMemberForm({ onBack }) {
                   <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#1234" />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Sim Platforms (select all that apply)</Label>
+                  <Label>Sim Platforms</Label>
                   <div className="grid grid-cols-2 gap-2">
                     {SIM_PLATFORMS.map(p => (
                       <label key={p} className="flex items-center gap-2 cursor-pointer">
