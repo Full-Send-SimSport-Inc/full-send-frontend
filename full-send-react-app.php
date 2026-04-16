@@ -362,7 +362,7 @@ add_action('admin_init', function() {
     
     // If they aren't an admin, send them to the frontend portal
     if (!current_user_can('manage_options')) {
-        wp_redirect(home_url('/member-portal')); // Change this to your actual React route
+        wp_redirect(home_url('/my-profile')); // Change this to your actual React route
         exit;
     }
 });
