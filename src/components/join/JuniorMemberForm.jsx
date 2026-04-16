@@ -34,7 +34,7 @@ export default function JuniorMemberForm({ onBack }) {
   const [memberType, setMemberType] = useState(''); // 'junior_racing' or 'junior_supporting'
   const [hasDiscord, setHasDiscord] = useState(null);
   const [form, setForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '',
+    first_name: '', last_name: '', email: '', parent_email: '', phone: '',
     street_address: '', city: '', state: '',
     postcode: '', country: 'Australia', discord_username: '',
     sim_platforms: [], agreed_to_terms: false,
@@ -172,6 +172,8 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
             </div>
 
+
+
             <div className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>First Name *</Label><Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} /></div>
@@ -181,6 +183,9 @@ export default function JuniorMemberForm({ onBack }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Junior Email *</Label><Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} /></div>
                 <div className="space-y-2"><Label>Phone (Optional)</Label><Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
+                <div className="space-y-2">
+                    <Label>Parent/Guardian Email *</Label><Input type="email" required value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} placeholder="The email your parent used to join"/>
+                </div>
               </div>
 
               <div className="space-y-4 pt-4 border-t">

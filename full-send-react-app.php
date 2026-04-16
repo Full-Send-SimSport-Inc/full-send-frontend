@@ -91,19 +91,20 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            // 1. Identify Member Category
+            // Log incoming request for debugging (Check your error_log if it fails)
+            error_log('Join Application Params: ' . print_r($params, true));
+
             $member_type = $params['member_type'] ?? '';
             
-            $is_junior = in_array($member_type, ['junior', 'junior_racing', 'junior_supporting']);
-            $is_adult  = in_array($member_type, ['racing', 'supporting']);
+            // Check if it's any flavor of Junior
+            $is_junior = str_contains($member_type, 'junior');
 
-            // 2. Junior-Specific Logic (Parent Linkage)
             if ($is_junior) {
-                $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
-                $parent_email = sanitize_email($raw_email);
+                // Collect any possible variation of parent email
+                $parent_email = sanitize_email($params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '');
                 
                 if (empty($parent_email)) {
-                    return new WP_Error('missing_email', "Parent email required for Juniors.", ['status' => 400]);
+                    return new WP_Error('missing_parent', "Parent email is required for Junior applications.", ['status' => 400]);
                 }
 
                 $parent_query = new WP_Query([
@@ -115,52 +116,39 @@ add_action('rest_api_init', function () {
                 ]);
 
                 if (!$parent_query->have_posts()) {
-                    return new WP_Error('parent_not_found', "No registered member found for '{$parent_email}'.", ['status' => 400]);
+                    return new WP_Error('parent_not_found', "No record found for parent: {$parent_email}. Parents must register first.", ['status' => 400]);
                 }
-                
                 $params['parent_id'] = $parent_query->posts[0]->ID;
             }
 
-            // 3. Create the Member Post
+            // Create the post
             $post_id = wp_insert_post([
-                'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
+                'post_title'   => sanitize_text_field(($params['first_name'] ?? '') . ' ' . ($params['last_name'] ?? '')),
                 'post_type'    => 'fs_member',
                 'post_status'  => 'publish',
             ]);
 
             if (is_wp_error($post_id) || !$post_id) {
-                return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
+                return new WP_Error('db_error', 'Failed to save application to database.', ['status' => 500]);
             }
 
-            // 4. Metadata Mapping
+            // Map meta fields
             foreach ($params as $key => $value) {
-                $target_key = $key;
-                
-                // Normalize guardian field names
-                if (in_array($key, ['parent_guardian_email', 'guardian_email'])) $target_key = 'parent_email';
-                if (in_array($key, ['parent_guardian_name', 'guardian_name'])) $target_key = 'parent_name';
-
-                $meta_key = '_' . $target_key;
-                
-                // Ensure sim_platforms is always an array, even if empty (common for Supporting members)
-                if ($key === 'sim_platforms') {
-                    $platforms = is_array($value) ? $value : [];
-                    update_post_meta($post_id, $meta_key, $platforms);
-                } elseif (is_array($value)) {
+                $meta_key = '_' . $key;
+                if (is_array($value)) {
                     update_post_meta($post_id, $meta_key, $value);
                 } else {
                     update_post_meta($post_id, $meta_key, sanitize_text_field($value));
                 }
             }
             
-            // Explicitly set initial status
             update_post_meta($post_id, '_status', 'pending');
 
+            // IMPORTANT: Return 'id' so the frontend can move to the password step
             return [
                 'status' => 'success', 
-                'message' => 'Application Submitted!', 
                 'id' => $post_id, 
-                'member_type' => $member_type
+                'message' => 'Application Submitted!'
             ];
         }
     ]);
