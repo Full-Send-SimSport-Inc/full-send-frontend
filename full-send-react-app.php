@@ -235,7 +235,8 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    register_rest_route($namespace, '/setup-password', [
+    // Change the route name from /setup-password to /setup-account to match the React app
+    register_rest_route($namespace, '/setup-account', [
         'methods' => 'POST',
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
@@ -262,6 +263,7 @@ add_action('rest_api_init', function () {
                 return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
+            // Create the WordPress User
             $user_id = wp_create_user($email, $password, $email);
             
             if (is_wp_error($user_id)) {
@@ -271,6 +273,7 @@ add_action('rest_api_init', function () {
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
             
+            // Link the WordPress User to the Member Post
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
