@@ -26,225 +26,270 @@ export default function AdultMemberForm({ onBack }) {
     street_address: '', city: '', state: '',
     postcode: '', country: 'Australia', discord_username: '',
     sim_platforms: [], agreed_to_terms: false,
-    dob_day: '', dob_month: '', dob_year: ''
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [submittedData, setSubmittedData] = useState(null); // Fixed naming here
 
-  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [submittedMemberId, setSubmittedMemberId] = useState(null); // Captured member ID
+  const [password, setPassword] = useState('');
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    if (error) setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.agreed_to_terms) {
-      setError("You must agree to the terms to continue.");
-      return;
-    }
 
-    if (!memberType) {
-        setError("Please select a membership type.");
+    if (submitted) {
+      // Step 2: Create WordPress Account
+      setSubmitting(true);
+      setError('');
+      try {
+        const response = await fetch('/wp-json/full-send/v1/setup-account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            member_id: submittedMemberId, // Correctly passing the captured ID
+            email: form.email,
+            password: password
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Failed to create account');
+
+        setAccountCreated(true);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Step 1: Submit Initial Application
+      if (!memberType) {
+        setError('Please select a membership type.');
         return;
-    }
+      }
+      if (!form.agreed_to_terms) {
+        setError('You must agree to the terms to continue.');
+        return;
+      }
 
-    setSubmitting(true);
-    setError('');
+      setSubmitting(true);
+      setError('');
 
-    try {
-      const response = await base44.post('/join', {
-        ...form,
-        member_type: 'adult',
-        sub_type: memberType
-      });
-      
-      setSubmittedData({
-        id: response.data?.id || response.id, 
-        email: form.email
-      });
-    } catch (err) {
-      setError(err.response?.data?.message || "An error occurred during submission.");
-    } finally {
-      setSubmitting(false);
+      try {
+        const payload = { ...form, status: 'pending', member_type: memberType };
+        const res = await base44.entities.Member.create(payload);
+        
+        setSubmittedMemberId(res.id); // Saving the generated ID
+        setSubmitted(true);
+        window.scrollTo(0, 0);
+      } catch (err) {
+        setError('Failed to submit application. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
-  if (submittedData) {
+  if (accountCreated) {
     return (
-      <div className="max-w-2xl mx-auto py-10 px-6">
-        <Card className="border-0 shadow-xl overflow-hidden bg-white/80 backdrop-blur">
-          <CardContent className="pt-12 pb-12 px-6 text-center">
-            <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-              <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-10 h-10" />
-              </div>
-              <h2 className="text-3xl font-black mb-4">Application Received!</h2>
-              <p className="text-muted-foreground mb-8 text-lg">
-                Thank you for applying. The committee will review your application shortly.
-              </p>
-              
-              <div className="space-y-3 max-w-sm mx-auto">
-                <Button asChild className="w-full" size="lg">
-                  <Link to={`/setup-account/${submittedData.id}/${submittedData.email}`}>
-                    Set Up My Account Password
-                  </Link>
-                </Button>
-                
-                <Button onClick={onBack} variant="outline" className="w-full">
-                  Return to Options
-                </Button>
-              </div>
-            </motion.div>
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+        <Card className="max-w-md mx-auto border-0 shadow-2xl">
+          <CardContent className="pt-12 pb-10 px-8 text-center">
+            <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Account Created!</h2>
+            <p className="text-muted-foreground mb-8">
+              Your application is pending review. You can now use your email and password to log in once approved.
+            </p>
+            <Button asChild className="w-full" size="lg">
+              <Link to="/admin">Go to Login</Link>
+            </Button>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <Card className="max-w-md mx-auto border-0 shadow-2xl overflow-hidden">
+          <div className="bg-primary h-2" />
+          <CardContent className="pt-10 pb-8 px-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold mb-2">Application Received</h2>
+              <p className="text-muted-foreground text-sm">Create a password for your member account.</p>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="password">Choose Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 8 characters"
+                  minLength={8}
+                />
+              </div>
+              {error && (
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-lg px-4 py-3">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{error}
+                </div>
+              )}
+              <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : 'Create Account'}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-      className="max-w-2xl mx-auto py-10 px-6">
-      <button onClick={onBack} className="text-sm text-muted-foreground hover:text-foreground mb-6 flex items-center gap-1">
-        ← Back to membership options
+    <div className="space-y-8">
+      <button onClick={onBack} className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+        ← Back to selection
       </button>
-      <Card className="border-0 shadow-xl shadow-primary/5">
-        <CardContent className="p-6 md:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Member Type Selection */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Membership Type *</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button type="button" onClick={() => setMemberType('racing')}
-                  className={cn("p-4 rounded-xl border-2 text-left transition-all",
-                    memberType === 'racing' ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
-                  <Gamepad2 className={cn("w-6 h-6 mb-2", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
-                  <p className="font-semibold text-sm">Racing Member</p>
-                  <p className="text-xs text-muted-foreground mt-1">Active sim racer competing in events</p>
+      <Card className="border-0 shadow-xl overflow-hidden">
+        <div className="bg-primary p-6 text-white">
+          <h2 className="text-xl font-bold">Adult Membership Application</h2>
+          <p className="text-white/70 text-sm mt-1">Please fill in your details accurately.</p>
+        </div>
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Membership Type Selection */}
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Select Member Type *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setMemberType('racing')}
+                  className={cn(
+                    "flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2",
+                    memberType === 'racing' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
+                  )}
+                >
+                  <Gamepad2 className={cn("w-6 h-6", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
+                  <span className="font-bold text-sm">Racing Member</span>
+                  <span className="text-xs text-muted-foreground">Competes in official events</span>
                 </button>
-                <button type="button" onClick={() => setMemberType('supporting')}
-                  className={cn("p-4 rounded-xl border-2 text-left transition-all",
-                    memberType === 'supporting' ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
-                  <Heart className={cn("w-6 h-6 mb-2", memberType === 'supporting' ? "text-primary" : "text-muted-foreground")} />
-                  <p className="font-semibold text-sm">Supporting Member</p>
-                  <p className="text-xs text-muted-foreground mt-1">Non-racing supporter / parent / guardian</p>
+                <button
+                  type="button"
+                  onClick={() => setMemberType('supporting')}
+                  className={cn(
+                    "flex flex-col items-center p-4 rounded-xl border-2 transition-all text-center gap-2",
+                    memberType === 'supporting' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
+                  )}
+                >
+                  <Heart className={cn("w-6 h-6", memberType === 'supporting' ? "text-primary" : "text-muted-foreground")} />
+                  <span className="font-bold text-sm">Supporting Member</span>
+                  <span className="text-xs text-muted-foreground">Supporter/Parent/Guardian</span>
                 </button>
               </div>
             </div>
 
             {/* Personal Details */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Personal Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>First Name *</Label>
-                  <Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} placeholder="John" required />
+                  <Input required value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Last Name *</Label>
-                  <Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} placeholder="Smith" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email Address *</Label>
-                  <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} placeholder="john@example.com" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="0400 000 000" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Date of Birth *</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Select value={form.dob_day} onValueChange={v => handleChange('dob_day', v)}>
-                      <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
-                      <SelectContent>{Array.from({ length: 31 }, (_, i) => i + 1).map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={form.dob_month} onValueChange={v => handleChange('dob_month', v)}>
-                      <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
-                      <SelectContent>{['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={form.dob_year} onValueChange={v => handleChange('dob_year', v)}>
-                      <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
-                      <SelectContent>{Array.from({ length: 80 }, (_, i) => new Date().getFullYear() - 18 - i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+                  <Input required value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} />
                 </div>
               </div>
-            </div>
 
-            {/* Address */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Address</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Street Address</Label>
-                  <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email Address *</Label>
+                  <Input type="email" required value={form.email} onChange={e => handleChange('email', e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>City / Suburb</Label>
-                  <Input value={form.city} onChange={e => handleChange('city', e.target.value)} placeholder="Melbourne" />
+                  <Label>Phone Number *</Label>
+                  <Input required value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Street Address *</Label>
+                <Input required value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>City *</Label>
+                  <Input required value={form.city} onChange={e => handleChange('city', e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label>State</Label>
+                  <Label>State *</Label>
                   <Select value={form.state} onValueChange={v => handleChange('state', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-                    <SelectContent>{AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectContent>
+                      {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Postcode</Label>
-                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} placeholder="3000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Country</Label>
-                  <Input value={form.country} onChange={e => handleChange('country', e.target.value)} />
+                  <Label>Postcode *</Label>
+                  <Input required value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} />
                 </div>
               </div>
+
+              <div className="space-y-2">
+                <Label>Discord Username (Optional)</Label>
+                <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#0000" />
+              </div>
+
+              {memberType === 'racing' && (
+                <div className="space-y-3 pt-2">
+                  <Label className="text-sm font-semibold">Sim Platforms You Race On</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-3 gap-x-2">
+                    {SIM_PLATFORMS.map(p => (
+                      <label key={p} className="flex items-center gap-2 cursor-pointer group">
+                        <Checkbox
+                          checked={form.sim_platforms.includes(p)}
+                          onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))}
+                        />
+                        <span className="text-sm group-hover:text-primary transition-colors">{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Sim Racing — only for racing members */}
-            {memberType === 'racing' && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Sim Racing Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Discord Username</Label>
-                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="username#1234" />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label>Sim Platforms (select all that apply)</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {SIM_PLATFORMS.map(p => (
-                        <label key={p} className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox checked={form.sim_platforms.includes(p)}
-                            onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
-                          <span className="text-sm">{p}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Terms */}
-            <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
-              <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
-              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+            <div className="flex items-start gap-3 p-4 bg-muted rounded-lg border">
+              <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-1" />
+              <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer font-normal">
                 I agree to become a member of Full Send SimSports Inc. and consent to my personal information being stored for membership management purposes. *
               </Label>
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/5 border border-destructive/20 rounded-lg px-4 py-3">
                 <AlertCircle className="w-4 h-4 shrink-0" />{error}
               </div>
             )}
 
-            <Button type="submit" disabled={submitting} size="lg" className="w-full text-base font-semibold">
+            <Button type="submit" disabled={submitting} size="lg" className="w-full text-base font-semibold shadow-lg shadow-primary/20">
               {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Application'}
             </Button>
           </form>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
