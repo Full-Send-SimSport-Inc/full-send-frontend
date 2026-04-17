@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, UserCircle, CheckCircle2, AlertCircle, Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const SIM_PLATFORMS = [
   "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
