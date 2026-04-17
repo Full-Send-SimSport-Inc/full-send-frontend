@@ -18,6 +18,7 @@ import AdminAGM from '@/pages/AdminAGM';
 import AdminEmail from '@/pages/AdminEmail'; 
 import AdminUsers from '@/pages/AdminUsers';
 import MyProfile from '@/pages/MyProfile';
+import Login from '@/pages/Login';
 
 // Auth Components
 import SetupAccount from '@/components/auth/SetupAccount';
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/" element={<Join />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/my-profile" element={<MyProfile />} />
+              <Route path="/login" element={<Login />} />
               
               {/* Account Setup Routes (supporting multiple URL param namings just in case) */}
               <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
