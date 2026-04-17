@@ -9,7 +9,7 @@ import { Toaster } from '@/components/ui/sonner';
 import AdminLayout from '@/components/admin/AdminLayout';
 
 // Pages
-import Join from '@/pages/Join'; // Ensure this points to your original Join.jsx
+import Join from '@/pages/Join'; 
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminMembers from '@/pages/AdminMembers';
@@ -33,15 +33,14 @@ export default function App() {
           <div className="min-h-screen bg-background">
             {/* NO GLOBAL HEADER HERE - it's handled inside the pages/layouts */}
             <Routes>
-              {/* Public Routes */}
+              {/* Public & Member Routes */}
               <Route path="/" element={<Join />} />
               <Route path="/meetings" element={<Meetings />} />
               <Route path="/my-profile" element={<MyProfile />} />
-              {/* Account Setup Route */}
-              <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
               
-              {/* Member Protected Route */}
-              <Route path="/my-profile" element={<MyProfile />} />
+              {/* Account Setup Routes (supporting multiple URL param namings just in case) */}
+              <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
+              <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
               
               {/* Admin Routes (Header is inside AdminLayout) */}
               <Route path="/admin" element={<AdminLayout />}>
@@ -53,6 +52,7 @@ export default function App() {
                 <Route path="users" element={<AdminUsers />} />
               </Route>
 
+              {/* 404 Fallback */}
               <Route path="*" element={<PageNotFound />} />
             </Routes>
           </div>

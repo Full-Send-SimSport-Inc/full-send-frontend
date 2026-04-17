@@ -42,7 +42,6 @@ add_action('rest_api_init', function () {
     register_rest_route($namespace, '/me', [
         'methods' => 'GET',
         'callback' => function() {
-            // --- FIXED: Return 200 OK for guests instead of 401 Error ---
             if (!is_user_logged_in()) {
                 return rest_ensure_response([
                     'authenticated' => false,
@@ -143,7 +142,6 @@ add_action('rest_api_init', function () {
             
             update_post_meta($post_id, '_status', 'pending');
 
-            // --- FIXED: Return the email so the frontend can trigger the setup-account phase ---
             return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
         }
     ]);
@@ -235,27 +233,21 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    // Change the route name from /setup-password to /setup-account to match the React app
     register_rest_route($namespace, '/setup-account', [
         'methods' => 'POST',
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
-            // Get params from JSON body
             $params = $request->get_json_params();
             
-            // FALLBACK: If JSON params are empty, try getting them from the raw body 
-            // (Some hosting environments/proxies strip the Content-Type header)
             if (empty($params)) {
                 $raw_body = $request->get_body();
                 $params = json_decode($raw_body, true);
             }
 
-            // Map all possible variations of the ID
             $member_id = $params['member_id'] ?? $params['id'] ?? $params['memberId'] ?? null;
             $email     = $params['email'] ?? null;
             $password  = $params['password'] ?? null;
 
-            // Check for missing data
             if (!$member_id || !$password || !$email) {
                 return new WP_Error('missing_data', 'Missing required account details. Received: ID(' . ($member_id ? 'yes':'no') . ') Email(' . ($email ? 'yes':'no') . ') Pwd(' . ($password ? 'yes':'no') . ')', ['status' => 400]);
             }
@@ -265,13 +257,9 @@ add_action('rest_api_init', function () {
                 return new WP_Error('invalid_member', 'Member record not found for ID: ' . $member_id, ['status' => 404]);
             }
 
-            // Verify the email matches the one on the member application
             $stored_email = get_post_meta($member_id, '_email', true);
             
-            // If stored_email is empty, it means the /join phase didn't save it correctly
             if (empty($stored_email)) {
-                // For safety, let's allow it if we just created the post, 
-                // or you can choose to save it now:
                 update_post_meta($member_id, '_email', sanitize_email($email));
                 $stored_email = $email;
             }
@@ -284,20 +272,17 @@ add_action('rest_api_init', function () {
                 return new WP_Error('user_exists', 'An account with this email already exists.', ['status' => 400]);
             }
 
-            // Create the WordPress User
-            // Create the WordPress User
+            // Create User
             $user_id = wp_create_user($email, $password, $email);
             
             if (is_wp_error($user_id)) {
                 return new WP_Error('creation_failed', $user_id->get_error_message(), ['status' => 500]);
             }
 
-            // --- NEW: Retrieve names from the Member Post ---
             $first_name = get_post_meta($member_id, '_first_name', true);
             $last_name  = get_post_meta($member_id, '_last_name', true);
             $full_name  = trim("$first_name $last_name");
 
-            // --- NEW: Update the User Record with names ---
             wp_update_user([
                 'ID'           => $user_id,
                 'first_name'   => $first_name,
@@ -306,10 +291,14 @@ add_action('rest_api_init', function () {
                 'nickname'     => $first_name ? $first_name : $email,
             ]);
 
+            $discord = get_post_meta($member_id, '_discord_username', true);
+            if ($discord) {
+                update_user_meta($user_id, 'discord_username', $discord);
+            }
+
             $user = new WP_User($user_id);
             $user->set_role('subscriber');
             
-            // Link everything together
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
             update_post_meta($member_id, '_status', 'active');
@@ -355,14 +344,30 @@ add_shortcode('full_send_app', function() {
 });
 
 /**
- * Redirect non-admins away from wp-admin to the React Portal
+ * Smart Redirect System: Routes users to the correct area upon accessing wp-admin
  */
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
     
-    // If they aren't an admin, send them to the frontend portal
-    if (!current_user_can('manage_options')) {
-        wp_redirect(home_url('/my-profile')); // Change this to your actual React route
+    // If the user is logged in but is NOT an Administrator
+    if (is_user_logged_in() && !current_user_can('manage_options')) {
+        
+        // If they have Editor capabilities (Committee), send them to the React Admin Dashboard
+        if (current_user_can('edit_pages')) {
+            wp_redirect(home_url('/portal/#/admin'));
+        } else {
+            // Regular Members (Subscribers) go straight to their editable profile
+            wp_redirect(home_url('/portal/#/my-profile'));
+        }
         exit;
     }
+    // Administrators naturally fall through and are allowed to stay in wp-admin
+});
+
+/**
+ * Ensure users are redirected to the portal rather than the default WP login screen on logout
+ */
+add_action('wp_logout', function(){
+    wp_safe_redirect(home_url('/portal'));
+    exit;
 });
