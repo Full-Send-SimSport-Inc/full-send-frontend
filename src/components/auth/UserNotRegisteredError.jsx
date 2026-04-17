@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { KeyRound, ShieldAlert, ArrowRight } from 'lucide-react';
+import { KeyRound, ShieldAlert, ArrowRight, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const UserNotRegisteredError = ({ memberId, email }) => {
@@ -14,19 +14,35 @@ const UserNotRegisteredError = ({ memberId, email }) => {
           
           <h1 className="text-3xl font-bold text-slate-900 mb-4">Access Restricted</h1>
           <p className="text-slate-600 mb-8">
-            We couldn't find an active user account for your email. You must be an approved member to access this area.
+            You must be logged in with an authorized account to access this area.
           </p>
 
           <div className="space-y-4">
-            {/* NEW: Setup Account Call to Action */}
+            {/* OPTION 1: Login (For existing users) */}
             <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 text-left">
-              <div className="flex items-start gap-3">
-                <KeyRound className="w-5 h-5 text-primary mt-1 shrink-0" />
-                <div>
-                  <p className="font-semibold text-slate-900 text-sm">Already a member?</p>
-                  <p className="text-xs text-slate-600 mb-3">If you have been approved but haven't set a password yet, you can do that now.</p>
+              <div className="flex gap-4">
+                <LogIn className="w-5 h-5 text-primary mt-1 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-900 text-sm">Sign In</p>
+                  <p className="text-xs text-slate-600 mb-3">Already have an account? Log in to access the portal.</p>
+                  <Button asChild className="w-full justify-between">
+                    <Link to="/login">
+                      Go to Login
+                      <ArrowRight className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* OPTION 2: Setup Account (For new approvals) */}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-left">
+              <div className="flex gap-4">
+                <KeyRound className="w-5 h-5 text-slate-500 mt-1 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-slate-900 text-sm">First time here?</p>
+                  <p className="text-xs text-slate-600 mb-3">If you're a new member, you'll need to set your password first.</p>
                   
-                  {/* If we have the details, link directly. Otherwise, link to a general setup or join page */}
                   <Button asChild className="w-full justify-between" variant="outline">
                     <Link to={memberId && email ? `/setup-account/${memberId}/${email}` : "/"}>
                       Setup My Account
@@ -37,14 +53,10 @@ const UserNotRegisteredError = ({ memberId, email }) => {
               </div>
             </div>
 
-            {/* Existing Help Text */}
-            <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-500 text-left">
-              <p className="font-medium mb-2 text-slate-700">Still having trouble?</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Verify you used the correct email address</li>
-                <li>Contact a Full Send admin for assistance</li>
-                <li>Try logging out and back in again</li>
-              </ul>
+            <div className="pt-4">
+              <Link to="/" className="text-sm text-slate-500 hover:text-primary transition-colors">
+                Return to Home
+              </Link>
             </div>
           </div>
         </div>
