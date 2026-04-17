@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
 
 const AuthContext = createContext();
 
@@ -7,24 +8,25 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
-  // Check login status on load
   useEffect(() => {
     checkLoginStatus();
   }, []);
 
   const checkLoginStatus = async () => {
     try {
-      // Calling the /me endpoint we discussed earlier
-      const response = await fetch('/wp-json/full-send/v1/me');
-      if (response.ok) {
-        const userData = await response.json();
+      // Use our base44 client to ensure Nonce and Cookies are sent
+      const userData = await base44.get('/me');
+      
+      if (userData && userData.authenticated) {
         setUser(userData);
         setIsAuthenticated(true);
       } else {
+        setUser(null);
         setIsAuthenticated(false);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
       setIsAuthenticated(false);
     } finally {
       setIsLoadingAuth(false);
@@ -32,36 +34,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    // You can use JWT or standard Cookie auth here
-    const response = await fetch('/wp-json/jwt-auth/v1/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password })
-    });
-    
-    if (response.ok) {
+    try {
+      // Standard WP AJAX login or JWT - usually simpler to redirect to wp-login
+      // but if you have a custom endpoint, call it here.
+      // For now, we rely on the WP login cookie.
       await checkLoginStatus();
       return { success: true };
+    } catch (err) {
+      return { success: false, message: 'Login failed' };
     }
-    return { success: false, message: 'Invalid credentials' };
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    // Redirect to WP logout
-    window.location.href = '/wp-login.php?action=logout';
+    // Redirect to the actual WordPress logout URL
+    window.location.href = window.appParams?.logoutUrl || '/wp-login.php?action=logout';
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
-      isLoadingAuth,
-      login,
-      logout,
-      checkLoginStatus
-    }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isLoadingAuth, checkLoginStatus, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
