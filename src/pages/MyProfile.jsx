@@ -19,6 +19,10 @@ const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 export default function MyProfile() {
   const { user, checkLoginStatus } = useAuth();
+
+  // DEBUG LOGS - Check your console for these!
+  console.log("Current Auth User Object:", user);
+  console.log("Member Details exists:", !!user?.member_details);
   
   const [form, setForm] = useState({
     phone: '', street_address: '', city: '', state: '', 
