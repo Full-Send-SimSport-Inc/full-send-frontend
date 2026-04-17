@@ -400,7 +400,7 @@ add_action('admin_init', function() {
     if (is_user_logged_in() && !current_user_can('manage_options')) {
         
         // If they have Editor capabilities (Committee), send them to the React Admin Dashboard
-        if (current_user_can('edit_pages')) {
+        if (current_user_can('edit_pages') || in_array('committee', (array) wp_get_current_user()->roles)) {
             wp_redirect(home_url('/portal/#/admin'));
         } else {
             // Regular Members (Subscribers) go straight to their editable profile
@@ -418,3 +418,16 @@ add_action('wp_logout', function(){
     wp_safe_redirect(home_url('/portal'));
     exit;
 });
+
+/**
+ * Create a custom 'Committee' role for Member Management
+ */
+function fs_add_committee_role() {
+    // Check if the role already exists to avoid overwriting
+    if (!get_role('committee')) {
+        // We clone the 'editor' role capabilities so they can manage 'fs_member' posts
+        $editor_role = get_role('editor');
+        add_role('committee', 'Committee', $editor_role->capabilities);
+    }
+}
+add_action('init', 'fs_add_committee_role');
