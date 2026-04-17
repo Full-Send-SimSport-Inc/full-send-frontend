@@ -39,16 +39,26 @@ export default function SetupAccount() {
     setErrorMessage('');
 
     try {
-      await base44.post('/setup-account', {
-        member_id: finalId, 
-        email: decodeURIComponent(email), // Now 'email' is defined from useParams above
+      // FIX: Aligning payload keys with PHP expectations
+      const response = await base44.post('/setup-account', {
+        member_id: finalId, // PHP expects member_id
+        email: email,       // From useParams
         password: formData.password
       });
+
       setStatus('success');
+      
+      // NEW: Redirect to our custom login page after a short delay
+      setTimeout(() => {
+        // Using window.location to ensure a clean state, 
+        // or you can use useNavigate() if you've imported it.
+        window.location.hash = '/login'; 
+      }, 3000);
+
     } catch (err) {
-      const msg = err.response?.data?.message || "Failed to create account. Please contact an administrator.";
-      setErrorMessage(msg);
+      console.error('Setup failed:', err);
       setStatus('error');
+      setErrorMessage(err.message || "Failed to create account. Please try again.");
     }
   };
 

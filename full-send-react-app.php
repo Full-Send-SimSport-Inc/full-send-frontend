@@ -402,18 +402,24 @@ add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
     if (!is_user_logged_in()) return;
 
-    // IMPORTANT: If they are an admin, do NOT redirect them.
-    // This allows them to use the WP Backend IF they want to.
+    $user = wp_get_current_user();
+
+    // 1. If Administrator: Do nothing. 
+    // This allows you to access /wp-admin if you typed it in.
     if (current_user_can('manage_options')) return;
 
-    // For everyone else, keep the "Force" to the Portal
-    $user = wp_get_current_user();
-    if (in_array('committee', (array)$user->roles)) {
-        wp_redirect(home_url('/portal/#/admin'));
-    } else {
-        wp_redirect(home_url('/portal/#/my-profile'));
+    // 2. If Committee/Editor: Force to /#/admin
+    if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+        // We use wp_safe_redirect to ensure the hash is handled correctly
+        wp_safe_redirect(home_url('/portal/#/admin'));
+        exit;
+    } 
+
+    // 3. If Member/Junior: Force to /#/my-profile
+    if (in_array('fs_member', (array)$user->roles) || in_array('fs_junior_member', (array)$user->roles)) {
+        wp_safe_redirect(home_url('/portal/#/my-profile'));
+        exit;
     }
-    exit;
 });
 
 /**
