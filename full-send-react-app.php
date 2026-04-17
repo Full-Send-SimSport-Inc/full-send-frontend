@@ -320,27 +320,28 @@ add_action('rest_api_init', function () {
             if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
             $params = $request->get_json_params();
-            // Added 'email' to the allowed fields list
+            
+            // Define exactly which keys are allowed to be updated by the user
             $allowed_fields = ['email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
 
             foreach ($params as $key => $value) {
                 if (in_array($key, $allowed_fields)) {
+                    // Special handling for Email to keep WP User in sync
                     if ($key === 'email') {
                         $new_email = sanitize_email($value);
                         if (!empty($new_email)) {
-                            // Sync WP User email so login matches the new profile email
                             wp_update_user(['ID' => $user_id, 'user_email' => $new_email]);
                             update_post_meta($member_id, '_email', $new_email);
                         }
                     } else {
-                        // Standardize: sanitize and save with the underscore prefix
+                        // For State and all other text fields
                         $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
                         update_post_meta($member_id, '_' . $key, $sanitized_value);
                     }
                 }
             }
 
-            return ['status' => 'success', 'message' => 'Details updated!'];
+            return ['status' => 'success', 'message' => 'Profile updated successfully!'];
         }
     ]);
 });

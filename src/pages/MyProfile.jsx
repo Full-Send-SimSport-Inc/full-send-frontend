@@ -157,19 +157,8 @@ export default function MyProfile() {
                 </div>
                 <div className="space-y-2">
                   <Label>State</Label>
-                  <Select 
-                    value={form.state} 
-                    onValueChange={(val) => handleChange('state', val)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AU_STATES.map(s => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input placeholder="e.g. NSW" value={form.state} onChange={e => handleChange('state', e.target.value.toUpperCase())} 
+                />
                 </div>
                 <div className="space-y-2">
                   <Label>Postcode</Label>
