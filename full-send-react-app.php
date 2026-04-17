@@ -332,7 +332,12 @@ add_action('rest_api_init', function () {
             }
 
             $user = new WP_User($user_id);
-            $user->set_role('subscriber');
+            $membership_type = get_post_meta($member_id, '_member_type', true);
+            if ($membership_type === 'junior') {
+                $user->set_role('fs_junior_member');
+            } else {
+                $user->set_role('fs_member');
+            }
             
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
@@ -395,20 +400,20 @@ add_shortcode('full_send_app', function() {
  */
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
-    
-    // If the user is logged in but is NOT an Administrator
-    if (is_user_logged_in() && !current_user_can('manage_options')) {
-        
-        // If they have Editor capabilities (Committee), send them to the React Admin Dashboard
-        if (current_user_can('edit_pages') || in_array('committee', (array) wp_get_current_user()->roles)) {
-            wp_redirect(home_url('/portal/#/admin'));
-        } else {
-            // Regular Members (Subscribers) go straight to their editable profile
-            wp_redirect(home_url('/portal/#/my-profile'));
-        }
-        exit;
+    if (!is_user_logged_in()) return;
+
+    // IMPORTANT: If they are an admin, do NOT redirect them.
+    // This allows them to use the WP Backend IF they want to.
+    if (current_user_can('manage_options')) return;
+
+    // For everyone else, keep the "Force" to the Portal
+    $user = wp_get_current_user();
+    if (in_array('committee', (array)$user->roles)) {
+        wp_redirect(home_url('/portal/#/admin'));
+    } else {
+        wp_redirect(home_url('/portal/#/my-profile'));
     }
-    // Administrators naturally fall through and are allowed to stay in wp-admin
+    exit;
 });
 
 /**
@@ -420,14 +425,26 @@ add_action('wp_logout', function(){
 });
 
 /**
- * Create a custom 'Committee' role for Member Management
+ * Initialize custom roles for Full Send SimSports
  */
-function fs_add_committee_role() {
-    // Check if the role already exists to avoid overwriting
+function fs_initialize_custom_roles() {
+    // 1. Committee Role (Access to Portal Admin)
     if (!get_role('committee')) {
-        // We clone the 'editor' role capabilities so they can manage 'fs_member' posts
-        $editor_role = get_role('editor');
-        add_role('committee', 'Committee', $editor_role->capabilities);
+        add_role('committee', 'Committee', [
+            'read' => true,
+            'view_portal_admin' => true, // Custom capability
+            'edit_posts' => true         // Allows access to REST API routes protected by edit_posts
+        ]);
+    }
+
+    // 2. Adult Member Role
+    if (!get_role('fs_member')) {
+        add_role('fs_member', 'FS Member', ['read' => true]);
+    }
+
+    // 3. Junior Member Role
+    if (!get_role('fs_junior_member')) {
+        add_role('fs_junior_member', 'FS Junior Member', ['read' => true]);
     }
 }
-add_action('init', 'fs_add_committee_role');
+add_action('init', 'fs_initialize_custom_roles');
