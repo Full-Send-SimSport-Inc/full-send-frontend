@@ -37,8 +37,21 @@ export default function JuniorMemberForm({ onBack }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. Validation
     if (!form.agreed_to_terms) {
       setError("You must agree to the terms to continue.");
+      return;
+    }
+
+    if (!memberType) {
+        setError("Please select a membership type.");
+        return;
+    }
+
+    // 2. Date Validation: Ensure all three dropdowns are selected
+    if (!form.dob_day || !form.dob_month || !form.dob_year) {
+      setError("Please select your full date of birth.");
       return;
     }
 
@@ -46,10 +59,17 @@ export default function JuniorMemberForm({ onBack }) {
     setError('');
 
     try {
-      const response = await base44.post('/join', {
+      // 3. Prepare Payload: Combine date and normalize state key
+      const payload = {
         ...form,
-        member_type: memberType // Uses the selected type: 'junior_racing' or 'junior_supporting'
-      });
+        dob: `${form.dob_day}/${form.dob_month}/${form.dob_year}`,
+        state: form.state, // Ensure this matches the UI state key
+        member_type: 'junior',
+        sub_type: memberType
+      };
+
+      // 4. Send to WordPress
+      const response = await base44.post('/join', payload);
       
       setSubmittedData({
         id: response.data?.id || response.id, 

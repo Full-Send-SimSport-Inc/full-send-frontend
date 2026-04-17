@@ -36,6 +36,8 @@ export default function AdultMemberForm({ onBack }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // 1. Validation
     if (!form.agreed_to_terms) {
       setError("You must agree to the terms to continue.");
       return;
@@ -46,15 +48,27 @@ export default function AdultMemberForm({ onBack }) {
         return;
     }
 
+    // 2. Date Validation: Ensure all three dropdowns are selected
+    if (!form.dob_day || !form.dob_month || !form.dob_year) {
+      setError("Please select your full date of birth.");
+      return;
+    }
+
     setSubmitting(true);
     setError('');
 
     try {
-      const response = await base44.post('/join', {
+      // 3. Prepare Payload: Combine date and normalize state key
+      const payload = {
         ...form,
+        dob: `${form.dob_day}/${form.dob_month}/${form.dob_year}`, // Stitch for database
+        state: form.state,
         member_type: 'adult',
         sub_type: memberType
-      });
+      };
+
+      // 4. Send to WordPress
+      const response = await base44.post('/join', payload);
       
       setSubmittedData({
         id: response.data?.id || response.id, 
