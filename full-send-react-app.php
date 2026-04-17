@@ -54,21 +54,25 @@ add_action('rest_api_init', function () {
             $member_id = get_user_meta($user->ID, 'fs_member_id', true);
             $member_details = null;
 
-if ($member_id) {
-                // Relational Lookups (Same logic as MemberDetail)
+            if ($member_id) {
+                // 1. RELATIONAL LOOKUP (Parent/Child)
                 $parent_id = get_post_meta($member_id, '_parent_id', true);
                 $parent_name = get_post_meta($member_id, '_parent_name', true);
                 $parent_email = get_post_meta($member_id, '_parent_email', true);
 
                 if ($parent_id) {
-                    $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
-                    $parent_email = get_post_meta($parent_id, '_email', true);
+                    $parent_post = get_post($parent_id);
+                    if ($parent_post) {
+                        $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
+                        $parent_email = get_post_meta($parent_id, '_email', true);
+                    }
                 }
 
                 $children = [];
                 $child_query = new WP_Query([
                     'post_type' => 'fs_member',
-                    'meta_query' => [['key' => '_parent_id', 'value' => $member_id, 'compare' => '=']]
+                    'meta_query' => [['key' => '_parent_id', 'value' => $member_id, 'compare' => '=']],
+                    'post_status' => 'any'
                 ]);
 
                 foreach ($child_query->posts as $cp) {
@@ -79,6 +83,10 @@ if ($member_id) {
                     ];
                 }
 
+                // 2. STATUS FALLBACK (Fixes the "Always Active" bug)
+                $raw_status = get_post_meta($member_id, '_status', true);
+                $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
+
                 $member_details = [
                     'member_id'        => $member_id,
                     'first_name'       => get_post_meta($member_id, '_first_name', true),
@@ -88,12 +96,11 @@ if ($member_id) {
                     'city'             => get_post_meta($member_id, '_city', true),
                     'state'            => get_post_meta($member_id, '_state', true),
                     'postcode'         => get_post_meta($member_id, '_postcode', true),
-                    'dob'              => get_post_meta($member_id, '_dob', true),
+                    'dob'              => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
                     'discord_username' => get_post_meta($member_id, '_discord_username', true),
                     'sim_platforms'    => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
                     'membership_type'  => get_post_meta($member_id, '_membership_type', true),
-                    'status'           => get_post_meta($member_id, '_status', true),
-                    // Adding the relational data to the payload
+                    'status'           => $display_status, // Use the fallback
                     'parent_name'      => $parent_name,
                     'parent_email'     => $parent_email,
                     'children'         => $children

@@ -119,25 +119,34 @@ export default function MyProfile() {
                 <Label>Date of Birth</Label>
                 <Input disabled value={details.dob || ''} className="bg-muted" />
             
-            {/* Relational Info: Parent (for Juniors) */}
+            {/* Display Linked Parent (for Junior members) */}
             {details.parent_name && (
-              <div className="md:col-span-2 space-y-2 pt-2 border-t border-dashed border-muted-foreground/20">
-                <Label className="text-xs uppercase text-primary/70">Linked Parent / Guardian</Label>
-                <div className="text-sm font-medium bg-primary/5 p-2 rounded border border-primary/10">
-                  {details.parent_name} <span className="text-muted-foreground font-normal">({details.parent_email})</span>
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Parent / Guardian</Label>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                    <UserCircle className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{details.parent_name}</p>
+                    <p className="text-xs text-slate-500">{details.parent_email}</p>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Relational Info: Children (for Adults) */}
+            {/* Display Linked Juniors (for Adult members/Parents) */}
             {details.children && details.children.length > 0 && (
-              <div className="md:col-span-2 space-y-2 pt-2 border-t border-dashed border-muted-foreground/20">
-                <Label className="text-xs uppercase text-primary/70">Linked Junior Members</Label>
-                <div className="grid grid-cols-1 gap-2">
+              <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Junior Members</Label>
+                <div className="space-y-2">
                   {details.children.map(child => (
-                    <div key={child.id} className="flex justify-between items-center text-sm bg-purple-50/50 p-2 rounded border border-purple-100">
-                      <span className="font-medium text-purple-900">{child.name}</span>
-                      <span className="text-[10px] uppercase font-bold text-purple-600 bg-white px-2 py-0.5 rounded-full border border-purple-200">
+                    <div key={child.id} className="flex justify-between items-center p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                      <span className="text-sm font-medium text-purple-900">{child.name}</span>
+                      <span className={cn(
+                        "text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border",
+                        child.status === 'active' ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"
+                      )}>
                         {child.status}
                       </span>
                     </div>
