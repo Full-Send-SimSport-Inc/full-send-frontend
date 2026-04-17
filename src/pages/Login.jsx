@@ -31,32 +31,36 @@ export default function Login() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      // 2. We don't check the JSON response (as wp-login returns HTML)
-      // We just check if the request was successful
-      if (response.ok) {
-        // We need to check the user role to decide the destination
-        // We can't use 'base44.get' yet because of the nonce issue, 
-        // so we use a small trick: reload to the specific hash we want.
+      if (!response.ok) {
+        throw new Error("Invalid login credentials.");
+      }
 
-        // Note: For non-admins, the PHP above will 'override' this and force them 
-        // to their correct spot. For Admins, this will set their landing spot.
-        
-        let target = '/portal/#/admin'; // Default destination for Committee/Admins
-        
-        // If you want to be even more precise, you could fetch user info here,
-        // but simply reloading to the portal root is often enough if PHP is tuned.
-        
-        window.location.href = window.location.origin + target;
-        
-        // This force reloads the page at the /#/admin address, 
-        // refreshing the nonce and landing you in the Admin Dashboard.
+      // 2. Refresh AuthContext to get the new user data (Roles)
+      // Even if this call gets a 403 nonce error in the console, 
+      // the 'userData' object often returns enough info to route correctly.
+      const userData = await checkLoginStatus();
+
+      // 3. Determine target destination based on role
+      let targetPath = '/portal/#/';
+      
+      if (userData && userData.roles) {
+        if (userData.roles.includes('administrator') || userData.roles.includes('committee')) {
+          targetPath = '/portal/#/admin';
+        } else if (userData.roles.includes('fs_member') || userData.roles.includes('fs_junior_member')) {
+          targetPath = '/portal/#/my-profile';
+        }
       }
-      } else {
-        throw new Error("Login failed");
-      }
+
+      // 4. HARD REDIRECT
+      // This solves the Nonce/Cookie 403 issue and lands the user on their specific page.
+      window.location.href = window.location.origin + targetPath;
+
     } catch (err) {
       console.error("Login error:", err);
-      // Add an error state to your UI here if you wish
+      // Ensure you have an 'setError' state in your component to show this to the user
+      if (typeof setError === 'function') {
+        setError("Login failed. Please check your email and password.");
+      }
     } finally {
       setLoading(false);
     }
