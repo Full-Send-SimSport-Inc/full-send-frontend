@@ -40,8 +40,11 @@ export default function AdminLayout() {
     verifyAccess();
   }, []);
 
-  const handleLogout = () => {
-    window.location.href = '/wp-login.php?action=logout';
+  const handleLogout = (e) => {
+    if (e) e.preventDefault();
+    // Use the localized logout URL to bypass confirmation, or fallback to default
+    const logoutUrl = window.appParams?.logoutUrl || '/wp-login.php?action=logout';
+    window.location.href = logoutUrl;
   };
 
   if (checking) {

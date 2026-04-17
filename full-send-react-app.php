@@ -389,8 +389,9 @@ add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
     wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
     wp_localize_script('fs-react-js', 'appParams', [
-        'restUrl' => esc_url_raw(rest_url('full-send/v1')),
-        'nonce'   => wp_create_nonce('wp_rest')
+        'restUrl'   => esc_url_raw(rest_url('full-send/v1')),
+        'nonce'     => wp_create_nonce('wp_rest'),
+        'logoutUrl' => wp_logout_url(home_url('/portal/')) // Add this line
     ]);
     return '<div id="root"></div>';
 });
