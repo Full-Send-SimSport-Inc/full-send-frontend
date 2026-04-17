@@ -19,27 +19,30 @@ const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
 export default function MyProfile() {
   const { user, checkLoginStatus } = useAuth();
-
-  // DEBUG LOGS - Check your console for these!
-  console.log("Current Auth User Object:", user);
-  console.log("Member Details exists:", !!user?.member_details);
   
   const [form, setForm] = useState({
-    phone: '', street_address: '', city: '', state: '', 
-    postcode: '', discord_username: '', sim_platforms: []
+    email: '',
+    phone: '', 
+    street_address: '', 
+    city: '', 
+    state: '', 
+    postcode: '', 
+    discord_username: '', 
+    sim_platforms: []
   });
   
-  const [status, setStatus] = useState('idle'); // idle, saving, success, error
+  const [status, setStatus] = useState('idle'); 
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     if (user?.member_details) {
       const details = user.member_details;
       setForm({
+        email: user.email || '', 
         phone: details.phone || '',
         street_address: details.street_address || '',
         city: details.city || '',
-        state: details.state || '',
+        state: details.state || '', // This ensures the dropdown has the value on load
         postcode: details.postcode || '',
         discord_username: details.discord_username || '',
         sim_platforms: Array.isArray(details.sim_platforms) ? details.sim_platforms : []
@@ -56,13 +59,15 @@ export default function MyProfile() {
 
     try {
       await base44.post('/update-me', form);
+      // Wait for the login status to refresh before finishing
       await checkLoginStatus(); 
       setStatus('success');
       setMessage('Profile updated successfully!');
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
+      console.error(err);
       setStatus('error');
-      setMessage(err.response?.data?.message || 'Failed to update profile.');
+      setMessage('Failed to update profile.');
     }
   };
 
@@ -99,40 +104,44 @@ export default function MyProfile() {
             
             {/* Locked Admin-Controlled Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed">
-              <div className="md:col-span-2 flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
+            <div className="md:col-span-2 flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
                 <Lock className="w-3 h-3" /> ADMIN CONTROLLED FIELDS
-              </div>
-              <div className="space-y-2">
+            </div>
+            <div className="space-y-2">
                 <Label>First Name</Label>
                 <Input disabled value={details.first_name || ''} className="bg-muted" />
-              </div>
-              <div className="space-y-2">
+            </div>
+            <div className="space-y-2">
                 <Label>Last Name</Label>
                 <Input disabled value={details.last_name || ''} className="bg-muted" />
-              </div>
-              <div className="space-y-2">
+            </div>
+            <div className="space-y-2">
                 <Label>Date of Birth</Label>
                 <Input disabled value={details.dob || ''} className="bg-muted" />
-              </div>
-              <div className="space-y-2">
-                <Label>Email Address</Label>
-                <Input disabled value={user.email} className="bg-muted" />
-              </div>
-              <p className="md:col-span-2 text-xs text-muted-foreground italic">
-                Please contact an administrator to update your name, birthdate, or email.
-              </p>
+            </div>
+            <p className="md:col-span-2 text-xs text-muted-foreground italic">
+                Please contact an administrator to update these fields.
+            </p>
             </div>
 
-            {/* Editable Fields */}
+            {/* Editable Primary Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input 
+                type="email"
+                value={form.email} 
+                onChange={e => handleChange('email', e.target.value)} 
+                />
+            </div>
+            <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
-              </div>
-              <div className="space-y-2">
+            </div>
+            <div className="space-y-2 md:col-span-2">
                 <Label>Discord Username</Label>
                 <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} />
-              </div>
+            </div>
             </div>
 
             <div className="space-y-4 pt-4 border-t">
@@ -148,9 +157,18 @@ export default function MyProfile() {
                 </div>
                 <div className="space-y-2">
                   <Label>State</Label>
-                  <Select value={form.state} onValueChange={v => handleChange('state', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
-                    <SelectContent>{AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  <Select 
+                    value={form.state} 
+                    onValueChange={(val) => handleChange('state', val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {AU_STATES.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
