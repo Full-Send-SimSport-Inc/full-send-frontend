@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
     
     try {
-      // 1. Send login credentials to WordPress
+      // 1. Authenticate with WordPress
       const response = await fetch('/wp-login.php', {
         method: 'POST',
         body: new URLSearchParams({ 
@@ -31,36 +31,21 @@ export default function Login() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      if (!response.ok) {
-        throw new Error("Invalid login credentials.");
-      }
-
-      // 2. Refresh AuthContext to get the new user data (Roles)
-      // Even if this call gets a 403 nonce error in the console, 
-      // the 'userData' object often returns enough info to route correctly.
-      const userData = await checkLoginStatus();
-
-      // 3. Determine target destination based on role
-      let targetPath = '/portal/#/';
+      // 2. Hard Refresh to the portal root
+      // We do NOT call checkLoginStatus() here because it will trigger the 403 error.
+      // By redirecting to /portal/, your PHP admin_init will see the fresh login 
+      // cookie and redirect the browser to /#/admin or /#/my-profile automatically.
       
-      if (userData && userData.roles) {
-        if (userData.roles.includes('administrator') || userData.roles.includes('committee')) {
-          targetPath = '/portal/#/admin';
-        } else if (userData.roles.includes('fs_member') || userData.roles.includes('fs_junior_member')) {
-          targetPath = '/portal/#/my-profile';
-        }
+      if (response.ok) {
+        window.location.href = window.location.origin + '/portal/';
+      } else {
+        throw new Error("Invalid login");
       }
-
-      // 4. HARD REDIRECT
-      // This solves the Nonce/Cookie 403 issue and lands the user on their specific page.
-      window.location.href = window.location.origin + targetPath;
 
     } catch (err) {
       console.error("Login error:", err);
-      // Ensure you have an 'setError' state in your component to show this to the user
-      if (typeof setError === 'function') {
-        setError("Login failed. Please check your email and password.");
-      }
+      // If you have an setError state, use it here
+      if (typeof setError === 'function') setError("Login failed. Check your details.");
     } finally {
       setLoading(false);
     }

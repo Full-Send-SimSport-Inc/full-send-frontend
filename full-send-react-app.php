@@ -404,21 +404,19 @@ add_action('admin_init', function() {
 
     $user = wp_get_current_user();
 
-    // 1. If Administrator: Do nothing. 
-    // This allows you to access /wp-admin if you typed it in.
+    // 1. Administrators stay where they are (allowing wp-admin access)
     if (current_user_can('manage_options')) return;
 
-    // 2. If Committee/Editor: Force to /#/admin
-    if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
-        // We use wp_safe_redirect to ensure the hash is handled correctly
-        wp_safe_redirect(home_url('/portal/#/admin'));
-        exit;
-    } 
-
-    // 3. If Member/Junior: Force to /#/my-profile
-    if (in_array('fs_member', (array)$user->roles) || in_array('fs_junior_member', (array)$user->roles)) {
-        wp_safe_redirect(home_url('/portal/#/my-profile'));
-        exit;
+    // 2. If they are just at the root portal and NOT an admin, steer them
+    // This catches the 'window.location.href = /portal/' call from React
+    if (trim($_SERVER['REQUEST_URI'], '/') === 'portal') {
+        if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+            wp_redirect(home_url('/portal/#/admin'));
+            exit;
+        } else {
+            wp_redirect(home_url('/portal/#/my-profile'));
+            exit;
+        }
     }
 });
 
