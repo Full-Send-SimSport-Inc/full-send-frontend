@@ -90,9 +90,17 @@ export default function MyProfile() {
         </div>
         <div>
           <h1 className="text-2xl font-bold">{details.first_name} {details.last_name}</h1>
-          <p className="text-muted-foreground capitalize">
-            {details.membership_type || 'Member'} • Status: <span className="font-semibold">{details.status}</span>
-          </p>
+            <p className="text-muted-foreground">
+            {details.membership_type || 'Member'} • Status: 
+            <span className={cn(
+                "ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
+                details.status === 'active' 
+                ? "bg-green-100 text-green-700 border-green-200" 
+                : "bg-orange-100 text-orange-700 border-orange-200"
+            )}>
+                {details.status || 'pending'}
+            </span>
+            </p>
         </div>
       </div>
 
@@ -105,61 +113,78 @@ export default function MyProfile() {
             
             {/* Locked Admin-Controlled Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed">
-            <div className="md:col-span-2 flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
+              <div className="md:col-span-2 flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
                 <Lock className="w-3 h-3" /> ADMIN CONTROLLED FIELDS
-            </div>
-            <div className="space-y-2">
+              </div>
+              
+              <div className="space-y-2">
                 <Label>First Name</Label>
                 <Input disabled value={details.first_name || ''} className="bg-muted" />
-            </div>
-            <div className="space-y-2">
+              </div>
+
+              <div className="space-y-2">
                 <Label>Last Name</Label>
                 <Input disabled value={details.last_name || ''} className="bg-muted" />
-            </div>
-            <div className="space-y-2">
+              </div>
+
+              <div className="space-y-2">
                 <Label>Date of Birth</Label>
                 <Input disabled value={details.dob || ''} className="bg-muted" />
-            
-            {/* Display Linked Parent (for Junior members) */}
-            {details.parent_name && (
-              <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Parent / Guardian</Label>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
-                    <UserCircle className="w-5 h-5 text-slate-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{details.parent_name}</p>
-                    <p className="text-xs text-slate-500">{details.parent_email}</p>
-                  </div>
-                </div>
               </div>
-            )}
 
-            {/* Display Linked Juniors (for Adult members/Parents) */}
-            {details.children && details.children.length > 0 && (
-              <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
-                <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Junior Members</Label>
-                <div className="space-y-2">
-                  {details.children.map(child => (
-                    <div key={child.id} className="flex justify-between items-center p-3 bg-purple-50/50 rounded-lg border border-purple-100">
-                      <span className="text-sm font-medium text-purple-900">{child.name}</span>
-                      <span className={cn(
-                        "text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border",
-                        child.status === 'active' ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"
-                      )}>
-                        {child.status}
-                      </span>
+              <div className="space-y-2">
+                  <Label>Current Status</Label>
+                  <div className="h-10 flex items-center">
+                    <span className={cn(
+                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
+                        details.status === 'active' 
+                        ? "bg-green-100 text-green-700 border-green-200" 
+                        : "bg-orange-100 text-orange-700 border-orange-200"
+                    )}>
+                        {details.status || 'pending'}
+                    </span>
+                  </div>
+              </div>
+
+              {/* Display Linked Parent (for Junior members) */}
+              {details.parent_name && (
+                <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Parent / Guardian</Label>
+                  <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center">
+                      <UserCircle className="w-5 h-5 text-slate-500" />
                     </div>
-                  ))}
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">{details.parent_name}</p>
+                      <p className="text-xs text-slate-500">{details.parent_email}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            </div>
-            <p className="md:col-span-2 text-xs text-muted-foreground italic">
+              {/* Display Linked Juniors (for Adult members/Parents) */}
+              {details.children && details.children.length > 0 && (
+                <div className="md:col-span-2 mt-4 pt-4 border-t border-dashed border-slate-200">
+                  <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 block">Linked Junior Members</Label>
+                  <div className="space-y-2">
+                    {details.children.map(child => (
+                      <div key={child.id} className="flex justify-between items-center p-3 bg-purple-50/50 rounded-lg border border-purple-100">
+                        <span className="text-sm font-medium text-purple-900">{child.name}</span>
+                        <span className={cn(
+                          "text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border",
+                          child.status === 'active' ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200"
+                        )}>
+                          {child.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <p className="md:col-span-2 text-xs text-muted-foreground italic mt-2">
                 Please contact an administrator to update these fields.
-            </p>
+              </p>
             </div>
 
             {/* Editable Primary Info */}

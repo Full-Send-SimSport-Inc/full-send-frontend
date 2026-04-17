@@ -83,7 +83,7 @@ add_action('rest_api_init', function () {
                     ];
                 }
 
-                // 2. STATUS FALLBACK (Fixes the "Always Active" bug)
+                // 1. STATUS FALLBACK: Ensure new members show as 'pending'
                 $raw_status = get_post_meta($member_id, '_status', true);
                 $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
 
@@ -100,7 +100,7 @@ add_action('rest_api_init', function () {
                     'discord_username' => get_post_meta($member_id, '_discord_username', true),
                     'sim_platforms'    => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
                     'membership_type'  => get_post_meta($member_id, '_membership_type', true),
-                    'status'           => $display_status, // Use the fallback
+                    'status'           => $display_status, // This sends 'pending' to React
                     'parent_name'      => $parent_name,
                     'parent_email'     => $parent_email,
                     'children'         => $children
@@ -336,7 +336,6 @@ add_action('rest_api_init', function () {
             
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
-            update_post_meta($member_id, '_status', 'active');
 
             return [
                 'status' => 'success',
