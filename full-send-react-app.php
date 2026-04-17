@@ -342,12 +342,14 @@ add_action('rest_api_init', function () {
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
 
-            // NEW: Automatically log the user in so the Traffic Controller catches them
+            // FORCE LOGIN: Use 'true' for the second parameter to remember the user
+            wp_clear_auth_cookie();
             wp_set_current_user($user_id);
-            wp_set_auth_cookie($user_id);
+            wp_set_auth_cookie($user_id, true);
 
             return [
                 'status' => 'success',
+                'logged_in' => true, // Tell React we logged them in
                 'message' => 'Account created! Welcome, ' . ($first_name ?: $email)
             ];
         }
@@ -430,9 +432,13 @@ add_action('admin_init', function() {
  * Redirects users to the correct React route based on their role.
  */
 add_action('template_redirect', function() {
-    // 1. Only act if the user is logged in and visiting the portal root
-    // We check for the 'login_success' flag OR a 'setup_done' flag
-    if (is_user_logged_in() && (isset($_GET['login_success']) || isset($_GET['setup_done']))) {
+    if (isset($_GET['login_success']) || isset($_GET['setup_done'])) {
+        header('X-FS-Debug: Redirect-Triggered'); // Visible in Network Tab
+        
+        if (!is_user_logged_in()) {
+            header('X-FS-Debug: Not-Logged-In');
+            return;
+        } {
         
         $user = wp_get_current_user();
         $is_admin = current_user_can('manage_options') || 

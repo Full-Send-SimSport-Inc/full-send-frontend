@@ -17,35 +17,35 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    console.log("DEBUG: Starting login attempt for:", email);
     
     try {
-      // 1. Authenticate with WordPress
       const response = await fetch('/wp-login.php', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ 
           log: email, 
           pwd: password, 
           'wp-submit': 'Log In',
           'testcookie': '1' 
         }),
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      // 2. Hard Refresh to the portal root
-      // We do NOT call checkLoginStatus() here because it will trigger the 403 error.
-      // By redirecting to /portal/, your PHP admin_init will see the fresh login 
-      // cookie and redirect the browser to /#/admin or /#/my-profile automatically.
-      
-      if (response.ok) {
-        window.location.href = window.location.origin + '/portal/?login_success=1';
+      console.log("DEBUG: Login Response Status:", response.status);
+
+      // We use a slight delay to allow the browser to save the WordPress cookie
+      if (response.status === 200 || response.ok) {
+        console.log("DEBUG: Login appears successful, redirecting...");
+        setTimeout(() => {
+          window.location.href = window.location.origin + '/portal/?login_success=1';
+        }, 500);
       } else {
-        throw new Error("Invalid login");
+        throw new Error("Invalid login status: " + response.status);
       }
 
     } catch (err) {
-      console.error("Login error:", err);
-      // If you have an setError state, use it here
-      if (typeof setError === 'function') setError("Login failed. Check your details.");
+      console.error("DEBUG: Login Error:", err);
+      alert("Login failed. Check console for details.");
     } finally {
       setLoading(false);
     }
