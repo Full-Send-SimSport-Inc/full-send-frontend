@@ -118,6 +118,34 @@ export default function MyProfile() {
             <div className="space-y-2">
                 <Label>Date of Birth</Label>
                 <Input disabled value={details.dob || ''} className="bg-muted" />
+            
+            {/* Relational Info: Parent (for Juniors) */}
+            {details.parent_name && (
+              <div className="md:col-span-2 space-y-2 pt-2 border-t border-dashed border-muted-foreground/20">
+                <Label className="text-xs uppercase text-primary/70">Linked Parent / Guardian</Label>
+                <div className="text-sm font-medium bg-primary/5 p-2 rounded border border-primary/10">
+                  {details.parent_name} <span className="text-muted-foreground font-normal">({details.parent_email})</span>
+                </div>
+              </div>
+            )}
+
+            {/* Relational Info: Children (for Adults) */}
+            {details.children && details.children.length > 0 && (
+              <div className="md:col-span-2 space-y-2 pt-2 border-t border-dashed border-muted-foreground/20">
+                <Label className="text-xs uppercase text-primary/70">Linked Junior Members</Label>
+                <div className="grid grid-cols-1 gap-2">
+                  {details.children.map(child => (
+                    <div key={child.id} className="flex justify-between items-center text-sm bg-purple-50/50 p-2 rounded border border-purple-100">
+                      <span className="font-medium text-purple-900">{child.name}</span>
+                      <span className="text-[10px] uppercase font-bold text-purple-600 bg-white px-2 py-0.5 rounded-full border border-purple-200">
+                        {child.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             </div>
             <p className="md:col-span-2 text-xs text-muted-foreground italic">
                 Please contact an administrator to update these fields.

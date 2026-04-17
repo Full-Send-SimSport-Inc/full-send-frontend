@@ -54,7 +54,31 @@ add_action('rest_api_init', function () {
             $member_id = get_user_meta($user->ID, 'fs_member_id', true);
             $member_details = null;
 
-            if ($member_id) {
+if ($member_id) {
+                // Relational Lookups (Same logic as MemberDetail)
+                $parent_id = get_post_meta($member_id, '_parent_id', true);
+                $parent_name = get_post_meta($member_id, '_parent_name', true);
+                $parent_email = get_post_meta($member_id, '_parent_email', true);
+
+                if ($parent_id) {
+                    $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
+                    $parent_email = get_post_meta($parent_id, '_email', true);
+                }
+
+                $children = [];
+                $child_query = new WP_Query([
+                    'post_type' => 'fs_member',
+                    'meta_query' => [['key' => '_parent_id', 'value' => $member_id, 'compare' => '=']]
+                ]);
+
+                foreach ($child_query->posts as $cp) {
+                    $children[] = [
+                        'id' => $cp->ID,
+                        'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
+                        'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
+                    ];
+                }
+
                 $member_details = [
                     'member_id'        => $member_id,
                     'first_name'       => get_post_meta($member_id, '_first_name', true),
@@ -66,9 +90,13 @@ add_action('rest_api_init', function () {
                     'postcode'         => get_post_meta($member_id, '_postcode', true),
                     'dob'              => get_post_meta($member_id, '_dob', true),
                     'discord_username' => get_post_meta($member_id, '_discord_username', true),
-                    'sim_platforms'    => get_post_meta($member_id, '_sim_platforms', true),
+                    'sim_platforms'    => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
                     'membership_type'  => get_post_meta($member_id, '_membership_type', true),
                     'status'           => get_post_meta($member_id, '_status', true),
+                    // Adding the relational data to the payload
+                    'parent_name'      => $parent_name,
+                    'parent_email'     => $parent_email,
+                    'children'         => $children
                 ];
             }
 
