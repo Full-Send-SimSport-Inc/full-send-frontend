@@ -424,20 +424,23 @@ add_action('admin_init', function() {
 /**
  * 2. Catch successful React logins and steer the user to the correct page
  */
+/**
+ * Catch successful React logins and steer the user to the correct page
+ */
 add_action('template_redirect', function() {
-    // Listen for the custom "handshake" parameter from Login.jsx
+    // Only run this on the main portal page during a login handshake
     if (isset($_GET['login_success']) && is_user_logged_in()) {
         $user = wp_get_current_user();
         
-        // Admins & Committee members go to the Admin Dashboard
+        // Check roles: Admins and Committee go to Admin
         if (current_user_can('manage_options') || in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
             wp_safe_redirect(home_url('/portal/#/admin'));
             exit;
-        } else {
-            // Everyone else goes to their Profile
-            wp_safe_redirect(home_url('/portal/#/my-profile'));
-            exit;
-        }
+        } 
+        
+        // Everyone else (Members/Juniors) goes to My Profile
+        wp_safe_redirect(home_url('/portal/#/my-profile'));
+        exit;
     }
 });
 
