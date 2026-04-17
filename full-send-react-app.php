@@ -342,6 +342,10 @@ add_action('rest_api_init', function () {
             update_user_meta($user_id, 'fs_member_id', $member_id);
             update_post_meta($member_id, '_wp_user_id', $user_id);
 
+            // NEW: Automatically log the user in so the Traffic Controller catches them
+            wp_set_current_user($user_id);
+            wp_set_auth_cookie($user_id);
+
             return [
                 'status' => 'success',
                 'message' => 'Account created! Welcome, ' . ($first_name ?: $email)
@@ -422,25 +426,28 @@ add_action('admin_init', function() {
 });
 
 /**
- * 2. Catch successful React logins and steer the user to the correct page
- */
-/**
- * Catch successful React logins and steer the user to the correct page
+ * Master Traffic Controller
+ * Redirects users to the correct React route based on their role.
  */
 add_action('template_redirect', function() {
-    // Only run this on the main portal page during a login handshake
-    if (isset($_GET['login_success']) && is_user_logged_in()) {
-        $user = wp_get_current_user();
+    // 1. Only act if the user is logged in and visiting the portal root
+    // We check for the 'login_success' flag OR a 'setup_done' flag
+    if (is_user_logged_in() && (isset($_GET['login_success']) || isset($_GET['setup_done']))) {
         
-        // Check roles: Admins and Committee go to Admin
-        if (current_user_can('manage_options') || in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+        $user = wp_get_current_user();
+        $is_admin = current_user_can('manage_options') || 
+                    in_array('committee', (array)$user->roles) || 
+                    current_user_can('edit_pages');
+
+        if ($is_admin) {
+            // Send Admins/Committee to the Dashboard
             wp_safe_redirect(home_url('/portal/#/admin'));
             exit;
-        } 
-        
-        // Everyone else (Members/Juniors) goes to My Profile
-        wp_safe_redirect(home_url('/portal/#/my-profile'));
-        exit;
+        } else {
+            // Send everyone else to their Profile
+            wp_safe_redirect(home_url('/portal/#/my-profile'));
+            exit;
+        }
     }
 });
 

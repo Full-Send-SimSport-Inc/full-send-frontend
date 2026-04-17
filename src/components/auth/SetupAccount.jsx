@@ -50,9 +50,8 @@ export default function SetupAccount() {
       
       // NEW: Redirect to our custom login page after a short delay
       setTimeout(() => {
-        // Using window.location to ensure a clean state, 
-        // or you can use useNavigate() if you've imported it.
-        window.location.hash = '/login'; 
+        // This triggers the PHP logic to check roles and steer to #/admin or #/my-profile
+        window.location.href = window.location.origin + '/portal/?setup_done=1';
       }, 3000);
 
     } catch (err) {
@@ -71,10 +70,9 @@ export default function SetupAccount() {
         </div>
         <h2 className="text-2xl font-bold mb-3">Account Ready!</h2>
         <p className="text-muted-foreground mb-8">
-          Your login has been created. Use your email <strong>({email})</strong> and the password you just set to log in.
+          Your login has been created and you have been automatically signed in as <strong>{email}</strong>.
         </p>
-        <Button className="w-full" onClick={() => window.location.href = '/wp-login.php'}>
-          Go to Login
+        <Button className="w-full" onClick={() => window.location.href = '/portal/?setup_done=1'}>
         </Button>
       </motion.div>
     );
