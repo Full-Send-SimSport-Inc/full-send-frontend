@@ -37,7 +37,7 @@ export default function Login() {
       // cookie and redirect the browser to /#/admin or /#/my-profile automatically.
       
       if (response.ok) {
-        window.location.href = window.location.origin + '/portal/';
+        window.location.href = window.location.origin + '/portal/?login_success=1';
       } else {
         throw new Error("Invalid login");
       }

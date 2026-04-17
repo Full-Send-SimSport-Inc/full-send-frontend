@@ -398,23 +398,43 @@ add_shortcode('full_send_app', function() {
 /**
  * Smart Redirect System: Routes users to the correct area upon accessing wp-admin
  */
+/**
+ * 1. Protect the WP Backend (/wp-admin/) from non-admins
+ */
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
     if (!is_user_logged_in()) return;
 
-    $user = wp_get_current_user();
-
-    // 1. Administrators stay where they are (allowing wp-admin access)
+    // If an Administrator navigates to wp-admin, allow them to stay
     if (current_user_can('manage_options')) return;
 
-    // 2. If they are just at the root portal and NOT an admin, steer them
-    // This catches the 'window.location.href = /portal/' call from React
-    if (trim($_SERVER['REQUEST_URI'], '/') === 'portal') {
-        if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
-            wp_redirect(home_url('/portal/#/admin'));
+    // Kick Committee/Editors out to the React Admin
+    $user = wp_get_current_user();
+    if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+        wp_safe_redirect(home_url('/portal/#/admin'));
+        exit;
+    } 
+    
+    // Kick regular Members/Juniors out to their profile
+    wp_safe_redirect(home_url('/portal/#/my-profile'));
+    exit;
+});
+
+/**
+ * 2. Catch successful React logins and steer the user to the correct page
+ */
+add_action('template_redirect', function() {
+    // Listen for the custom "handshake" parameter from Login.jsx
+    if (isset($_GET['login_success']) && is_user_logged_in()) {
+        $user = wp_get_current_user();
+        
+        // Admins & Committee members go to the Admin Dashboard
+        if (current_user_can('manage_options') || in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+            wp_safe_redirect(home_url('/portal/#/admin'));
             exit;
         } else {
-            wp_redirect(home_url('/portal/#/my-profile'));
+            // Everyone else goes to their Profile
+            wp_safe_redirect(home_url('/portal/#/my-profile'));
             exit;
         }
     }
