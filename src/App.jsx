@@ -63,7 +63,8 @@ function AppRoutes() {
       
       {/* 2. PUBLIC ROUTES */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/join" element={(isAuthenticated && user && !user.roles?.includes('administrator')) ? <Navigate to="/" replace /> : <Join />} />
+      {/* Use the hasAdminPrivileges variable here instead of the manual role check */}
+      <Route path="/join" element={(isAuthenticated && !hasAdminPrivileges) ? <Navigate to="/" replace /> : <Join />} />
       
       {/* 3. MEMBER ROUTES */}
       <Route 
