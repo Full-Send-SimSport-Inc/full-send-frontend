@@ -432,25 +432,31 @@ add_action('admin_init', function() {
  * Redirects users to the correct React route based on their role.
  */
 add_action('template_redirect', function() {
+    // 1. Only run if one of our flags is present
     if (isset($_GET['login_success']) || isset($_GET['setup_done'])) {
-        header('X-FS-Debug: Redirect-Triggered'); // Visible in Network Tab
         
+        // This is safe and won't break the site
+        header('X-FS-Debug: Redirect-Triggered'); 
+
         if (!is_user_logged_in()) {
-            header('X-FS-Debug: Not-Logged-In');
-            return;
-        } {
-        
+            header('X-FS-Debug: Auth-Failed-At-Redirect');
+            // If we are here, the cookie wasn't saved or recognized
+            return; 
+        }
+
         $user = wp_get_current_user();
+        header('X-FS-Debug: User-Found-' . $user->user_login);
+
         $is_admin = current_user_can('manage_options') || 
                     in_array('committee', (array)$user->roles) || 
                     current_user_can('edit_pages');
 
         if ($is_admin) {
-            // Send Admins/Committee to the Dashboard
+            header('X-FS-Debug: Routing-To-Admin');
             wp_safe_redirect(home_url('/portal/#/admin'));
             exit;
         } else {
-            // Send everyone else to their Profile
+            header('X-FS-Debug: Routing-To-Profile');
             wp_safe_redirect(home_url('/portal/#/my-profile'));
             exit;
         }
