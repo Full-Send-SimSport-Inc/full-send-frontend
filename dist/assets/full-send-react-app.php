@@ -418,7 +418,7 @@ add_action('rest_api_init', function () {
     register_rest_route($namespace, '/agm', [
         'methods' => 'GET',
         'callback' => 'fs_get_agms',
-        'permission_callback' => 'fs_check_admin_permissions'
+        'permission_callback' => function() { return is_user_logged_in(); }
     ]);
 
     // POST: Create a new meeting

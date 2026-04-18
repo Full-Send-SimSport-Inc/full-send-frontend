@@ -70,6 +70,13 @@ function AppRoutes() {
       {/* Use the hasAdminPrivileges variable here instead of the manual role check */}
       <Route path="/join" element={(isAuthenticated && !hasAdminPrivileges) ? <Navigate to="/" replace /> : <Join />} />
       
+      {/* Protected Routes inside the MainLayout */}
+      <Route element={<MainLayout />}>
+        <Route path="/my-profile" element={<MyProfile />} />
+        <Route path="/meetings" element={<Meetings />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Route>
+
       {/* 3. MEMBER ROUTES */}
       <Route path="/my-profile"element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />}/>
       <Route path="meetings" element={<Meetings />} />
