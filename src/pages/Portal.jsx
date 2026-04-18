@@ -1,21 +1,21 @@
 import React from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { User, UserPlus, Loader2 } from 'lucide-react';
 
-export default function Landing() {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
 
-  // If the app is still checking who they are, show a spinner
-  if (isLoadingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+export default function Portal() {
+  const { isAuthenticated, isLoadingAuth } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoadingAuth && isAuthenticated) {
+       console.log("DEBUG: Portal page detected authenticated user, redirecting to profile...");
+       navigate('/my-profile', { replace: true });
+    }
+  }, [isAuthenticated, isLoadingAuth, navigate]);
 
   // If they are ALREADY logged in, bypass this page and send them to their profile
   if (isAuthenticated) {
