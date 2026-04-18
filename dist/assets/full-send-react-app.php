@@ -411,6 +411,29 @@ add_action('rest_api_init', function () {
         'callback' => 'fs_admin_send_email',
         'permission_callback' => 'fs_check_admin_permissions'
     ]);
+
+// --- AGM / Meeting Routes ---
+    
+    // GET: List all meetings
+    register_rest_route($namespace, '/agm', [
+        'methods' => 'GET',
+        'callback' => 'fs_get_agms',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
+
+    // POST: Create a new meeting
+    register_rest_route($namespace, '/agm', [
+        'methods' => 'POST',
+        'callback' => 'fs_create_agm',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
+
+    // POST: Update an existing meeting (Status, Attendance, etc.)
+    register_rest_route($namespace, '/agm/(?P<id>\d+)', [
+        'methods' => 'POST',
+        'callback' => 'fs_update_agm',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
 });
 
 add_shortcode('full_send_app', function() {
@@ -679,4 +702,83 @@ function fs_admin_send_email($request) {
     } else {
         return new WP_Error('send_failed', 'WP Mail refused to send.', array('status' => 500));
     }
+}
+
+// --- GET: Fetch Meetings ---
+function fs_get_agms($request) {
+    $args = [
+        'post_type' => 'agm_meeting',
+        'posts_per_page' => -1,
+        'post_status' => 'publish'
+    ];
+
+    // Handle single ID filter if React asks for it
+    if ($request->get_param('id')) {
+        $args['p'] = $request->get_param('id');
+    }
+
+    $query = new WP_Query($args);
+    $meetings = [];
+
+    foreach ($query->posts as $post) {
+        $meetings[] = [
+            'id'              => $post->ID,
+            'title'           => $post->post_title,
+            'meeting_date'    => get_post_meta($post->ID, '_meeting_date', true),
+            'location'        => get_post_meta($post->ID, '_location', true),
+            'status'          => get_post_meta($post->ID, '_status', true) ?: 'upcoming',
+            'quorum_minimum'  => (int)get_post_meta($post->ID, '_quorum_minimum', true) ?: 10,
+            'notes'           => get_post_meta($post->ID, '_notes', true),
+            'attendee_ids'    => maybe_unserialize(get_post_meta($post->ID, '_attendee_ids', true)) ?: [],
+        ];
+    }
+    return rest_ensure_response($meetings);
+}
+
+// --- POST: Create Meeting ---
+function fs_create_agm($request) {
+    $params = $request->get_json_params();
+    
+    $post_id = wp_insert_post([
+        'post_title'  => sanitize_text_field($params['title']),
+        'post_type'   => 'agm_meeting',
+        'post_status' => 'publish',
+    ]);
+
+    if (is_wp_error($post_id)) return $post_id;
+
+    update_post_meta($post_id, '_meeting_date', sanitize_text_field($params['meeting_date']));
+    update_post_meta($post_id, '_location', sanitize_text_field($params['location'] ?? ''));
+    update_post_meta($post_id, '_quorum_minimum', intval($params['quorum_minimum'] ?? 10));
+    update_post_meta($post_id, '_notes', wp_kses_post($params['notes'] ?? ''));
+    update_post_meta($post_id, '_status', 'upcoming');
+    update_post_meta($post_id, '_attendee_ids', serialize([]));
+
+    return rest_ensure_response(['success' => true, 'id' => $post_id]);
+}
+
+// --- POST: Update Meeting ---
+function fs_update_agm($request) {
+    $id = $request['id'];
+    $params = $request->get_json_params();
+
+    if (isset($params['title'])) {
+        wp_update_post(['ID' => $id, 'post_title' => sanitize_text_field($params['title'])]);
+    }
+
+    // Map React fields to Meta fields
+    $fields = ['meeting_date', 'location', 'status', 'quorum_minimum', 'notes', 'attendee_ids'];
+    
+    foreach ($fields as $field) {
+        if (isset($params[$field])) {
+            $value = $params[$field];
+            if ($field === 'attendee_ids') {
+                update_post_meta($id, '_attendee_ids', $value); // Serialized automatically by WP
+            } else {
+                update_post_meta($id, '_' . $field, sanitize_text_field($value));
+            }
+        }
+    }
+
+    return rest_ensure_response(['success' => true]);
 }
