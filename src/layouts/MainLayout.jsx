@@ -7,33 +7,26 @@ import {
   LogOut, 
   User, 
   Trophy, 
-  LayoutDashboard,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 export default function MainLayout() {
-  const { user, logout, loading } = useAuth();
+  const { user, logout, isLoadingAuth } = useAuth();
   const location = useLocation();
 
-  // Show a blank state or spinner while checking auth to prevent layout jumps
-  if (loading) return <div className="min-h-screen bg-slate-50" />;
-
-  // Check if the user is an admin or committee member
+  // Check if user is an admin or committee member
   const isAdmin = user?.roles?.some(role => 
     ['administrator', 'committee'].includes(role)
   );
 
-  const navigation = [
-    { name: 'Meetings', href: '/meetings', icon: CalendarDays },
-    { name: 'My Profile', href: '/my-profile', icon: User },
-  ];
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* HEADER: Moved outside the loading check so it's always visible */}
       <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between w-full">
-          {/* Logo Section */}
+          
+          {/* Logo / Home Link */}
           <Link to="/my-profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
               <Trophy className="w-6 h-6 text-primary" />
@@ -44,20 +37,29 @@ export default function MainLayout() {
             </div>
           </Link>
 
-          {/* Navigation Actions */}
+          {/* Navigation Links */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {navigation.map((item) => (
-              <Link key={item.name} to={item.href}>
-                <Button 
-                  variant={location.pathname === item.href ? "secondary" : "ghost"} 
-                  size="sm" 
-                  className="gap-2"
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span className="hidden md:inline">{item.name}</span>
-                </Button>
-              </Link>
-            ))}
+            <Link to="/meetings">
+              <Button 
+                variant={location.pathname === '/meetings' ? "secondary" : "ghost"} 
+                size="sm" 
+                className="gap-2"
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span className="hidden md:inline">Meetings</span>
+              </Button>
+            </Link>
+
+            <Link to="/my-profile">
+              <Button 
+                variant={location.pathname === '/my-profile' ? "secondary" : "ghost"} 
+                size="sm" 
+                className="gap-2"
+              >
+                <User className="w-4 h-4" />
+                <span className="hidden md:inline">My Profile</span>
+              </Button>
+            </Link>
 
             {/* Admin Link - Only visible to Committee/Admins */}
             {isAdmin && (
@@ -75,12 +77,12 @@ export default function MainLayout() {
             
             <div className="h-6 w-px bg-slate-200 mx-1" />
 
+            {/* Always visible Sign Out */}
             <Button 
               variant="ghost" 
               size="sm" 
               onClick={logout}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2 px-2 sm:px-3"
-              title="Sign Out"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2"
             >
               <LogOut className="w-4 h-4" />
               <span className="hidden sm:inline">Sign Out</span>
@@ -89,10 +91,17 @@ export default function MainLayout() {
         </div>
       </header>
 
+      {/* MAIN CONTENT */}
       <main className="flex-1">
-        <div className="max-w-5xl mx-auto py-6 px-4">
-          <Outlet />
-        </div>
+        {isLoadingAuth ? (
+          <div className="flex items-center justify-center h-64">
+            <Loader2 className="w-8 h-8 animate-spin text-primary/40" />
+          </div>
+        ) : (
+          <div className="max-w-5xl mx-auto py-6 px-4">
+            <Outlet />
+          </div>
+        )}
       </main>
 
       <footer className="py-8 text-center text-sm text-muted-foreground border-t bg-white">
