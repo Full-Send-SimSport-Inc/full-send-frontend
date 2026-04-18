@@ -416,22 +416,9 @@ add_action('rest_api_init', function () {
     
     // GET: List all meetings
     register_rest_route($namespace, '/agm', [
-        [
-            'methods' => 'GET',
-            'callback' => 'fs_get_agms',
-            // Allow any logged-in user to see the meeting list
-            'permission_callback' => function () {
-                return is_user_logged_in();
-            }
-        ],
-        [
-            'methods' => 'POST',
-            'callback' => 'fs_create_agm',
-            // ONLY admins can create meetings
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ],
+        'methods' => 'GET',
+        'callback' => 'fs_get_agms',
+        'permission_callback' => 'fs_check_admin_permissions'
     ]);
 
     // POST: Create a new meeting
@@ -443,21 +430,11 @@ add_action('rest_api_init', function () {
 
     // POST: Update an existing meeting (Status, Attendance, etc.)
     register_rest_route($namespace, '/agm/(?P<id>\d+)', [
-        [
-            'methods' => 'GET',
-            'callback' => 'fs_get_agms',
-            'permission_callback' => function () {
-                return is_user_logged_in();
-            }
-        ],
-        [
-            'methods' => 'POST',
-            'callback' => 'fs_update_agm',
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ],
+        'methods' => 'POST',
+        'callback' => 'fs_update_agm',
+        'permission_callback' => 'fs_check_admin_permissions'
     ]);
+});
 
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
