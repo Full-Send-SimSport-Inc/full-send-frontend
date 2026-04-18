@@ -23,7 +23,6 @@ import MyProfile from '@/pages/MyProfile';
 import Login from '@/pages/Login';
 import PageNotFound from '@/lib/PageNotFound';
 
-// Fix for HashRouter silent clicks in WordPress
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -33,7 +32,8 @@ function ScrollToTop() {
 }
 
 function AppRoutes() {
-  const { isAuthenticated, hasAdminPrivileges, isLoadingAuth } = useAuth();
+  // 1. Removed hasAdminPrivileges, grabbed 'user' directly
+  const { isAuthenticated, user, isLoadingAuth } = useAuth();
 
   if (isLoadingAuth) {
     return (
@@ -43,21 +43,23 @@ function AppRoutes() {
     );
   }
 
+  // 2. We calculate admin status EXACTLY like AdminLayout did
+  const isActuallyAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
+
   return (
     <Routes>
-      {/* PARENT ROUTE: Opened here */}
       <Route element={<MainLayout />}>
         
-        {/* ROOT PATH */}
+        {/* ROOT REDIRECTS */}
         <Route path="/" element={
           isAuthenticated ? (
-            hasAdminPrivileges ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
+            isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
           ) : (
             <Navigate to="/meetings" replace /> 
           )
         } />
 
-        {/* PUBLIC & MEMBER ROUTES */}
+        {/* PUBLIC & MEMBER PAGES */}
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
@@ -66,9 +68,8 @@ function AppRoutes() {
         {/* ADMIN NESTED ROUTES */}
         <Route 
           path="/admin" 
-          element={hasAdminPrivileges ? <Outlet /> : <Navigate to="/my-profile" replace />}
+          element={isActuallyAdmin ? <Outlet /> : <Navigate to="/my-profile" replace />}
         >
-
           <Route index element={<AdminDashboard />} />
           <Route path="members" element={<AdminMembers />} />
           <Route path="members/:id" element={<MemberDetail />} />
@@ -78,11 +79,8 @@ function AppRoutes() {
           <Route path="users" element={<AdminUsers />} />
         </Route>
 
-        {/* FALLBACK */}
         <Route path="*" element={<PageNotFound />} />
-
-      </Route> 
-      {/* PARENT ROUTE: Correctly closed above */}
+      </Route>
     </Routes>
   );
 }
