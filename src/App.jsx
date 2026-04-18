@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import AdminLayout from '@/components/admin/AdminLayout';
 
 // Pages
+import Portal from '@/pages/Portal'; // NEW PORTAL PAGE
 import Join from '@/pages/Join'; 
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
@@ -30,7 +31,7 @@ import PageNotFound from '@/lib/PageNotFound';
 function AppRoutes() {
   const { isAuthenticated, isLoadingAuth, user } = useAuth();
 
-  // 1. Wait for Auth to finish before rendering ANY routes
+  // Wait for Auth check to complete before deciding where to send the user
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,23 +40,26 @@ function AppRoutes() {
     );
   }
 
-  // Determine if user has admin/committee privileges
   const hasAdminPrivileges = user?.roles?.some(role => 
     ['administrator', 'committee'].includes(role)
   );
 
   return (
     <Routes>
-      {/* PUBLIC & MEMBER ROUTES (Accessible to all logged-in members) */}
+      {/* 1. NEW FRONT DOOR */}
+      <Route path="/" element={<Portal />} />
+      <Route path="/join" element={isAuthenticated ? <Navigate to="/my-profile" /> : <Join />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" /> : <Login />} />
+
+      {/* 2. MEMBER ROUTES */}
       <Route path="/my-profile" element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" />} />
       <Route path="/meetings" element={<Meetings />} />
       
-      {/* SETUP ROUTES */}
+      {/* 3. SETUP ROUTES */}
       <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
       <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
       
-      {/* ADMIN ROUTES (Strictly guarded by both Component and Logic) */}
+      {/* 4. ADMIN ROUTES */}
       <Route 
         path="/admin" 
         element={hasAdminPrivileges ? <AdminLayout /> : <Navigate to="/my-profile" />}
@@ -68,11 +72,7 @@ function AppRoutes() {
         <Route path="users" element={<AdminUsers />} />
       </Route>
 
-      {/* ROOT PATH LOGIC */}
-      <Route path="/" element={
-        isAuthenticated ? <Navigate to="/my-profile" replace /> : <Join />
-      } />
-
+      {/* 5. FALLBACK */}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
