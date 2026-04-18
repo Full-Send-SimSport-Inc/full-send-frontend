@@ -1,25 +1,31 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { Button } from '@/components/ui/button';
-import { CalendarDays, LogOut, User, Trophy, ShieldCheck, Loader2, Lock } from 'lucide-react';
+import { 
+  CalendarDays, 
+  LogOut, 
+  User, 
+  ShieldCheck, 
+  Loader2, 
+  Users, 
+  Mail, 
+  Settings, 
+  LayoutDashboard 
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import UserNotRegisteredError from '@/components/auth/UserNotRegisteredError';
-
-const NAV_ITEMS = [
-  { label: 'My Profile', path: '/my-profile', icon: User, protected: true },
-  { label: 'Meetings', path: '/Meetings', icon: CalendarDays, protected: false },
-];
 
 export default function MainLayout() {
-  const { user, logout, isLoadingAuth } = useAuth();
+  const { user, isLoadingAuth } = useAuth();
   const location = useLocation();
 
   const handleLogout = () => {
     const logoutUrl = window.appParams?.logoutUrl || '/wp-login.php?action=logout';
     window.location.href = logoutUrl;
   };
-  
+
+  const isAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
+  const isWPAdmin = user?.roles?.includes('administrator');
+
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -28,49 +34,116 @@ export default function MainLayout() {
     );
   }
 
-  const isAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
-
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="font-bold text-xl text-primary">Member Portal</span>
+          <div className="flex items-center gap-6">
+            <span className="font-bold text-xl text-primary shrink-0">Full Send Portal</span>
             
-            <nav className="hidden md:flex items-center gap-1">
-              {NAV_ITEMS.map(item => {
-                // Only show 'My Profile' if user is logged in
-                if (item.label === 'My Profile' && !user) return null;
-                
-                return (
+            <nav className="hidden lg:flex items-center gap-1">
+              <Link
+                to="/meetings"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                  location.pathname === '/meetings' ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" />
+                Meetings
+              </Link>
+
+              {user && (
+                <Link
+                  to="/my-profile"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    location.pathname === '/my-profile' ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <User className="w-4 h-4" />
+                  My Profile
+                </Link>
+              )}
+
+              {isAdmin && (
+                <>
+                  <div className="w-px h-6 bg-slate-200 mx-2" />
+                  
                   <Link
-                    key={item.path}
-                    to={item.path}
+                    to="/admin/members"
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      location.pathname === item.path 
-                        ? "bg-primary/10 text-primary" 
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                      location.pathname.startsWith('/admin/members') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                   >
-                    <item.icon className="w-4 h-4" />
-                    {item.label}
+                    <Users className="w-4 h-4" />
+                    Members
                   </Link>
-                );
-              })}
+
+                  <Link
+                    to="/admin/email"
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname.startsWith('/admin/email') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email
+                  </Link>
+
+                  <Link
+                    to="/admin/agm"
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname.startsWith('/admin/agm') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    AGMs
+                  </Link>
+
+                  {/* Restored Users Option */}
+                  <Link
+                    to="/admin/users"
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname.startsWith('/admin/users') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <Settings className="w-4 h-4" />
+                    Users
+                  </Link>
+                </>
+              )}
             </nav>
           </div>
 
-          {/* Only show Sign Out if user is logged in */}
-          {user && (
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {isWPAdmin && (
+              <a 
+                href="/wp-admin" 
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden xl:inline">WP Admin</span>
+              </a>
+            )}
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            ) : (
+              <Link to="/login" className="text-sm font-medium text-primary hover:underline px-3">
+                Member Login
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
