@@ -5,6 +5,7 @@ import path from "path"
 export default defineConfig({
   plugins: [react()],
   build: {
+    emptyOutDir: false, // Prevents wiping the dist folder
     rollupOptions: {
       output: {
         // This removes the hash from the main JS file
@@ -13,9 +14,9 @@ export default defineConfig({
         chunkFileNames: `assets/[name].js`,
         // This removes the hash from CSS and other assets
         assetFileNames: `assets/[name].[ext]`
-      }
-    }
-  }, // <--- This was the missing brace
+      } 
+    } // Closes rollupOptions
+  }, // Closes build
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
