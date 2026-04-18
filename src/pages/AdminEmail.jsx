@@ -12,9 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from "sonner";
 import EmailSignatureEditor from '../components/admin/EmailSignatureEditor';
 
-const DEFAULT_SIGNATURE = `Kind regards,
-Full Send SimSports Committee
-https://fullsendsims.com.au`;
+const DEFAULT_SIGNATURE = `Kind regards,`;
 
 export default function AdminEmail() {
   const [recipientMode, setRecipientMode] = useState('all'); // all | group | individual

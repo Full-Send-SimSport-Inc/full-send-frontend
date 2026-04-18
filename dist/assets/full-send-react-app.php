@@ -582,35 +582,74 @@ function fs_admin_send_email($request) {
     $params = $request->get_json_params();
     $to_emails = $params['to_emails'];
     $subject = sanitize_text_field($params['subject']);
-    $body = wp_kses_post($params['body']); // Allow basic HTML formatting securely
+    $body = wp_kses_post($params['body']); 
     $from_name = sanitize_text_field($params['from_name']);
 
     if (empty($to_emails) || empty($subject) || empty($body)) {
         return new WP_Error('missing_data', 'Missing email data', array('status' => 400));
     }
 
-    // Convert newlines to HTML breaks so paragraph spacing looks correct in emails
     $formatted_body = nl2br($body);
-    
     $admin_email = get_option('admin_email');
     
-    // Set headers for HTML email and the "From" name
+    // THE REVOLGY HTML TEMPLATE
+    // Note: I've filled in the placeholders with committee defaults
+    $html_message = '
+    <div style="font-family: sans-serif; font-size: 11pt; color: #000000;">
+        ' . $formatted_body . '
+        <br><br>
+        <table style="font-size:11.0pt; font-family: \'Roboto\', sans-serif; color: #000000; line-height: 1.4;" cellpadding="0" cellspacing="0">
+          <tbody>
+            <tr>
+              <td width="120" valign="top">
+                <img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/LOGO-b96312c3-d5ab-4250-a71c-9652d867139a.png" alt="Full Send SimSport" width="120" style="display: block;">
+              </td>
+              <td width="30"></td>
+              <td valign="top">
+                <table cellpadding="0" cellspacing="0">
+                  <tbody>
+                    <tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>
+                    <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold;">Official Correspondence</span></td></tr>
+                    <tr><td style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>
+                    <tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>
+                    <tr><td><a href="https://www.fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>
+                    <tr><td height="14"></td></tr>
+                    <tr>
+                      <td>
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td><a href="https://www.instagram.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/instagram-40b6aa82-848f-40f1-a104-3ce6b6e06921.png" alt="IG"></a></td>
+                            <td><a href="https://www.facebook.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/facebook-8d798943-3828-4b0e-bf31-5a1756e13c9f.png" alt="FB"></a></td>
+                            <td width="5"></td>
+                            <td><a href="https://www.linkedin.com/company/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/linkedin-b16f3da9-d125-4f88-8f61-6882ad2b1388.png" alt="IN"></a></td>
+                            <td width="5"></td>
+                            <td><a href="https://www.youtube.com/c/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/youtube-9279783f-9bc4-4b5e-9c3d-34ad91df8f7e.png" alt="YT"></a></td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+    </div>';
+
     $headers = array(
         'Content-Type: text/html; charset=UTF-8',
         'From: ' . $from_name . ' <' . $admin_email . '>'
     );
 
-    // Add all recipients as BCC to protect their privacy
     foreach ($to_emails as $email) {
         $headers[] = 'Bcc: ' . sanitize_email($email);
     }
 
-    // The actual "To" address will just be the admin email, while everyone else gets a BCC
-    $sent = wp_mail($admin_email, $subject, $formatted_body, $headers);
+    $sent = wp_mail($admin_email, $subject, $html_message, $headers);
 
     if ($sent) {
         return rest_ensure_response(array('success' => true));
     } else {
-        return new WP_Error('send_failed', 'WP Mail failed to send the message. Check WP Mail SMTP logs.', array('status' => 500));
+        return new WP_Error('send_failed', 'WP Mail failed', array('status' => 500));
     }
 }

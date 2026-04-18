@@ -8,9 +8,7 @@ import { Mail, Send, Loader2 } from 'lucide-react';
 import { toast } from "sonner";
 import EmailSignatureEditor from './EmailSignatureEditor';
 
-const DEFAULT_SIGNATURE = `Kind regards,
-Full Send SimSport Committee
-<a href='https://fullsendsimsport.com.au'>www.fullsendsimsport.com.au</>`;
+const DEFAULT_SIGNATURE = `Kind regards,`;
 
 export default function SendEmailDialog({ member, trigger }) {
   const [open, setOpen] = useState(false);
