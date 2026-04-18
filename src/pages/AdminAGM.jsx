@@ -35,12 +35,21 @@ export default function AdminAGM() {
     queryFn: () => base44.entities.Member.list(),
   });
 
+  // 1. Update the Mutation to use a direct path (safer than .entities mapping)
   const createMutation = useMutation({
-    mutationFn: () => base44.entities.AGM.create({ ...form, attendee_ids: [] }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agms'] });
-      setOpen(false);
-      setForm({ title: '', meeting_date: '', location: '', quorum_minimum: 10, notes: '' });
+    mutationFn: (data) => {
+        console.log("Attempting to create meeting with data:", data);
+        return base44.post('/agm', data); // Direct POST bypasses the entity wrapper
+    },
+    onSuccess: (response) => {
+        console.log("Meeting created successfully:", response);
+        queryClient.invalidateQueries({ queryKey: ['agms'] });
+        setOpen(false);
+        setForm({ title: '', meeting_date: '', location: '', quorum_minimum: 10, notes: '' });
+    },
+    onError: (error) => {
+        console.error("Mutation failed:", error);
+        alert("Failed to create meeting. Check console for details.");
     }
   });
 
@@ -150,8 +159,14 @@ export default function AdminAGM() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.title || !form.meeting_date || createMutation.isPending}>
-              Create Meeting
+            <Button 
+            onClick={() => {
+                console.log("Button clicked. Form state:", form);
+                createMutation.mutate(form);
+            }} 
+            disabled={!form.title || !form.meeting_date || createMutation.isPending}
+            >
+            {createMutation.isPending ? "Creating..." : "Create Meeting"}
             </Button>
           </DialogFooter>
         </DialogContent>
