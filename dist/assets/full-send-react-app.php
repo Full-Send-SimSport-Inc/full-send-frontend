@@ -390,7 +390,7 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    // --- ADMIN ROUTES --- //
+    // --- NEW ADMIN ROUTES ADDED HERE --- //
 
     // GET: List all users for Admin Dashboard
     register_rest_route($namespace, '/admin/users', [
@@ -417,35 +417,25 @@ add_action('rest_api_init', function () {
     
     // GET: List all meetings
     register_rest_route($namespace, '/agm', [
-        [
-            'methods'             => 'GET',
-            'callback'            => 'fs_get_agms',
-            // Allows any logged-in member to view the list
-            'permission_callback' => function() { return is_user_logged_in(); }
-        ],
-        [
-            'methods'             => 'POST',
-            'callback'            => 'fs_create_agm',
-            // Only allows Admins/Committee to create
-            'permission_callback' => 'fs_check_admin_permissions'
-        ],
+        'methods' => 'GET',
+        'callback' => 'fs_get_agms',
+        'permission_callback' => 'fs_check_admin_permissions'
     ]);
 
-    // Route for /agm/123 (View for members, Update for Admins)
+    // POST: Create a new meeting
+    register_rest_route($namespace, '/agm', [
+        'methods' => 'POST',
+        'callback' => 'fs_create_agm',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
+
+    // POST: Update an existing meeting (Status, Attendance, etc.)
     register_rest_route($namespace, '/agm/(?P<id>\d+)', [
-        [
-            'methods'             => 'GET',
-            'callback'            => 'fs_get_agms',
-            'permission_callback' => function() { return is_user_logged_in(); }
-        ],
-        [
-            'methods'             => 'POST',
-            'callback'            => 'fs_update_agm',
-            'permission_callback' => 'fs_check_admin_permissions'
-        ],
+        'methods' => 'POST',
+        'callback' => 'fs_update_agm',
+        'permission_callback' => 'fs_check_admin_permissions'
     ]);
-
-}); // <----- THIS CLOSING BRACE WAS MISSING AND CAUSED THE CRITICAL ERROR!
+});
 
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
@@ -459,7 +449,7 @@ add_shortcode('full_send_app', function() {
 });
 
 /**
- * Smart Redirect System: Routes users to the correct area upon accessing wp-admin
+ * Protect the WP Backend (/wp-admin/) from non-admins
  */
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
@@ -479,16 +469,13 @@ add_action('admin_init', function() {
 
 /**
  * Master Traffic Controller
+ * Redirects users to the correct React route based on their role.
  */
 add_action('template_redirect', function() {
     if (isset($_GET['login_success']) || isset($_GET['setup_done'])) {
-        
         header('X-FS-Debug: Redirect-Triggered'); 
 
-        if (!is_user_logged_in()) {
-            header('X-FS-Debug: Auth-Failed-At-Redirect');
-            return; 
-        }
+        if (!is_user_logged_in()) return;
 
         $user = wp_get_current_user();
         
@@ -496,14 +483,11 @@ add_action('template_redirect', function() {
                     in_array('committee', (array)$user->roles);
 
         if ($is_admin) {
-            header('X-FS-Debug: Routing-To-Admin');
             wp_safe_redirect(home_url('/portal/#/admin'));
-            exit;
         } else {
-            header('X-FS-Debug: Routing-To-Profile');
             wp_safe_redirect(home_url('/portal/#/my-profile'));
-            exit;
         }
+        exit;
     }
 });
 
@@ -532,7 +516,7 @@ function fs_initialize_custom_roles() {
 add_action('init', 'fs_initialize_custom_roles');
 
 // ==========================================
-// ADMIN DASHBOARD & AGM HELPER FUNCTIONS
+// ADMIN DASHBOARD HELPER FUNCTIONS
 // ==========================================
 
 function fs_check_admin_permissions() {
@@ -546,7 +530,7 @@ function fs_admin_get_users() {
 
     foreach ($users as $u) {
         $member_id = get_user_meta($u->ID, 'fs_member_id', true);
-        $status = 'active';
+        $status = 'active'; 
         
         if ($member_id) {
             $meta_status = get_post_meta($member_id, '_status', true);
@@ -595,6 +579,7 @@ function fs_admin_send_email($request) {
     $system_email = get_option('admin_email');
     $info_email   = 'info@fullsendsimsport.com.au';
 
+    // 1. EXTRACT ALL STRINGS FROM WHATEVER REACT SENT (The "Ironclad" Flattener)
     $flat_emails = [];
     if (is_array($to_emails_raw)) {
         array_walk_recursive($to_emails_raw, function($value) use (&$flat_emails) {
@@ -656,45 +641,28 @@ function fs_admin_send_email($request) {
         'Reply-To: ' . $info_email
     );
 
-    $to = ''; 
-
+    $to = 'info@fullsendsimsport.com.au'; 
     if (count($to_emails) === 1) {
         $to = $to_emails[0];
     } else {
-        $to = 'info@fullsendsimsport.com.au'; 
         foreach ($to_emails as $email) {
             $headers[] = 'Bcc: ' . $email;
         }
     }
 
     $sent = wp_mail($to, $subject, $html_message, $headers);
-
-    if ($sent) {
-        return rest_ensure_response(array('success' => true));
-    } else {
-        return new WP_Error('send_failed', 'WP Mail refused to send.', array('status' => 500));
-    }
+    return rest_ensure_response(array('success' => $sent));
 }
 
 function fs_get_agms($request) {
     $id = $request->get_param('id');
-    
-    $args = [
-        'post_type'      => 'agm_meeting',
-        'posts_per_page' => -1,
-        'post_status'    => 'publish',
-    ];
-
-    if ($id) {
-        $args['p'] = intval($id);
-    }
+    $args = ['post_type' => 'agm_meeting', 'posts_per_page' => -1, 'post_status' => 'publish'];
+    if ($id) $args['p'] = intval($id);
 
     $query = new WP_Query($args);
     $meetings = [];
-
     foreach ($query->posts as $post) {
         if ($post->post_type !== 'agm_meeting') continue;
-
         $meetings[] = [
             'id'              => $post->ID,
             'title'           => $post->post_title,
@@ -711,45 +679,23 @@ function fs_get_agms($request) {
 
 function fs_create_agm($request) {
     $params = $request->get_json_params();
-    
-    $post_id = wp_insert_post([
-        'post_title'  => sanitize_text_field($params['title']),
-        'post_type'   => 'agm_meeting',
-        'post_status' => 'publish',
-    ]);
-
+    $post_id = wp_insert_post(['post_title' => sanitize_text_field($params['title']), 'post_type' => 'agm_meeting', 'post_status' => 'publish']);
     if (is_wp_error($post_id)) return $post_id;
 
     update_post_meta($post_id, '_meeting_date', sanitize_text_field($params['meeting_date']));
     update_post_meta($post_id, '_location', sanitize_text_field($params['location'] ?? ''));
-    update_post_meta($post_id, '_quorum_minimum', intval($params['quorum_minimum'] ?? 10));
-    update_post_meta($post_id, '_notes', wp_kses_post($params['notes'] ?? ''));
     update_post_meta($post_id, '_status', 'upcoming');
     update_post_meta($post_id, '_attendee_ids', serialize([]));
-
     return rest_ensure_response(['success' => true, 'id' => $post_id]);
 }
 
 function fs_update_agm($request) {
     $id = $request['id'];
     $params = $request->get_json_params();
-
-    if (isset($params['title'])) {
-        wp_update_post(['ID' => $id, 'post_title' => sanitize_text_field($params['title'])]);
-    }
-
+    if (isset($params['title'])) wp_update_post(['ID' => $id, 'post_title' => sanitize_text_field($params['title'])]);
     $fields = ['meeting_date', 'location', 'status', 'quorum_minimum', 'notes', 'attendee_ids'];
-    
     foreach ($fields as $field) {
-        if (isset($params[$field])) {
-            $value = $params[$field];
-            if ($field === 'attendee_ids') {
-                update_post_meta($id, '_attendee_ids', $value); 
-            } else {
-                update_post_meta($id, '_' . $field, sanitize_text_field($value));
-            }
-        }
+        if (isset($params[$field])) update_post_meta($id, '_' . $field, $params[$field]);
     }
-
     return rest_ensure_response(['success' => true]);
 }
