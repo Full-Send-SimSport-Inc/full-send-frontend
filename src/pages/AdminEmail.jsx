@@ -17,7 +17,6 @@ Full Send SimSports Committee
 https://fullsendsims.com.au`;
 
 export default function AdminEmail() {
-  const { toast } = useToast();
   const [recipientMode, setRecipientMode] = useState('all'); // all | group | individual
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
@@ -31,8 +30,8 @@ export default function AdminEmail() {
   const [showSigEditor, setShowSigEditor] = useState(false);
 
   const { data: members = [] } = useQuery({
-    queryKey: ['members'],
-    queryFn: () => base44.entities.Member.list('-created_date'),
+    queryKey: ['admin-users'], // Reusing the same query key to save bandwidth!
+    queryFn: () => base44.get('/admin/users'),
   });
 
   const grouped = {
@@ -73,23 +72,27 @@ export default function AdminEmail() {
 
   const handleSend = async () => {
     if (!subject.trim() || !body.trim() || recipients.length === 0) {
-      toast({ title: 'Missing fields', description: 'Please fill in subject, body and select at least one recipient.', variant: 'destructive' });
+      toast.error('Please fill in subject, body and select at least one recipient.');
       return;
     }
     setSending(true);
     try {
-      await Promise.all(
-        recipients.map(m =>
-          base44.integrations.Core.SendEmail({
-            to: m.email,
-            from_name: fromName || 'Full Send SimSports',
-            subject,
-            body: `Hi ${m.first_name},\n\n${fullBody}`,
-          })
-        )
-      );
+      // Create an array of email addresses
+      const emailList = recipients.map(m => m.email);
+
+      // Send ONE request to PHP, let PHP handle the loop and wp_mail
+      await base44.post('/admin/send-email', {
+        to_emails: emailList,
+        from_name: fromName || 'Full Send SimSports',
+        subject: subject,
+        body: fullBody,
+      });
+
       setSent(true);
-      toast({ title: `Email sent to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}!` });
+      toast.success(`Emails successfully queued for sending!`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to send emails. Check server logs.');
     } finally {
       setSending(false);
     }
@@ -203,7 +206,7 @@ export default function AdminEmail() {
                   <div className="border rounded-lg overflow-hidden max-h-72 overflow-y-auto text-sm">
                     {(memberSearch
                       ? [{ label: 'Results', status: 'search', members: members.filter(m =>
-                          `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(memberSearch.toLowerCase())
+                          `${m.display_name} ${m.email}`.toLowerCase().includes(memberSearch.toLowerCase())
                         )}]
                       : [
                           { label: 'Active', status: 'active', members: grouped.active, color: 'text-green-600' },
@@ -243,7 +246,7 @@ export default function AdminEmail() {
                               onCheckedChange={() => toggleMember(m)}
                             />
                             <div className="min-w-0">
-                              <p className="font-medium truncate">{m.first_name} {m.last_name}</p>
+                              <p className="font-medium truncate">{m.display_name}</p>
                               <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                             </div>
                           </label>

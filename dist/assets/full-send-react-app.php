@@ -389,6 +389,28 @@ add_action('rest_api_init', function () {
             return ['status' => 'success', 'message' => 'Profile updated successfully!'];
         }
     ]);
+// --- NEW ADMIN ROUTES ADDED HERE --- //
+
+    // GET: List all users for Admin Dashboard
+    register_rest_route($namespace, '/admin/users', [
+        'methods' => 'GET',
+        'callback' => 'fs_admin_get_users',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
+
+    // POST: Update User Role
+    register_rest_route($namespace, '/admin/users/role', [
+        'methods' => 'POST',
+        'callback' => 'fs_admin_update_role',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
+
+    // POST: Send Mass Email
+    register_rest_route($namespace, '/admin/send-email', [
+        'methods' => 'POST',
+        'callback' => 'fs_admin_send_email',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
 });
 
 add_shortcode('full_send_app', function() {
@@ -494,3 +516,101 @@ function fs_initialize_custom_roles() {
     }
 }
 add_action('init', 'fs_initialize_custom_roles');
+
+// ==========================================
+// ADMIN DASHBOARD HELPER FUNCTIONS
+// ==========================================
+
+// --- Security Check ---
+function fs_check_admin_permissions() {
+    $user = wp_get_current_user();
+    return (in_array('administrator', (array)$user->roles) || in_array('committee', (array)$user->roles));
+}
+
+// --- Fetch Users ---
+function fs_admin_get_users() {
+    $users = get_users();
+    $user_data = array();
+
+    foreach ($users as $u) {
+        // Find the member post linked to this user to get their status
+        $member_id = get_user_meta($u->ID, 'fs_member_id', true);
+        $status = 'active'; // Default
+        
+        if ($member_id) {
+            $meta_status = get_post_meta($member_id, '_status', true);
+            if (!empty($meta_status)) {
+                $status = $meta_status;
+            }
+        }
+        
+        $user_data[] = array(
+            'id'           => $u->ID,
+            'email'        => $u->user_email,
+            'display_name' => $u->display_name,
+            'roles'        => $u->roles,
+            'registered'   => $u->user_registered,
+            'status'       => $status
+        );
+    }
+    return rest_ensure_response($user_data);
+}
+
+// --- Update Role ---
+function fs_admin_update_role($request) {
+    $params = $request->get_json_params();
+    $user_id = intval($params['user_id']);
+    $new_role = sanitize_text_field($params['new_role']);
+
+    $user = new WP_User($user_id);
+    if (!$user->exists()) {
+        return new WP_Error('no_user', 'User not found', array('status' => 404));
+    }
+    
+    // Safety check: Prevent committee members from accidentally demoting full administrators
+    if (in_array('administrator', $user->roles)) {
+        return new WP_Error('forbidden', 'Cannot change administrator roles', array('status' => 403));
+    }
+
+    // Apply the new role
+    $user->set_role($new_role);
+    return rest_ensure_response(array('success' => true, 'message' => 'Role updated'));
+}
+
+// --- Send Mass Email ---
+function fs_admin_send_email($request) {
+    $params = $request->get_json_params();
+    $to_emails = $params['to_emails'];
+    $subject = sanitize_text_field($params['subject']);
+    $body = wp_kses_post($params['body']); // Allow basic HTML formatting securely
+    $from_name = sanitize_text_field($params['from_name']);
+
+    if (empty($to_emails) || empty($subject) || empty($body)) {
+        return new WP_Error('missing_data', 'Missing email data', array('status' => 400));
+    }
+
+    // Convert newlines to HTML breaks so paragraph spacing looks correct in emails
+    $formatted_body = nl2br($body);
+    
+    $admin_email = get_option('admin_email');
+    
+    // Set headers for HTML email and the "From" name
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from_name . ' <' . $admin_email . '>'
+    );
+
+    // Add all recipients as BCC to protect their privacy
+    foreach ($to_emails as $email) {
+        $headers[] = 'Bcc: ' . sanitize_email($email);
+    }
+
+    // The actual "To" address will just be the admin email, while everyone else gets a BCC
+    $sent = wp_mail($admin_email, $subject, $formatted_body, $headers);
+
+    if ($sent) {
+        return rest_ensure_response(array('success' => true));
+    } else {
+        return new WP_Error('send_failed', 'WP Mail failed to send the message. Check WP Mail SMTP logs.', array('status' => 500));
+    }
+}
