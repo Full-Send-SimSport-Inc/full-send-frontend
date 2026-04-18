@@ -31,11 +31,15 @@ import PageNotFound from '@/lib/PageNotFound';
 function AppRoutes() {
   const { isAuthenticated, isLoadingAuth, user } = useAuth();
 
-  // Wait for Auth check to complete before deciding where to send the user
+  // 1. CRITICAL: While loading, stay on the spinner. 
+  // Do NOT try to render routes yet.
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Verifying session...</p>
+        </div>
       </div>
     );
   }
@@ -44,25 +48,32 @@ function AppRoutes() {
     ['administrator', 'committee'].includes(role)
   );
 
+  console.log("DEBUG: AppRoutes Status - Authenticated:", isAuthenticated, "Admin:", hasAdminPrivileges);
+
   return (
     <Routes>
-      {/* 1. NEW FRONT DOOR */}
+      {/* Root Path */}
       <Route path="/" element={<Portal />} />
-      <Route path="/join" element={isAuthenticated ? <Navigate to="/my-profile" /> : <Join />} />
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" /> : <Login />} />
-
-      {/* 2. MEMBER ROUTES */}
-      <Route path="/my-profile" element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" />} />
+      
+      {/* Public Routes */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
+      <Route path="/join" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Join />} />
+      
+      {/* Member Routes - We use a simple check here */}
+      <Route 
+        path="/my-profile" 
+        element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} 
+      />
       <Route path="/meetings" element={<Meetings />} />
       
-      {/* 3. SETUP ROUTES */}
+      {/* Setup Routes */}
       <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
       <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
       
-      {/* 4. ADMIN ROUTES */}
+      {/* Admin Routes */}
       <Route 
         path="/admin" 
-        element={hasAdminPrivileges ? <AdminLayout /> : <Navigate to="/my-profile" />}
+        element={hasAdminPrivileges ? <AdminLayout /> : <Navigate to="/my-profile" replace />}
       >
         <Route index element={<AdminDashboard />} />
         <Route path="members" element={<AdminMembers />} />
@@ -72,7 +83,6 @@ function AppRoutes() {
         <Route path="users" element={<AdminUsers />} />
       </Route>
 
-      {/* 5. FALLBACK */}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

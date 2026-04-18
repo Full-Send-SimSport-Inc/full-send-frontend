@@ -445,11 +445,10 @@ add_action('template_redirect', function() {
         }
 
         $user = wp_get_current_user();
-        header('X-FS-Debug: User-Found-' . $user->user_login);
-
-        $is_admin = current_user_can('manage_options') || 
-                    in_array('committee', (array)$user->roles) || 
-                    current_user_can('edit_pages');
+        
+        // Match React's logic exactly
+        $is_admin = in_array('administrator', (array)$user->roles) || 
+                    in_array('committee', (array)$user->roles);
 
         if ($is_admin) {
             header('X-FS-Debug: Routing-To-Admin');
