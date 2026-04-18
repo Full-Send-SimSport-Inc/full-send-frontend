@@ -27,3 +27,5 @@ desktop.ini
 Thumbs.db
 .DS_Store
 project_structure.txt
+
+dist/assets/index.js
