@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { label: 'AGM', path: '/admin/agm', icon: CalendarDays },
   { label: 'Users', path: '/admin/users', icon: ShieldCheck },
   { label: 'Send Email', path: '/admin/email', icon: Mail },
-  { label: 'New Registration', path: '/', icon: UserPlus },
+  { label: 'New Registration', path: '/join', icon: UserPlus },
 ];
 
 export default function AdminLayout() {
