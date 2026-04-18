@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 import UserNotRegisteredError from '@/components/auth/UserNotRegisteredError';
 
 const NAV_ITEMS = [
-  { label: 'My Profile', path: '/my-profile', icon: User },
-  { label: 'Meetings', path: '/Meetings', icon: CalendarDays },
+  { label: 'My Profile', path: '/my-profile', icon: User, protected: true },
+  { label: 'Meetings', path: '/Meetings', icon: CalendarDays, protected: false },
 ];
 
 export default function MainLayout() {
@@ -20,7 +20,6 @@ export default function MainLayout() {
     window.location.href = logoutUrl;
   };
   
-  // Show a loader if we are still checking the session
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -29,7 +28,6 @@ export default function MainLayout() {
     );
   }
 
-  // Determine if the user has Admin/Committee permissions
   const isAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
 
   return (
@@ -39,33 +37,40 @@ export default function MainLayout() {
           <div className="flex items-center gap-8">
             <span className="font-bold text-xl text-primary">Member Portal</span>
             
-            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
-              {NAV_ITEMS.map(item => (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    location.pathname === item.path 
-                      ? "bg-primary/10 text-primary" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  )}
-                >
-                  <item.icon className="w-4 h-4" />
-                  {item.label}
-                </Link>
-              ))}
+              {NAV_ITEMS.map(item => {
+                // Only show 'My Profile' if user is logged in
+                if (item.label === 'My Profile' && !user) return null;
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname === item.path 
+                        ? "bg-primary/10 text-primary" 
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
+          {/* Only show Sign Out if user is logged in */}
+          {user && (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
+          )}
         </div>
       </header>
 
