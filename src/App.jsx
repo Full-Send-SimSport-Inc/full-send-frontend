@@ -63,7 +63,7 @@ function AppRoutes() {
       
       {/* 2. PUBLIC ROUTES */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/join" element={isAuthenticated ? <Navigate to="/" replace /> : <Join />} />
+      <Route path="/join" element={(isAuthenticated && user && !user.roles?.includes('administrator')) ? <Navigate to="/" replace /> : <Join />} />
       
       {/* 3. MEMBER ROUTES */}
       <Route 
