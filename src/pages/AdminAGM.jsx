@@ -27,7 +27,11 @@ export default function AdminAGM() {
 
   const { data: agms = [], isLoading } = useQuery({
     queryKey: ['agms'],
-    queryFn: () => base44.entities.AGM.list('-meeting_date'),
+    queryFn: async () => {
+        const data = await base44.get('/agm');
+        console.log("DEBUG: Fetched Meetings List:", data); // This will show you exactly what's coming back
+        return data || [];
+    }
   });
 
   const { data: members = [] } = useQuery({

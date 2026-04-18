@@ -706,28 +706,32 @@ function fs_admin_send_email($request) {
 
 // --- GET: Fetch Meetings ---
 function fs_get_agms($request) {
+    $id = $request->get_param('id');
+    
     $args = [
-        'post_type' => 'agm_meeting',
+        'post_type'      => 'agm_meeting', // STRICTLY only meetings
         'posts_per_page' => -1,
-        'post_status' => 'publish'
+        'post_status'    => 'publish',
     ];
 
-    // Handle single ID filter if React asks for it
-    if ($request->get_param('id')) {
-        $args['p'] = $request->get_param('id');
+    if ($id) {
+        $args['p'] = intval($id);
     }
 
     $query = new WP_Query($args);
     $meetings = [];
 
     foreach ($query->posts as $post) {
+        // Only return if it's actually the right post type (double check)
+        if ($post->post_type !== 'agm_meeting') continue;
+
         $meetings[] = [
             'id'              => $post->ID,
             'title'           => $post->post_title,
             'meeting_date'    => get_post_meta($post->ID, '_meeting_date', true),
             'location'        => get_post_meta($post->ID, '_location', true),
             'status'          => get_post_meta($post->ID, '_status', true) ?: 'upcoming',
-            'quorum_minimum'  => (int)get_post_meta($post->ID, '_quorum_minimum', true) ?: 10,
+            'quorum_minimum'  => get_post_meta($post->ID, '_quorum_minimum', true) ?: 10,
             'notes'           => get_post_meta($post->ID, '_notes', true),
             'attendee_ids'    => maybe_unserialize(get_post_meta($post->ID, '_attendee_ids', true)) ?: [],
         ];

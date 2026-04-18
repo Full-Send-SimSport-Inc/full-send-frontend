@@ -17,6 +17,7 @@ import AdminDashboard from '@/pages/AdminDashboard';
 import AdminMembers from '@/pages/AdminMembers';
 import MemberDetail from '@/pages/MemberDetail';
 import AdminAGM from '@/pages/AdminAGM';
+import AGMDetail from '@/pages/AGMDetail';
 import AdminEmail from '@/pages/AdminEmail'; 
 import AdminUsers from '@/pages/AdminUsers';
 import MyProfile from '@/pages/MyProfile';
@@ -82,8 +83,10 @@ function AppRoutes() {
         <Route path="members" element={<AdminMembers />} />
         <Route path="members/:id" element={<MemberDetail />} />
         <Route path="agm" element={<AdminAGM />} />
+        <Route path="agm/:id" element={<AGMDetail />} />
         <Route path="email" element={<AdminEmail />} />
         <Route path="users" element={<AdminUsers />} />
+        
       </Route>
 
       <Route path="*" element={<PageNotFound />} />

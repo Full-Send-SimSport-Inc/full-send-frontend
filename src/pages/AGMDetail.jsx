@@ -23,13 +23,14 @@ export default function AGMDetail() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
 
-  const { data: agm, isLoading: loadingAGM } = useQuery({
+  const { data: agm, isLoading: isLoadingAGM } = useQuery({
     queryKey: ['agm', agmId],
     queryFn: async () => {
-      const results = await base44.entities.AGM.filter({ id: agmId });
-      return results[0];
+        const data = await base44.get(`/agm?id=${agmId}`);
+        // The PHP returns an array, so we take the first item
+        return Array.isArray(data) ? data[0] : data;
     },
-    enabled: !!agmId,
+    enabled: !!agmId
   });
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
@@ -37,17 +38,22 @@ export default function AGMDetail() {
     queryFn: () => base44.entities.Member.list('-first_name'),
   });
 
-  const updateAGM = useMutation({
-    mutationFn: (data) => base44.entities.AGM.update(agmId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agm', agmId] }),
-  });
+  const updateMutation = useMutation({
+    mutationFn: (updates) => base44.post(`/agm/${agmId}`, updates), // Direct POST
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['agm', agmId] });
+    }
+    });
 
   const toggleAttendance = (memberId) => {
-    const current = agm?.attendee_ids || [];
-    const updated = current.includes(memberId)
-      ? current.filter(id => id !== memberId)
-      : [...current, memberId];
-    updateAGM.mutate({ attendee_ids: updated });
+  const currentAttendees = agm.attendee_ids || [];
+  const isAttending = currentAttendees.includes(memberId);
+    
+  const newAttendees = isAttending
+    ? currentAttendees.filter(id => id !== memberId)
+    : [...currentAttendees, memberId];
+
+    updateMutation.mutate({ attendee_ids: newAttendees });
   };
 
   const activeMembers = useMemo(() => members.filter(m => m.status === 'active'), [members]);
@@ -64,7 +70,7 @@ export default function AGMDetail() {
   const quorumMet = attendeeCount >= quorumNeeded;
   const quorumPct = activeMembers.length > 0 ? Math.round((attendeeCount / activeMembers.length) * 100) : 0;
 
-  if (loadingAGM || loadingMembers) {
+  if (isLoadingAGM || loadingMembers) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -90,7 +96,7 @@ export default function AGMDetail() {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold tracking-tight">{agm.title}</h1>
-            <Select value={agm.status || 'upcoming'} onValueChange={v => updateAGM.mutate({ status: v })}>
+            <Select value={agm.status} onValueChange={(value) => updateMutation.mutate({ status: value })}>
               <SelectTrigger className="w-36 h-7 text-xs">
                 <SelectValue />
               </SelectTrigger>
