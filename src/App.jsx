@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 
 // Layouts
 import AdminLayout from '@/components/admin/AdminLayout';
+import MainLayout from '@/layouts/MainLayout';
 
 // Pages
 import Portal from '@/pages/Portal'; // NEW PORTAL PAGE
@@ -22,6 +23,7 @@ import AdminEmail from '@/pages/AdminEmail';
 import AdminUsers from '@/pages/AdminUsers';
 import MyProfile from '@/pages/MyProfile';
 import Login from '@/pages/Login';
+
 
 // Auth Components
 import SetupAccount from '@/components/auth/SetupAccount';
@@ -63,15 +65,13 @@ function AppRoutes() {
       } />
       
       {/* 2. PUBLIC ROUTES */}
+      <Route path="/" element={isAuthenticated ? <MainLayout /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
       {/* Use the hasAdminPrivileges variable here instead of the manual role check */}
       <Route path="/join" element={(isAuthenticated && !hasAdminPrivileges) ? <Navigate to="/" replace /> : <Join />} />
       
       {/* 3. MEMBER ROUTES */}
-      <Route 
-        path="/my-profile" 
-        element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} 
-      />
+      <Route path="/my-profile"element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />}/>
       <Route path="meetings" element={<Meetings />} />
       
       {/* 4. ADMIN ROUTES */}

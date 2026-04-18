@@ -92,38 +92,10 @@ export default function MyProfile() {
   const details = user.member_details;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
-      {/* ADDED HEADER: Matches the style and functionality of AdminLayout */}
-      <header className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <span className="font-bold text-xl text-primary">FS Portal</span>
-            <nav className="hidden md:flex items-center gap-1">
-              <Link
-                to="/my-profile"
-                className="bg-primary/10 text-primary flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-              >
-                <User className="w-4 h-4" />
-                My Profile
-              </Link>
-              <Link
-                to="/meetings"
-                className="text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-              >
-                <Calendar className="w-4 h-4" />
-                Meetings
-              </Link>
-            </nav>
-          </div>
-          <button 
-            onClick={logout} 
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
-        </div>
-      </header>
+    <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold tracking-tight">My Profile</h2>
+    </div>
 
       {/* Main Profile Content - Your original UI structure is preserved here */}
       <main className="flex-1 max-w-3xl w-full mx-auto py-10 px-4 space-y-6">
