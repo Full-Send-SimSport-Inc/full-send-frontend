@@ -2,7 +2,7 @@ import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
-import { AuthProvider, useAuth } from '@/lib/AuthContext'; // Added useAuth
+import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { Toaster } from '@/components/ui/sonner';
 import { Loader2 } from 'lucide-react';
 
@@ -27,10 +27,10 @@ import SetupAccount from '@/components/auth/SetupAccount';
 // Lib / Error Pages
 import PageNotFound from '@/lib/PageNotFound';
 
-// NEW: This sub-component handles the logic safely inside the AuthProvider
 function AppRoutes() {
-  const { isAuthenticated, isLoadingAuth } = useAuth();
+  const { isAuthenticated, isLoadingAuth, user } = useAuth();
 
+  // 1. Wait for Auth to finish before rendering ANY routes
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,22 +39,27 @@ function AppRoutes() {
     );
   }
 
+  // Determine if user has admin/committee privileges
+  const hasAdminPrivileges = user?.roles?.some(role => 
+    ['administrator', 'committee'].includes(role)
+  );
+
   return (
     <Routes>
-      {/* Root Path: Redirect members to profile, show Join to guests */}
-      <Route path="/" element={
-        isAuthenticated ? <Navigate to="/my-profile" replace /> : <Join />
-      } />
-      
+      {/* PUBLIC & MEMBER ROUTES (Accessible to all logged-in members) */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" /> : <Login />} />
+      <Route path="/my-profile" element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" />} />
       <Route path="/meetings" element={<Meetings />} />
-      <Route path="/my-profile" element={<MyProfile />} />
-      <Route path="/login" element={<Login />} />
       
+      {/* SETUP ROUTES */}
       <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
       <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
       
-      {/* Admin Routes */}
-      <Route path="/admin" element={<AdminLayout />}>
+      {/* ADMIN ROUTES (Strictly guarded by both Component and Logic) */}
+      <Route 
+        path="/admin" 
+        element={hasAdminPrivileges ? <AdminLayout /> : <Navigate to="/my-profile" />}
+      >
         <Route index element={<AdminDashboard />} />
         <Route path="members" element={<AdminMembers />} />
         <Route path="members/:id" element={<MemberDetail />} />
@@ -62,6 +67,11 @@ function AppRoutes() {
         <Route path="email" element={<AdminEmail />} />
         <Route path="users" element={<AdminUsers />} />
       </Route>
+
+      {/* ROOT PATH LOGIC */}
+      <Route path="/" element={
+        isAuthenticated ? <Navigate to="/my-profile" replace /> : <Join />
+      } />
 
       <Route path="*" element={<PageNotFound />} />
     </Routes>
