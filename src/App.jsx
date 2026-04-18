@@ -52,25 +52,27 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Root Path */}
-      <Route path="/" element={<Portal />} />
+      {/* 1. ROOT PATH - The Traffic Controller */}
+      <Route path="/" element={
+        isAuthenticated ? (
+          hasAdminPrivileges ? <Navigate to="/admin" replace /> : <Navigate to="/my-profile" replace />
+        ) : (
+          <Portal />
+        )
+      } />
       
-      {/* Public Routes */}
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
-      <Route path="/join" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Join />} />
+      {/* 2. PUBLIC ROUTES */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/join" element={isAuthenticated ? <Navigate to="/" replace /> : <Join />} />
       
-      {/* Member Routes - We use a simple check here */}
+      {/* 3. MEMBER ROUTES */}
       <Route 
         path="/my-profile" 
         element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} 
       />
       <Route path="/meetings" element={<Meetings />} />
       
-      {/* Setup Routes */}
-      <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
-      <Route path="/setup-account/:memberId/:email" element={<SetupAccount />} />
-      
-      {/* Admin Routes */}
+      {/* 4. ADMIN ROUTES */}
       <Route 
         path="/admin" 
         element={hasAdminPrivileges ? <AdminLayout /> : <Navigate to="/my-profile" replace />}
