@@ -64,14 +64,11 @@ function AppRoutes() {
         <Route path="/my-profile" element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} />
 
         {/* ADMIN NESTED ROUTES */}
-        //<Route 
-        //  path="/admin" 
-        //  element={hasAdminPrivileges ? <Outlet /> : <Navigate to="/my-profile" replace />}
-      //  >
-          <Route 
-            path="/admin" 
-              element={hasAdminPrivileges ? <Outlet /> : <Navigate to="/my-profile" replace />}
-          >
+        <Route 
+          path="/admin" 
+          element={hasAdminPrivileges ? <Outlet /> : <Navigate to="/my-profile" replace />}
+        >
+
           <Route index element={<AdminDashboard />} />
           <Route path="members" element={<AdminMembers />} />
           <Route path="members/:id" element={<MemberDetail />} />
