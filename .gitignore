@@ -29,3 +29,5 @@ Thumbs.db
 project_structure.txt
 
 dist/assets/index.js
+
+dist/assets/index.css
