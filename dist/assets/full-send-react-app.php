@@ -389,7 +389,8 @@ add_action('rest_api_init', function () {
             return ['status' => 'success', 'message' => 'Profile updated successfully!'];
         }
     ]);
-// --- NEW ADMIN ROUTES ADDED HERE --- //
+
+    // --- ADMIN ROUTES --- //
 
     // GET: List all users for Admin Dashboard
     register_rest_route($namespace, '/admin/users', [
@@ -412,29 +413,39 @@ add_action('rest_api_init', function () {
         'permission_callback' => 'fs_check_admin_permissions'
     ]);
 
-// --- AGM / Meeting Routes ---
+    // --- AGM / Meeting Routes ---
     
     // GET: List all meetings
     register_rest_route($namespace, '/agm', [
-        'methods' => 'GET',
-        'callback' => 'fs_get_agms',
-        'permission_callback' => 'fs_check_admin_permissions'
+        [
+            'methods'             => 'GET',
+            'callback'            => 'fs_get_agms',
+            // Allows any logged-in member to view the list
+            'permission_callback' => function() { return is_user_logged_in(); }
+        ],
+        [
+            'methods'             => 'POST',
+            'callback'            => 'fs_create_agm',
+            // Only allows Admins/Committee to create
+            'permission_callback' => 'fs_check_admin_permissions'
+        ],
     ]);
 
-    // POST: Create a new meeting
-    register_rest_route($namespace, '/agm', [
-        'methods' => 'POST',
-        'callback' => 'fs_create_agm',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // POST: Update an existing meeting (Status, Attendance, etc.)
+    // Route for /agm/123 (View for members, Update for Admins)
     register_rest_route($namespace, '/agm/(?P<id>\d+)', [
-        'methods' => 'POST',
-        'callback' => 'fs_update_agm',
-        'permission_callback' => 'fs_check_admin_permissions'
+        [
+            'methods'             => 'GET',
+            'callback'            => 'fs_get_agms',
+            'permission_callback' => function() { return is_user_logged_in(); }
+        ],
+        [
+            'methods'             => 'POST',
+            'callback'            => 'fs_update_agm',
+            'permission_callback' => 'fs_check_admin_permissions'
+        ],
     ]);
-});
+
+}); // <----- THIS CLOSING BRACE WAS MISSING AND CAUSED THE CRITICAL ERROR!
 
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
@@ -442,7 +453,7 @@ add_shortcode('full_send_app', function() {
     wp_localize_script('fs-react-js', 'appParams', [
         'restUrl'   => esc_url_raw(rest_url('full-send/v1')),
         'nonce'     => wp_create_nonce('wp_rest'),
-        'logoutUrl' => wp_logout_url(home_url('/portal/')) // Add this line
+        'logoutUrl' => wp_logout_url(home_url('/portal/'))
     ]);
     return '<div id="root"></div>';
 });
@@ -450,48 +461,37 @@ add_shortcode('full_send_app', function() {
 /**
  * Smart Redirect System: Routes users to the correct area upon accessing wp-admin
  */
-/**
- * 1. Protect the WP Backend (/wp-admin/) from non-admins
- */
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
     if (!is_user_logged_in()) return;
 
-    // If an Administrator navigates to wp-admin, allow them to stay
     if (current_user_can('manage_options')) return;
 
-    // Kick Committee/Editors out to the React Admin
     $user = wp_get_current_user();
     if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
         wp_safe_redirect(home_url('/portal/#/admin'));
         exit;
     } 
     
-    // Kick regular Members/Juniors out to their profile
     wp_safe_redirect(home_url('/portal/#/my-profile'));
     exit;
 });
 
 /**
  * Master Traffic Controller
- * Redirects users to the correct React route based on their role.
  */
 add_action('template_redirect', function() {
-    // 1. Only run if one of our flags is present
     if (isset($_GET['login_success']) || isset($_GET['setup_done'])) {
         
-        // This is safe and won't break the site
         header('X-FS-Debug: Redirect-Triggered'); 
 
         if (!is_user_logged_in()) {
             header('X-FS-Debug: Auth-Failed-At-Redirect');
-            // If we are here, the cookie wasn't saved or recognized
             return; 
         }
 
         $user = wp_get_current_user();
         
-        // Match React's logic exactly
         $is_admin = in_array('administrator', (array)$user->roles) || 
                     in_array('committee', (array)$user->roles);
 
@@ -507,33 +507,24 @@ add_action('template_redirect', function() {
     }
 });
 
-/**
- * Ensure users are redirected to the portal rather than the default WP login screen on logout
- */
 add_action('wp_logout', function(){
     wp_safe_redirect(home_url('/portal'));
     exit;
 });
 
-/**
- * Initialize custom roles for Full Send SimSports
- */
 function fs_initialize_custom_roles() {
-    // 1. Committee Role (Access to Portal Admin)
     if (!get_role('committee')) {
         add_role('committee', 'Committee', [
             'read' => true,
-            'view_portal_admin' => true, // Custom capability
-            'edit_posts' => true         // Allows access to REST API routes protected by edit_posts
+            'view_portal_admin' => true,
+            'edit_posts' => true         
         ]);
     }
 
-    // 2. Adult Member Role
     if (!get_role('fs_member')) {
         add_role('fs_member', 'FS Member', ['read' => true]);
     }
 
-    // 3. Junior Member Role
     if (!get_role('fs_junior_member')) {
         add_role('fs_junior_member', 'FS Junior Member', ['read' => true]);
     }
@@ -541,24 +532,21 @@ function fs_initialize_custom_roles() {
 add_action('init', 'fs_initialize_custom_roles');
 
 // ==========================================
-// ADMIN DASHBOARD HELPER FUNCTIONS
+// ADMIN DASHBOARD & AGM HELPER FUNCTIONS
 // ==========================================
 
-// --- Security Check ---
 function fs_check_admin_permissions() {
     $user = wp_get_current_user();
     return (in_array('administrator', (array)$user->roles) || in_array('committee', (array)$user->roles));
 }
 
-// --- Fetch Users ---
 function fs_admin_get_users() {
     $users = get_users();
     $user_data = array();
 
     foreach ($users as $u) {
-        // Find the member post linked to this user to get their status
         $member_id = get_user_meta($u->ID, 'fs_member_id', true);
-        $status = 'active'; // Default
+        $status = 'active';
         
         if ($member_id) {
             $meta_status = get_post_meta($member_id, '_status', true);
@@ -579,7 +567,6 @@ function fs_admin_get_users() {
     return rest_ensure_response($user_data);
 }
 
-// --- Update Role ---
 function fs_admin_update_role($request) {
     $params = $request->get_json_params();
     $user_id = intval($params['user_id']);
@@ -590,17 +577,14 @@ function fs_admin_update_role($request) {
         return new WP_Error('no_user', 'User not found', array('status' => 404));
     }
     
-    // Safety check: Prevent committee members from accidentally demoting full administrators
     if (in_array('administrator', $user->roles)) {
         return new WP_Error('forbidden', 'Cannot change administrator roles', array('status' => 403));
     }
 
-    // Apply the new role
     $user->set_role($new_role);
     return rest_ensure_response(array('success' => true, 'message' => 'Role updated'));
 }
 
-// --- Send Mass Email ---
 function fs_admin_send_email($request) {
     $to_emails_raw = $request->get_param('to_emails');
     $subject       = sanitize_text_field($request->get_param('subject'));
@@ -611,7 +595,6 @@ function fs_admin_send_email($request) {
     $system_email = get_option('admin_email');
     $info_email   = 'info@fullsendsimsport.com.au';
 
-    // 1. EXTRACT ALL STRINGS FROM WHATEVER REACT SENT (The "Ironclad" Flattener)
     $flat_emails = [];
     if (is_array($to_emails_raw)) {
         array_walk_recursive($to_emails_raw, function($value) use (&$flat_emails) {
@@ -632,26 +615,21 @@ function fs_admin_send_email($request) {
         }
     }
 
-    // 2. SANITIZE AND VALIDATE STRICTLY
     $valid_emails = [];
     foreach ($flat_emails as $e) {
         $clean = sanitize_email(trim($e));
-        // Ensure it's not empty AND is actually formatted like an email address
         if (!empty($clean) && is_email($clean)) {
             $valid_emails[] = $clean;
         }
     }
-    // Remove duplicates and re-index the array
     $to_emails = array_values(array_unique($valid_emails));
 
-    // 3. Validation Check
     if (empty($to_emails) || empty($subject) || empty($body)) {
         return new WP_Error('missing_data', 'Missing valid email addresses or content.', array('status' => 400));
     }
 
     $formatted_body = nl2br($body);
     
-    // 4. Construct Branded HTML Message
     $html_message = '<div style="font-family: sans-serif; font-size: 11pt; color: #000000;">';
     $html_message .= $formatted_body;
     $html_message .= '<br><br>';
@@ -672,29 +650,23 @@ function fs_admin_send_email($request) {
     $html_message .= '<td><a href="https://www.youtube.com/c/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/youtube-9279783f-9bc4-4b5e-9c3d-34ad91df8f7e.png" alt="YT"></a></td>';
     $html_message .= '</tr></table></td></tr></tbody></table></td></tr></tbody></table></div>';
 
-    // 5. Set Headers
     $headers = array(
         'Content-Type: text/html; charset=UTF-8',
         'From: ' . $from_name . ' <' . $system_email . '>',
         'Reply-To: ' . $info_email
     );
 
-    // 6. Recipient Logic
     $to = ''; 
 
     if (count($to_emails) === 1) {
-        // EXACTLY ONE RECIPIENT: Send directly to them
         $to = $to_emails[0];
     } else {
-        // MULTIPLE RECIPIENTS: 
-        // Set "To" to the branded info email, BCC everyone else
         $to = 'info@fullsendsimsport.com.au'; 
         foreach ($to_emails as $email) {
             $headers[] = 'Bcc: ' . $email;
         }
     }
 
-    // 7. Execute Send
     $sent = wp_mail($to, $subject, $html_message, $headers);
 
     if ($sent) {
@@ -704,12 +676,11 @@ function fs_admin_send_email($request) {
     }
 }
 
-// --- GET: Fetch Meetings ---
 function fs_get_agms($request) {
     $id = $request->get_param('id');
     
     $args = [
-        'post_type'      => 'agm_meeting', // STRICTLY only meetings
+        'post_type'      => 'agm_meeting',
         'posts_per_page' => -1,
         'post_status'    => 'publish',
     ];
@@ -722,7 +693,6 @@ function fs_get_agms($request) {
     $meetings = [];
 
     foreach ($query->posts as $post) {
-        // Only return if it's actually the right post type (double check)
         if ($post->post_type !== 'agm_meeting') continue;
 
         $meetings[] = [
@@ -739,7 +709,6 @@ function fs_get_agms($request) {
     return rest_ensure_response($meetings);
 }
 
-// --- POST: Create Meeting ---
 function fs_create_agm($request) {
     $params = $request->get_json_params();
     
@@ -761,7 +730,6 @@ function fs_create_agm($request) {
     return rest_ensure_response(['success' => true, 'id' => $post_id]);
 }
 
-// --- POST: Update Meeting ---
 function fs_update_agm($request) {
     $id = $request['id'];
     $params = $request->get_json_params();
@@ -770,14 +738,13 @@ function fs_update_agm($request) {
         wp_update_post(['ID' => $id, 'post_title' => sanitize_text_field($params['title'])]);
     }
 
-    // Map React fields to Meta fields
     $fields = ['meeting_date', 'location', 'status', 'quorum_minimum', 'notes', 'attendee_ids'];
     
     foreach ($fields as $field) {
         if (isset($params[$field])) {
             $value = $params[$field];
             if ($field === 'attendee_ids') {
-                update_post_meta($id, '_attendee_ids', $value); // Serialized automatically by WP
+                update_post_meta($id, '_attendee_ids', $value); 
             } else {
                 update_post_meta($id, '_' . $field, sanitize_text_field($value));
             }
