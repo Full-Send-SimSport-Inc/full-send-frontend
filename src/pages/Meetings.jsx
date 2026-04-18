@@ -24,20 +24,56 @@ const STATUS_LABELS = {
 export default function Meetings() {
   const { data: meetings = [], isLoading } = useQuery({
     queryKey: ['public-meetings'],
-    queryFn: () => base44.entities.AGM.list('-meeting_date'),
+    queryFn: async () => {
+      // Direct path to the WP REST endpoint we created
+      const data = await base44.get('/agm');
+      return data || [];
+    },
   });
 
   const upcoming = meetings.filter(m => m.status === 'upcoming' || m.status === 'in_progress');
   const past = meetings.filter(m => m.status === 'completed' || m.status === 'cancelled');
 
   return (
+     <> {/* ADDED HEADER: Matches the style and functionality of AdminLayout */}
+      <header className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-8">
+            <span className="font-bold text-xl text-primary">Member Portal</span>
+            <nav className="hidden md:flex items-center gap-1">
+              <Link
+                to="/my-profile"
+                className="bg-primary/10 text-primary flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+              >
+                <User className="w-4 h-4" />
+                My Profile
+              </Link>
+              <Link
+                to="/meetings"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                <Calendar className="w-4 h-4" />
+                Meetings
+              </Link>
+            </nav>
+          </div>
+          <button 
+            onClick={logout} 
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden sm:inline">Sign Out</span>
+          </button>
+        </div>
+      </header>
+
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-12 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 mb-4 text-sm font-medium">
             <CalendarDays className="w-4 h-4" />
-            Full Send SimSports Inc.
+            Full Send SimSport Inc.
           </div>
           <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-3">General Meetings</h1>
           <p className="text-white/80">View upcoming and past Annual General Meetings.</p>
@@ -83,10 +119,11 @@ export default function Meetings() {
       </div>
 
       <footer className="text-center text-xs text-muted-foreground pb-8">
-        © {new Date().getFullYear()} Full Send SimSports Inc. ·{' '}
+        © {new Date().getFullYear()} Full Send SimSport Inc. ·{' '}
         <Link to="/" className="hover:underline">Back to Registration</Link>
       </footer>
     </div>
+   </>
   );
 }
 

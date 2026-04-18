@@ -72,7 +72,7 @@ function AppRoutes() {
         path="/my-profile" 
         element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} 
       />
-      <Route path="/meetings" element={<Meetings />} />
+      <Route path="meetings" element={<Meetings />} />
       
       {/* 4. ADMIN ROUTES */}
       <Route 
