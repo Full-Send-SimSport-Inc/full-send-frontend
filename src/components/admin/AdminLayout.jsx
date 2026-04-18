@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Users, LayoutDashboard, UserPlus, LogOut, CalendarDays, ShieldCheck, Mail, Loader2, Lock } from 'lucide-react'; // Added Lock icon
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Users, LayoutDashboard, UserPlus, LogOut, CalendarDays, ShieldCheck, Mail, Loader2, Lock } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 import UserNotRegisteredError from '@/components/auth/UserNotRegisteredError';
@@ -16,9 +16,10 @@ const NAV_ITEMS = [
 
 export default function AdminLayout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const [authorized, setAuthorized] = useState(false);
-  const [userRoles, setUserRoles] = useState([]); // Store roles for conditional logic
+  const [userRoles, setUserRoles] = useState([]);
 
   useEffect(() => {
     async function verifyAccess() {
@@ -27,8 +28,14 @@ export default function AdminLayout() {
         
         if (user && user.roles) {
           setUserRoles(user.roles);
-          if (user.roles.includes('administrator') || user.roles.includes('committee')) {
+          const hasAdminAccess = user.roles.includes('administrator') || user.roles.includes('committee');
+          
+          if (hasAdminAccess) {
             setAuthorized(true);
+          } else if (user.authenticated) {
+            // If they are a standard member caught in the AdminLayout route,
+            // we redirect them to their profile instead of showing the error.
+            navigate('/my-profile');
           }
         }
       } catch (error) {
@@ -38,11 +45,9 @@ export default function AdminLayout() {
       }
     }
     verifyAccess();
-  }, []);
+  }, [navigate]);
 
-  const handleLogout = (e) => {
-    if (e) e.preventDefault();
-    // Use the localized logout URL to bypass confirmation, or fallback to default
+  const handleLogout = () => {
     const logoutUrl = window.appParams?.logoutUrl || '/wp-login.php?action=logout';
     window.location.href = logoutUrl;
   };
@@ -61,11 +66,12 @@ export default function AdminLayout() {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
-      {/* Header / Sidebar Navigation */}
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <span className="font-bold text-xl text-primary">FS Portal</span>
+            
+            {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center gap-1">
               {NAV_ITEMS.map(item => (
                 <Link
@@ -73,8 +79,8 @@ export default function AdminLayout() {
                   to={item.path}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    location.pathname === item.path
-                      ? "bg-primary/10 text-primary"
+                    location.pathname === item.path 
+                      ? "bg-primary/10 text-primary" 
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -82,8 +88,7 @@ export default function AdminLayout() {
                   {item.label}
                 </Link>
               ))}
-
-              {/* NEW: WordPress Backend Link for Administrators */}
+              
               {userRoles.includes('administrator') && (
                 <a 
                   href="/wp-admin" 
@@ -95,6 +100,7 @@ export default function AdminLayout() {
               )}
             </nav>
           </div>
+
           <button
             onClick={handleLogout}
             className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -103,7 +109,8 @@ export default function AdminLayout() {
             <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
-        {/* Mobile nav */}
+
+        {/* Mobile Navigation */}
         <nav className="md:hidden flex items-center gap-1 px-4 pb-3 overflow-x-auto">
           {NAV_ITEMS.map(item => (
             <Link
@@ -121,7 +128,10 @@ export default function AdminLayout() {
             </Link>
           ))}
           {userRoles.includes('administrator') && (
-             <a href="/wp-admin" className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap text-slate-500">
+             <a 
+               href="/wp-admin" 
+               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap text-slate-500"
+             >
                <Lock className="w-4 h-4" />
                WP Backend
              </a>
@@ -129,7 +139,6 @@ export default function AdminLayout() {
         </nav>
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
