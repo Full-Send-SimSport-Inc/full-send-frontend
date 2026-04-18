@@ -25,21 +25,26 @@ export default function AdminLayout() {
     async function verifyAccess() {
       try {
         const user = await base44.get('/me');
+        console.log("DEBUG: AdminLayout user data:", user);
         
-        if (user && user.roles) {
-          setUserRoles(user.roles);
-          const hasAdminAccess = user.roles.includes('administrator') || user.roles.includes('committee');
+        if (user && user.authenticated) {
+          setUserRoles(user.roles || []);
+          const isCommittee = user.roles?.includes('committee');
+          const isAdmin = user.roles?.includes('administrator');
           
-          if (hasAdminAccess) {
+          if (isAdmin || isCommittee) {
             setAuthorized(true);
-          } else if (user.authenticated) {
-            // If they are a standard member caught in the AdminLayout route,
-            // we redirect them to their profile instead of showing the error.
-            navigate('/my-profile');
+          } else {
+            // Logged in but NOT an admin. Redirect to profile.
+            console.log("DEBUG: Not an admin, redirecting to profile...");
+            navigate('/my-profile', { replace: true });
           }
+        } else {
+          setAuthorized(false);
         }
       } catch (error) {
         console.error('Access verification failed:', error);
+        setAuthorized(false);
       } finally {
         setChecking(false);
       }
