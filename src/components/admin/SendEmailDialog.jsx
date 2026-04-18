@@ -21,29 +21,38 @@ export default function SendEmailDialog({ member, trigger }) {
   if (!member) return null;
 
   const handleSend = async () => {
+    // 1. Validation
     if (!subject.trim() || !body.trim()) {
       toast.error('Please fill in subject and message.');
       return;
     }
     
     setSending(true);
+
+    // 2. Format the message
+    // Note: We keep the "Hi Name" here, and the PHP will append the Revolgy footer
     const recipientName = member.display_name || member.first_name || 'Member';
     const fullBody = `Hi ${recipientName},\n\n${body}${signature ? `\n\n---\n${signature}` : ''}`;
 
     try {
+      // 3. API Call
+      // We send [member.email] as an array. 
+      // Because the array length is 1, the new PHP logic will put them in the "To" field.
       await base44.post('/admin/send-email', {
         to_emails: [member.email],
-        from_name: 'Full Send SimSports',
-        subject,
+        from_name: 'Full Send SimSport', // Matches your branded "From" name
+        subject: subject,
         body: fullBody,
       });
 
+      // 4. Success Handling
       toast.success(`Email sent to ${recipientName}!`);
       setOpen(false);
       setSubject('');
       setBody('');
     } catch (error) {
-      toast.error('Failed to send email.');
+      console.error('Email Error:', error);
+      toast.error('Failed to send email. Please check the system logs.');
     } finally {
       setSending(false);
     }

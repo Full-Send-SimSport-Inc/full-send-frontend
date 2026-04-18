@@ -579,77 +579,104 @@ function fs_admin_update_role($request) {
 
 // --- Send Mass Email ---
 function fs_admin_send_email($request) {
-    $params = $request->get_json_params();
-    $to_emails = $params['to_emails'];
-    $subject = sanitize_text_field($params['subject']);
-    $body = wp_kses_post($params['body']); 
-    $from_name = sanitize_text_field($params['from_name']);
+    $to_emails_raw = $request->get_param('to_emails');
+    $subject       = sanitize_text_field($request->get_param('subject'));
+    $body          = wp_kses_post($request->get_param('body')); 
+    $from_name_raw = $request->get_param('from_name');
+    
+    $from_name    = !empty($from_name_raw) ? sanitize_text_field($from_name_raw) : 'Full Send SimSport';
+    $system_email = get_option('admin_email');
+    $info_email   = 'info@fullsendsimsport.com.au';
 
+    // 1. EXTRACT ALL STRINGS FROM WHATEVER REACT SENT (The "Ironclad" Flattener)
+    $flat_emails = [];
+    if (is_array($to_emails_raw)) {
+        array_walk_recursive($to_emails_raw, function($value) use (&$flat_emails) {
+            if (is_string($value)) {
+                $flat_emails[] = $value;
+            }
+        });
+    } elseif (is_string($to_emails_raw)) {
+        $decoded = json_decode($to_emails_raw, true);
+        if (is_array($decoded)) {
+            array_walk_recursive($decoded, function($value) use (&$flat_emails) {
+                if (is_string($value)) {
+                    $flat_emails[] = $value;
+                }
+            });
+        } else {
+            $flat_emails = explode(',', $to_emails_raw);
+        }
+    }
+
+    // 2. SANITIZE AND VALIDATE STRICTLY
+    $valid_emails = [];
+    foreach ($flat_emails as $e) {
+        $clean = sanitize_email(trim($e));
+        // Ensure it's not empty AND is actually formatted like an email address
+        if (!empty($clean) && is_email($clean)) {
+            $valid_emails[] = $clean;
+        }
+    }
+    // Remove duplicates and re-index the array
+    $to_emails = array_values(array_unique($valid_emails));
+
+    // 3. Validation Check
     if (empty($to_emails) || empty($subject) || empty($body)) {
-        return new WP_Error('missing_data', 'Missing email data', array('status' => 400));
+        return new WP_Error('missing_data', 'Missing valid email addresses or content.', array('status' => 400));
     }
 
     $formatted_body = nl2br($body);
-    $admin_email = get_option('admin_email');
     
-    // THE REVOLGY HTML TEMPLATE
-    // Note: I've filled in the placeholders with committee defaults
-    $html_message = '
-    <div style="font-family: sans-serif; font-size: 11pt; color: #000000;">
-        ' . $formatted_body . '
-        <br><br>
-        <table style="font-size:11.0pt; font-family: \'Roboto\', sans-serif; color: #000000; line-height: 1.4;" cellpadding="0" cellspacing="0">
-          <tbody>
-            <tr>
-              <td width="120" valign="top">
-                <img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/LOGO-b96312c3-d5ab-4250-a71c-9652d867139a.png" alt="Full Send SimSport" width="120" style="display: block;">
-              </td>
-              <td width="30"></td>
-              <td valign="top">
-                <table cellpadding="0" cellspacing="0">
-                  <tbody>
-                    <tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>
-                    <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold;">Official Correspondence</span></td></tr>
-                    <tr><td style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>
-                    <tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>
-                    <tr><td><a href="https://www.fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>
-                    <tr><td height="14"></td></tr>
-                    <tr>
-                      <td>
-                        <table cellpadding="0" cellspacing="0">
-                          <tr>
-                            <td><a href="https://www.instagram.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/instagram-40b6aa82-848f-40f1-a104-3ce6b6e06921.png" alt="IG"></a></td>
-                            <td><a href="https://www.facebook.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/facebook-8d798943-3828-4b0e-bf31-5a1756e13c9f.png" alt="FB"></a></td>
-                            <td width="5"></td>
-                            <td><a href="https://www.linkedin.com/company/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/linkedin-b16f3da9-d125-4f88-8f61-6882ad2b1388.png" alt="IN"></a></td>
-                            <td width="5"></td>
-                            <td><a href="https://www.youtube.com/c/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/youtube-9279783f-9bc4-4b5e-9c3d-34ad91df8f7e.png" alt="YT"></a></td>
-                          </tr>
-                        </table>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-    </div>';
+    // 4. Construct Branded HTML Message
+    $html_message = '<div style="font-family: sans-serif; font-size: 11pt; color: #000000;">';
+    $html_message .= $formatted_body;
+    $html_message .= '<br><br>';
+    $html_message .= '<table style="font-size:11.0pt; font-family: Arial, sans-serif; color: #000000; line-height: 1.4;" cellpadding="0" cellspacing="0">';
+    $html_message .= '<tbody><tr><td width="120" valign="top">';
+    $html_message .= '<img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/LOGO-b96312c3-d5ab-4250-a71c-9652d867139a.png" alt="Full Send SimSport" width="120" style="display: block;">';
+    $html_message .= '</td><td width="30"></td><td valign="top"><table cellpadding="0" cellspacing="0"><tbody>';
+    $html_message .= '<tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>';
+    $html_message .= '<tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold;">Official Correspondence</span></td></tr>';
+    $html_message .= '<tr><td style="font-size:12.0pt; font-family: Arial; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>';
+    $html_message .= '<tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>';
+    $html_message .= '<tr><td><a href="https://www.fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>';
+    $html_message .= '<tr><td height="14"></td></tr>';
+    $html_message .= '<tr><td><table cellpadding="0" cellspacing="0"><tr>';
+    $html_message .= '<td><a href="https://www.instagram.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/instagram-40b6aa82-848f-40f1-a104-3ce6b6e06921.png" alt="IG"></a></td><td width="5"></td>';
+    $html_message .= '<td><a href="https://www.facebook.com/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/facebook-8d798943-3828-4b0e-bf31-5a1756e13c9f.png" alt="FB"></a></td><td width="5"></td>';
+    $html_message .= '<td><a href="https://www.linkedin.com/company/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/linkedin-b16f3da9-d125-4f88-8f61-6882ad2b1388.png" alt="IN"></a></td><td width="5"></td>';
+    $html_message .= '<td><a href="https://www.youtube.com/c/fullsendsimsport"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/youtube-9279783f-9bc4-4b5e-9c3d-34ad91df8f7e.png" alt="YT"></a></td>';
+    $html_message .= '</tr></table></td></tr></tbody></table></td></tr></tbody></table></div>';
 
+    // 5. Set Headers
     $headers = array(
         'Content-Type: text/html; charset=UTF-8',
-        'From: ' . $from_name . ' <' . $admin_email . '>'
+        'From: ' . $from_name . ' <' . $system_email . '>',
+        'Reply-To: ' . $info_email
     );
 
-    foreach ($to_emails as $email) {
-        $headers[] = 'Bcc: ' . sanitize_email($email);
+    // 6. Recipient Logic
+    $to = ''; 
+
+    if (count($to_emails) === 1) {
+        // EXACTLY ONE RECIPIENT: Send directly to them
+        $to = $to_emails[0];
+    } else {
+        // MULTIPLE RECIPIENTS: 
+        // Set "To" to the branded info email, BCC everyone else
+        $to = 'info@fullsendsimsport.com.au'; 
+        foreach ($to_emails as $email) {
+            $headers[] = 'Bcc: ' . $email;
+        }
     }
 
-    $sent = wp_mail($admin_email, $subject, $html_message, $headers);
+    // 7. Execute Send
+    $sent = wp_mail($to, $subject, $html_message, $headers);
 
     if ($sent) {
         return rest_ensure_response(array('success' => true));
     } else {
-        return new WP_Error('send_failed', 'WP Mail failed', array('status' => 500));
+        return new WP_Error('send_failed', 'WP Mail refused to send.', array('status' => 500));
     }
 }

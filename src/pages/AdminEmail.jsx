@@ -80,8 +80,8 @@ export default function AdminEmail() {
 
       // Send ONE request to PHP, let PHP handle the loop and wp_mail
       await base44.post('/admin/send-email', {
-        to_emails: emailList,
-        from_name: fromName || 'Full Send SimSports',
+        to_emails: recipients, // This will be a large array, triggering the PHP BCC logic
+        from_name: 'Full Send SimSport',
         subject: subject,
         body: fullBody,
       });
