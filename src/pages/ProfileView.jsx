@@ -69,27 +69,26 @@ export default function ProfileView() {
   };
   
   useEffect(() => {
-  // If profileData is wrapped in an extra 'data' property, unwrap it
-    const actualData = profileData?.data ? profileData.data : profileData;
-
-    if (actualData && Object.keys(actualData).length > 0) {
-        console.log("Syncing Form with:", actualData); // Helpful for your console
-        setForm({
-        first_name: actualData.first_name || '',
-        last_name: actualData.last_name || '',
-        // Look for 'dob' OR 'date_of_birth' in case the DB column name is different
-        dob: formatToInputDate(actualData.dob || actualData.date_of_birth),
-        status: actualData.status || 'active',
-        email: actualData.email || user?.email || '', 
-        phone: actualData.phone || '',
-        street_address: actualData.street_address || '',
-        city: actualData.city || '',
-        state: actualData.state || '', 
-        postcode: actualData.postcode || '',
-        discord_username: actualData.discord_username || '',
-        sim_platforms: Array.isArray(actualData.sim_platforms) ? actualData.sim_platforms : []
-        });
-    } else if (isEditingSelf && user) {
+    // 1. Prioritize the actual member record from the custom table
+    if (profileData && Object.keys(profileData).length > 0) {
+      setForm({
+        first_name: profileData.first_name || '',
+        last_name: profileData.last_name || '',
+        // Check both 'dob' and 'date_of_birth' in case the API key changes
+        dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
+        status: profileData.status || 'active',
+        email: profileData.email || '', 
+        phone: profileData.phone || '',
+        street_address: profileData.street_address || '',
+        city: profileData.city || '',
+        state: profileData.state || '', 
+        postcode: profileData.postcode || '',
+        discord_username: profileData.discord_username || '',
+        sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
+      });
+    } 
+    // 2. Fallback to WP User data ONLY if no member record exists yet
+    else if (isEditingSelf && user) {
         setForm(prev => ({
             ...prev,
             first_name: user.first_name || '',
