@@ -67,7 +67,8 @@ export default function ProfileView() {
       setForm({
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
-        dob: formatToInputDate(profileData.dob),
+        // Use a fallback to check for common alternative naming conventions
+        dob: formatToInputDate(profileData.dob || profileData.date_of_birth), 
         status: profileData.status || 'active',
         email: profileData.email || user?.email || '', 
         phone: profileData.phone || '',
@@ -98,13 +99,24 @@ export default function ProfileView() {
     try {
       if (isEditingSelf) {
         if (!profileData && isAdmin) {
-          // Attempting creation for Admin via /join
-          await base44.post('/join', { ...form, member_type: 'adult' });
+          // If the backend still uses the "stitched" date logic for /join,
+          // we need to explode the YYYY-MM-DD back into parts for the initial creation
+          const [y, m, d] = form.dob ? form.dob.split('-') : ['', '', ''];
+          
+          await base44.post('/join', { 
+            ...form, 
+            member_type: 'adult',
+            dob_day: d,
+            dob_month: m,
+            dob_year: y
+          });
         } else {
+          // Standard update
           await base44.post('/update-me', form);
         }
         await checkLoginStatus(); 
       } else {
+        // Admin editing someone else
         await base44.post(`/members/${id}`, form);
         queryClient.invalidateQueries(['member', id]);
       }
