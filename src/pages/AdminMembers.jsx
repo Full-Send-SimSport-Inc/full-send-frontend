@@ -1,16 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Download, Mail } from 'lucide-react';
+import { Search, Download, Mail, CheckSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import MemberTable from '../components/admin/MemberTable';
+import { toast } from 'sonner';
 
 export default function AdminMembers() {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['members'],
@@ -25,6 +31,28 @@ export default function AdminMembers() {
       return matchesSearch && matchesStatus;
     });
   }, [members, search, statusFilter]);
+
+  // Bulk Edit Handler
+  const handleBulkStatusUpdate = async (newStatus) => {
+    if (!selectedIds.length) return;
+    
+    setIsUpdating(true);
+    try {
+      // Assuming your backend supports a bulk endpoint, or we loop (looping here for safety)
+      await Promise.all(selectedIds.map(id => 
+        base44.post(`/members/${id}/status`, { status: newStatus })
+      ));
+
+      toast.success(`Updated ${selectedIds.length} members to ${newStatus}`);
+      queryClient.invalidateQueries(['members']); // Refresh the data
+      setSelectedIds([]); // Clear selection
+    } catch (error) {
+      console.error("Bulk update failed:", error);
+      toast.error("Failed to update some members.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const exportCSV = () => {
     const headers = ['First Name', 'Last Name', 'Email', 'Phone', 'City', 'State', 'Status', 'Date Joined'];
@@ -44,6 +72,7 @@ export default function AdminMembers() {
 
   return (
     <div className="space-y-6">
+      {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Members</h1>
@@ -59,6 +88,26 @@ export default function AdminMembers() {
         </div>
       </div>
 
+      {/* Bulk Action Bar - Only shows when items are selected */}
+      {selectedIds.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2 text-primary font-medium">
+            <CheckSquare className="w-5 h-5" />
+            {selectedIds.length} members selected
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground mr-2 text-nowrap">Set status to:</span>
+            <Button size="sm" variant="outline" onClick={() => handleBulkStatusUpdate('active')} disabled={isUpdating}>Active</Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkStatusUpdate('pending')} disabled={isUpdating}>Pending</Button>
+            <Button size="sm" variant="outline" onClick={() => handleBulkStatusUpdate('inactive')} disabled={isUpdating}>Inactive</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])} className="ml-2 text-muted-foreground">
+              <X className="w-4 h-4 mr-1" /> Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Search & Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -87,7 +136,11 @@ export default function AdminMembers() {
           <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
         </div>
       ) : (
-        <MemberTable members={filtered} />
+        <MemberTable 
+          members={filtered} 
+          selectedIds={selectedIds} 
+          onSelectionChange={setSelectedIds} 
+        />
       )}
     </div>
   );
