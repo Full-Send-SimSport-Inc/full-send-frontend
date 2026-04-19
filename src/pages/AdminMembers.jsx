@@ -38,17 +38,18 @@ export default function AdminMembers() {
     
     setIsUpdating(true);
     try {
-      // Assuming your backend supports a bulk endpoint, or we loop (looping here for safety)
+      // Changed from /members/${id}/status to just /members/${id}
+      // This matches standard WordPress REST patterns for updating a resource
       await Promise.all(selectedIds.map(id => 
-        base44.post(`/members/${id}/status`, { status: newStatus })
+        base44.post(`/members/${id}`, { status: newStatus })
       ));
 
       toast.success(`Updated ${selectedIds.length} members to ${newStatus}`);
-      queryClient.invalidateQueries(['members']); // Refresh the data
-      setSelectedIds([]); // Clear selection
+      queryClient.invalidateQueries(['members']); 
+      setSelectedIds([]); 
     } catch (error) {
       console.error("Bulk update failed:", error);
-      toast.error("Failed to update some members.");
+      toast.error("Failed to update some members. Verify the endpoint exists.");
     } finally {
       setIsUpdating(false);
     }
