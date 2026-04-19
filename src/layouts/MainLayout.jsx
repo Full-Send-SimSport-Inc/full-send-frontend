@@ -10,7 +10,8 @@ import {
   Users, 
   Mail, 
   Settings, 
-  LayoutDashboard 
+  LayoutDashboard,
+  LogIn // Added LogIn icon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -39,9 +40,26 @@ export default function MainLayout() {
       <header className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <span className="font-bold text-xl text-primary shrink-0">Full Send Portal</span>
+            {/* UPDATED: Logo is now a Link to the Root/Portal */}
+            <Link to="/" className="font-bold text-xl text-primary shrink-0 hover:opacity-80 transition-opacity">
+              Member Portal
+            </Link>
             
             <nav className="hidden lg:flex items-center gap-1">
+              {/* NEW: Explicit Portal Link for unauthenticated users */}
+              {!user && (
+                <Link
+                  to="/"
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    location.pathname === '/' ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  )}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Portal Home
+                </Link>
+              )}
+
               <Link
                 to="/meetings"
                 className={cn(
@@ -70,8 +88,8 @@ export default function MainLayout() {
                 <>
                   <div className="w-px h-6 bg-slate-200 mx-2" />
                   
-                  <a
-                    href="#/admin/members"
+                  <Link
+                    to="/admin/members"
                     className={cn(
                       "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
                       location.pathname.startsWith('/admin/members') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -79,7 +97,7 @@ export default function MainLayout() {
                    >
                     <Users className="w-4 h-4" />
                     Members
-                  </a>
+                  </Link>
 
                   <Link
                     to="/admin/email"
@@ -103,7 +121,6 @@ export default function MainLayout() {
                     AGMs
                   </Link>
 
-                  {/* Restored Users Option */}
                   <Link
                     to="/admin/users"
                     className={cn(
@@ -139,8 +156,13 @@ export default function MainLayout() {
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             ) : (
-              <Link to="/login" className="text-sm font-medium text-primary hover:underline px-3">
-                Member Login
+              /* UPDATED: Changed from /login to / to give them the Join/Login choice */
+              <Link 
+                to="/" 
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-full transition-all shadow-sm"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In / Join
               </Link>
             )}
           </div>

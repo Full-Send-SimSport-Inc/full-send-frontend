@@ -36,7 +36,7 @@ export default function Portal() {
     <div className="min-h-screen flex flex-col items-center bg-slate-50 p-4 pt-20 md:pt-32">
       
       <div className="w-full max-w-md text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-primary mb-3 tracking-tight">Full Send Portal</h1>
+        <h1 className="text-4xl font-extrabold text-primary mb-3 tracking-tight">Member Portal</h1>
         <p className="text-muted-foreground text-lg font-medium">Choose an option to get started</p>
       </div>
 
