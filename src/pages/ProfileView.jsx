@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Loader2, UserCircle, CheckCircle2, AlertCircle, Lock, 
-  ArrowLeft, Shield, Users, Info
+  Loader2, UserCircle, CheckCircle2, Lock, 
+  ArrowLeft, Shield, Users, Info 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -22,6 +22,19 @@ const SIM_PLATFORMS = [
   "LMU", "Project Motor Racing", "Rennsport", "Other"
 ];
 
+// Helper to convert DD/MM/YYYY or other strings to YYYY-MM-DD for the HTML5 input
+const formatToInputDate = (dateStr) => {
+  if (!dateStr) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const [d, m, y] = parts;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+  return '';
+};
+
 export default function ProfileView() {
   const { id } = useParams(); 
   const navigate = useNavigate();
@@ -30,8 +43,6 @@ export default function ProfileView() {
   
   const isAdmin = user?.roles?.some(r => ['administrator', 'committee'].includes(r));
   const isEditingSelf = !id; 
-  
-  // FIX: If I am an admin, I should have admin permissions even on my own profile
   const hasFullPermissions = isAdmin; 
 
   const [form, setForm] = useState({
@@ -48,32 +59,15 @@ export default function ProfileView() {
     enabled: !!id,
   });
 
-  // Determine profile data source
   const profileData = isEditingSelf ? user?.member_details : fetchedMember;
   const isLoading = isLoadingAuth || (!!id && isFetching);
 
-    // Add this helper at the top of your file or inside the component
-  const formatToInputDate = (dateStr) => {
-    if (!dateStr) return '';
-    // If it's already YYYY-MM-DD, return it
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
-    // If it's DD/MM/YYYY (from your registration stitch), convert it
-    const parts = dateStr.split('/');
-    if (parts.length === 3) {
-        const [d, m, y] = parts;
-        // Ensure leading zeros for month and day
-        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-    }
-    return '';
-  };
-  
   useEffect(() => {
     if (profileData) {
       setForm({
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
-        dob: formatToInputDate(profileData.dob) || '',
+        dob: formatToInputDate(profileData.dob),
         status: profileData.status || 'active',
         email: profileData.email || user?.email || '', 
         phone: profileData.phone || '',
@@ -84,8 +78,7 @@ export default function ProfileView() {
         discord_username: profileData.discord_username || '',
         sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
       });
-    } else if (isEditingSelf && isAdmin) {
-        // Handle Admin who exists in WP but NOT in the custom members table yet
+    } else if (isEditingSelf && user) {
         setForm(prev => ({
             ...prev,
             first_name: user.first_name || '',
@@ -94,7 +87,7 @@ export default function ProfileView() {
             status: 'active'
         }));
     }
-  }, [profileData, user, isEditingSelf, isAdmin]);
+  }, [profileData, user, isEditingSelf]);
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
@@ -105,43 +98,27 @@ export default function ProfileView() {
     try {
       if (isEditingSelf) {
         if (!profileData && isAdmin) {
-          // 1. If no record exists, use the JOIN/Registration endpoint
-          // This creates the row in the members table linked to your user_id
-          await base44.post('/join', {
-            ...form,
-            member_type: 'adult',
-            // Ensure we pass any flags required by your join logic
-          });
+          // Attempting creation for Admin via /join
+          await base44.post('/join', { ...form, member_type: 'adult' });
         } else {
-          // 2. Standard update for existing records
           await base44.post('/update-me', form);
         }
         await checkLoginStatus(); 
       } else {
-        // Admin editing someone else (already confirmed working)
         await base44.post(`/members/${id}`, form);
         queryClient.invalidateQueries(['member', id]);
       }
-      
       toast.success('Profile updated successfully!');
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
-      console.error("Submission error details:", err.response?.data);
-      
-      // Fallback: If /join is also not the right route or method
-      if (err.response?.status === 404) {
-        toast.error('Configuration Error: Registration endpoint not found.');
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to update profile.');
-      }
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to update profile.');
       setSaveStatus('error');
     }
   };
 
   if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  
-  // Adjusted Error State: If admin viewing self, don't show "Not Found" even if record is missing
   if (!profileData && !isEditingSelf) return (
     <div className="p-20 text-center space-y-4">
       <Shield className="w-12 h-12 text-destructive mx-auto" />
@@ -152,6 +129,7 @@ export default function ProfileView() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {!isEditingSelf && (
@@ -163,19 +141,18 @@ export default function ProfileView() {
         </div>
       </div>
 
-      <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
-        
-        {/* Notice for Admins without a record */}
+      <main className="max-w-3xl w-full mx-auto space-y-6">
         {isEditingSelf && isAdmin && !user?.member_details && (
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-start gap-3 text-blue-800 text-sm">
                 <Info className="w-5 h-5 shrink-0" />
                 <div>
                     <p className="font-bold">Administrator Account</p>
-                    <p>You don't have a member profile record yet. Filling out this form will create your entry in the members database.</p>
+                    <p>No member profile record found. Saving this form will initialize your record.</p>
                 </div>
             </div>
         )}
 
+        {/* Profile Card Summary */}
         <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center">
             <UserCircle className="w-10 h-10" />
@@ -198,50 +175,29 @@ export default function ProfileView() {
           <CardHeader><CardTitle>Member Information</CardTitle></CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
                 {!hasFullPermissions && (
                   <div className="absolute top-2 right-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
                     <Lock className="w-3 h-3" /> Locked
                   </div>
                 )}
-                
                 <div className="space-y-2">
                   <Label>First Name</Label>
-                  <Input 
-                    value={form.first_name} 
-                    onChange={e => handleChange('first_name', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
-                  />
+                  <Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={!hasFullPermissions} />
                 </div>
-
                 <div className="space-y-2">
                   <Label>Last Name</Label>
-                  <Input 
-                    value={form.last_name} 
-                    onChange={e => handleChange('last_name', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
-                  />
+                  <Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={!hasFullPermissions} />
                 </div>
-
                 <div className="space-y-2">
                   <Label>Date of Birth</Label>
-                  <Input 
-                    type="date"
-                    value={form.dob} 
-                    onChange={e => handleChange('dob', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
-                  />
+                  <Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={!hasFullPermissions} />
                 </div>
-
                 {hasFullPermissions && (
                   <div className="space-y-2">
                     <Label>Account Status</Label>
                     <Select value={form.status} onValueChange={val => handleChange('status', val)}>
-                      <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
@@ -252,52 +208,39 @@ export default function ProfileView() {
                 )}
               </div>
 
-              {/* ... Rest of the form remains the same as previous version ... */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>Email Address</Label>
-                    <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label>Phone Number</Label>
-                    <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="space-y-2"><Label>Email</Label><Input value={form.email} disabled /></div>
+                  <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-lg text-primary">Location</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>State</Label><Input placeholder="e.g. NSW" value={form.state} onChange={e => handleChange('state', e.target.value.toUpperCase())} /></div>
-                  <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} /></div>
-                </div>
-              </div>
-
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-lg text-primary">Sim Platforms</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {SIM_PLATFORMS.map(p => (
-                    <label key={p} className="flex items-center gap-2 cursor-pointer group">
-                      <Checkbox 
-                        checked={form.sim_platforms.includes(p)}
-                        onCheckedChange={checked => handleChange('sim_platforms', checked 
-                          ? [...form.sim_platforms, p] 
-                          : form.sim_platforms.filter(x => x !== p)
-                        )} 
-                      />
-                      <span className="text-sm group-hover:text-primary">{p}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <Button type="submit" disabled={saveStatus === 'saving'} className="w-full h-12 text-lg">
+              <Button type="submit" disabled={saveStatus === 'saving'} className="w-full">
                 {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
               </Button>
             </form>
           </CardContent>
         </Card>
+
+        {/* RESTORED DEBUG BLOCKS */}
+        {isAdmin && (
+          <div className="mt-8 space-y-4">
+            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+               <h3 className="text-green-400 font-mono text-xs mb-2 uppercase tracking-widest flex justify-between">
+                <span>Debug: Raw DB Record</span>
+                <span className="text-[10px] opacity-50">Source: {isEditingSelf ? 'AuthContext' : 'API Endpoint'}</span>
+               </h3>
+               <pre className="text-green-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
+                  {JSON.stringify(profileData || "No record found in members table", null, 2)}
+               </pre>
+            </div>
+
+            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+               <h3 className="text-blue-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: UI Form State</h3>
+               <pre className="text-blue-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
+                  {JSON.stringify(form, null, 2)}
+               </pre>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
