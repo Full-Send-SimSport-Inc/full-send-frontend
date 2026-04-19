@@ -68,16 +68,17 @@ export default function ProfileView() {
     return '';
   };
   
-  useEffect(() => {
-    // 1. Prioritize the actual member record from the custom table
-    if (profileData && Object.keys(profileData).length > 0) {
+useEffect(() => {
+    if (profileData) {
+      // Force lowercase and trim spaces to satisfy the strict Select dropdown
+      const cleanStatus = (profileData.status || 'pending').toLowerCase().trim();
+      
       setForm({
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
-        // Check both 'dob' and 'date_of_birth' in case the API key changes
         dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
-        status: profileData.status || 'active',
-        email: profileData.email || '', 
+        status: cleanStatus, // <-- Safely cleaned
+        email: profileData.email || user?.email || '', 
         phone: profileData.phone || '',
         street_address: profileData.street_address || '',
         city: profileData.city || '',
@@ -86,9 +87,7 @@ export default function ProfileView() {
         discord_username: profileData.discord_username || '',
         sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
       });
-    } 
-    // 2. Fallback to WP User data ONLY if no member record exists yet
-    else if (isEditingSelf && user) {
+    } else if (isEditingSelf && user) {
         setForm(prev => ({
             ...prev,
             first_name: user.first_name || '',
@@ -237,17 +236,20 @@ export default function ProfileView() {
                 </div>
 
                 {hasFullPermissions && (
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <Label>Account Status</Label>
-                    <Select value={form.status} onValueChange={val => handleChange('status', val)}>
-                      <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-                      <SelectContent>
+                    <Select 
+                    value={form.status || 'pending'} // <-- Added failsafe here
+                    onValueChange={val => handleChange('status', val)}
+                    >
+                    <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
+                    <SelectContent>
                         <SelectItem value="active">Active</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="inactive">Inactive</SelectItem>
-                      </SelectContent>
+                    </SelectContent>
                     </Select>
-                  </div>
+                </div>
                 )}
               </div>
 
