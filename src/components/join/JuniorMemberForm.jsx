@@ -26,7 +26,7 @@ export default function JuniorMemberForm({ onBack }) {
     street_address: '', city: '', state: '',
     postcode: '', country: 'Australia', discord_username: '',
     sim_platforms: [], agreed_to_terms: false,
-    dob_day: '', dob_month: '', dob_year: '',
+    dob: '',
     parent_name: '', parent_email: ''
   });
   const [submitting, setSubmitting] = useState(false);
@@ -50,7 +50,7 @@ export default function JuniorMemberForm({ onBack }) {
     }
 
     // 2. Date Validation: Ensure all three dropdowns are selected
-    if (!form.dob_day || !form.dob_month || !form.dob_year) {
+    if (!form.dob) {
       setError("Please select your full date of birth.");
       return;
     }
@@ -62,7 +62,7 @@ export default function JuniorMemberForm({ onBack }) {
       // 3. Prepare Payload: Combine date and normalize state key
       const payload = {
         ...form,
-        dob: `${form.dob_day}/${form.dob_month}/${form.dob_year}`,
+        dob: `${form.dob}`,
         state: form.state, // Ensure this matches the UI state key
         member_type: 'junior',
         sub_type: memberType
@@ -193,20 +193,12 @@ export default function JuniorMemberForm({ onBack }) {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Date of Birth *</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Select value={form.dob_day} onValueChange={v => handleChange('dob_day', v)}>
-                      <SelectTrigger><SelectValue placeholder="Day" /></SelectTrigger>
-                      <SelectContent>{Array.from({ length: 31 }, (_, i) => i + 1).map(d => <SelectItem key={d} value={String(d)}>{d}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={form.dob_month} onValueChange={v => handleChange('dob_month', v)}>
-                      <SelectTrigger><SelectValue placeholder="Month" /></SelectTrigger>
-                      <SelectContent>{['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, i) => <SelectItem key={i+1} value={String(i+1)}>{m}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Select value={form.dob_year} onValueChange={v => handleChange('dob_year', v)}>
-                      <SelectTrigger><SelectValue placeholder="Year" /></SelectTrigger>
-                      <SelectContent>{Array.from({ length: 18 }, (_, i) => new Date().getFullYear() - i).map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-                    </Select>
-                  </div>
+                  <Input 
+                    type="date" 
+                    value={form.dob} 
+                    onChange={e => handleChange('dob', e.target.value)} 
+                    required 
+                />
                 </div>
               </div>
             </div>

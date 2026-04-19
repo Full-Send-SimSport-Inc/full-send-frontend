@@ -52,12 +52,28 @@ export default function ProfileView() {
   const profileData = isEditingSelf ? user?.member_details : fetchedMember;
   const isLoading = isLoadingAuth || (!!id && isFetching);
 
+    // Add this helper at the top of your file or inside the component
+  const formatToInputDate = (dateStr) => {
+    if (!dateStr) return '';
+    // If it's already YYYY-MM-DD, return it
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    
+    // If it's DD/MM/YYYY (from your registration stitch), convert it
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+        const [d, m, y] = parts;
+        // Ensure leading zeros for month and day
+        return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    return '';
+  };
+  
   useEffect(() => {
     if (profileData) {
       setForm({
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
-        dob: profileData.dob || '',
+        dob: formatToInputDate(profileData.dob) || '',
         status: profileData.status || 'active',
         email: profileData.email || user?.email || '', 
         phone: profileData.phone || '',
