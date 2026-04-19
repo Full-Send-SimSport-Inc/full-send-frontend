@@ -21,6 +21,7 @@ import AdminUsers from '@/pages/AdminUsers';
 import Login from '@/pages/Login';
 import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
+import Portal from '@/pages/Portal';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -47,16 +48,18 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route element={<MainLayout />}>
-        
-        {/* ROOT REDIRECTS */}
-        <Route path="/" element={
-          isAuthenticated ? (
-            isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
-          ) : (
-            <Navigate to="/meetings" replace /> 
-          )
-        } />
+        <Route element={<MainLayout />}>
+            
+            {/* ROOT REDIRECTS */}
+            <Route path="/" element={
+            isAuthenticated ? (
+                // If logged in, send admins to dashboard and members to profile
+                isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
+            ) : (
+                // If NOT logged in, show the Login/Register choice page
+                <Portal /> 
+            )
+            } />
 
         {/* PUBLIC & MEMBER PAGES */}
         <Route path="/meetings" element={<Meetings />} />

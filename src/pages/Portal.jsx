@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { User, UserPlus, Loader2 } from 'lucide-react';
 
-
 export default function Portal() {
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const navigate = useNavigate();
@@ -17,45 +16,60 @@ export default function Portal() {
     }
   }, [isAuthenticated, isLoadingAuth, navigate]);
 
-  // If they are ALREADY logged in, bypass this page and send them to their profile
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   if (isAuthenticated) {
     return <Navigate to="/my-profile" replace />;
   }
 
-  // If they are logged out, show the options
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md text-center mb-8">
-        <h1 className="text-4xl font-bold text-primary mb-2">Full Send Portal</h1>
-        <p className="text-muted-foreground">Welcome! Please choose an option below.</p>
+    /* 1. Removed justify-center so it doesn't force vertical centering
+       2. Kept items-center to keep the boxes horizontally centered
+       3. Increased padding to pt-20 / md:pt-32 to match the Login screen exactly
+    */
+    <div className="min-h-screen flex flex-col items-center bg-slate-50 p-4 pt-20 md:pt-32">
+      
+      <div className="w-full max-w-md text-center mb-10">
+        <h1 className="text-4xl font-extrabold text-primary mb-3 tracking-tight">Full Send Portal</h1>
+        <p className="text-muted-foreground text-lg font-medium">Choose an option to get started</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 w-full max-w-md">
-        <Card className="hover:border-primary/50 transition-colors">
+      <div className="grid grid-cols-1 gap-6 w-full max-w-md">
+        <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md border-2">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <User className="w-6 h-6 text-primary" />
               Existing Member
             </CardTitle>
-            <CardDescription>Log in to access your profile and dashboard.</CardDescription>
+            <CardDescription className="text-base">
+              Log in to access your profile, check meetings, and manage your account.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full text-lg h-12">
-              <Link to="/login">Log In</Link>
+              <Link to="/login">Sign In</Link>
             </Button>
           </CardContent>
         </Card>
 
-        <Card className="hover:border-primary/50 transition-colors">
+        <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md border-2 border-dashed">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-primary" />
+            <CardTitle className="flex items-center gap-2 text-xl">
+              <UserPlus className="w-6 h-6 text-primary" />
               New Member
             </CardTitle>
-            <CardDescription>Join the community and create your profile.</CardDescription>
+            <CardDescription className="text-base">
+              New to Full Send? Register here to create your racing profile.
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button asChild variant="outline" className="w-full text-lg h-12">
+            <Button asChild variant="outline" className="w-full text-lg h-12 border-primary text-primary hover:bg-primary/5">
               <Link to="/join">Create Profile</Link>
             </Button>
           </CardContent>
