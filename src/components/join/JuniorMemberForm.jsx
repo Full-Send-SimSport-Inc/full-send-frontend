@@ -62,7 +62,6 @@ export default function JuniorMemberForm({ onBack }) {
       // 3. Prepare Payload: Combine date and normalize state key
       const payload = {
         ...form,
-        dob: `${form.dob}`,
         state: form.state, // Ensure this matches the UI state key
         member_type: 'junior',
         sub_type: memberType
@@ -198,7 +197,8 @@ export default function JuniorMemberForm({ onBack }) {
                     value={form.dob} 
                     onChange={e => handleChange('dob', e.target.value)} 
                     required 
-                />
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>

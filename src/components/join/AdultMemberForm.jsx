@@ -61,7 +61,6 @@ export default function AdultMemberForm({ onBack }) {
       // 3. Prepare Payload: Combine date and normalize state key
       const payload = {
         ...form,
-        dob: `${form.dob}`, // Stitch for database
         state: form.state,
         member_type: 'adult',
         sub_type: memberType
@@ -171,7 +170,8 @@ export default function AdultMemberForm({ onBack }) {
                     value={form.dob} 
                     onChange={e => handleChange('dob', e.target.value)} 
                     required 
-                />
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>

@@ -69,24 +69,27 @@ export default function ProfileView() {
   };
   
   useEffect(() => {
-    if (profileData) {
-      setForm({
-        first_name: profileData.first_name || '',
-        last_name: profileData.last_name || '',
-        // Fallback to check multiple possible DB keys for date of birth
-        dob: formatToInputDate(profileData.dob || profileData.date_of_birth) || '',
-        status: profileData.status || 'active',
-        email: profileData.email || user?.email || '', 
-        phone: profileData.phone || '',
-        street_address: profileData.street_address || '',
-        city: profileData.city || '',
-        state: profileData.state || '', 
-        postcode: profileData.postcode || '',
-        discord_username: profileData.discord_username || '',
-        sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
-      });
-    } else if (isEditingSelf && isAdmin) {
-        // Handle Admin who exists in WP but NOT in the custom members table yet
+  // If profileData is wrapped in an extra 'data' property, unwrap it
+    const actualData = profileData?.data ? profileData.data : profileData;
+
+    if (actualData && Object.keys(actualData).length > 0) {
+        console.log("Syncing Form with:", actualData); // Helpful for your console
+        setForm({
+        first_name: actualData.first_name || '',
+        last_name: actualData.last_name || '',
+        // Look for 'dob' OR 'date_of_birth' in case the DB column name is different
+        dob: formatToInputDate(actualData.dob || actualData.date_of_birth),
+        status: actualData.status || 'active',
+        email: actualData.email || user?.email || '', 
+        phone: actualData.phone || '',
+        street_address: actualData.street_address || '',
+        city: actualData.city || '',
+        state: actualData.state || '', 
+        postcode: actualData.postcode || '',
+        discord_username: actualData.discord_username || '',
+        sim_platforms: Array.isArray(actualData.sim_platforms) ? actualData.sim_platforms : []
+        });
+    } else if (isEditingSelf && user) {
         setForm(prev => ({
             ...prev,
             first_name: user.first_name || '',
@@ -95,7 +98,7 @@ export default function ProfileView() {
             status: 'active'
         }));
     }
-  }, [profileData, user, isEditingSelf, isAdmin]);
+  }, [profileData, user, isEditingSelf]);
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
