@@ -1,9 +1,9 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox'; // Added based on your UI folder
+import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +14,8 @@ const STATUS_STYLES = {
 };
 
 export default function MemberTable({ members, selectedIds = [], onSelectionChange }) {
+  const navigate = useNavigate();
+
   if (!members?.length) {
     return (
       <div className="text-center py-16 text-muted-foreground">
@@ -22,8 +24,8 @@ export default function MemberTable({ members, selectedIds = [], onSelectionChan
     );
   }
 
-  // Handle "Select All" toggle
   const allSelected = members.length > 0 && selectedIds.length === members.length;
+  
   const handleSelectAll = (checked) => {
     if (checked) {
       onSelectionChange(members.map(m => m.id));
@@ -32,7 +34,6 @@ export default function MemberTable({ members, selectedIds = [], onSelectionChan
     }
   };
 
-  // Handle individual row toggle
   const handleSelectRow = (id, checked) => {
     if (checked) {
       onSelectionChange([...selectedIds, id]);
@@ -46,7 +47,6 @@ export default function MemberTable({ members, selectedIds = [], onSelectionChan
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50">
-            {/* Selection Column Header */}
             <TableHead className="w-12">
               <Checkbox 
                 checked={allSelected}
@@ -72,41 +72,48 @@ export default function MemberTable({ members, selectedIds = [], onSelectionChan
                   "hover:bg-muted/30 cursor-pointer group transition-colors",
                   isSelected && "bg-primary/5 hover:bg-primary/10"
                 )}
-                onClick={() => handleSelectRow(m.id, !isSelected)}
+                // Clicking the row now navigates to the detail page
+                onClick={() => navigate(`/admin/members/${m.id}`)}
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell 
+                  // CRITICAL: Stop propagation so clicking the checkbox cell 
+                  // doesn't trigger the row's navigate()
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Checkbox 
                     checked={isSelected}
                     onCheckedChange={(checked) => handleSelectRow(m.id, checked)}
                     aria-label={`Select ${m.first_name}`}
                   />
                 </TableCell>
+                
                 <TableCell>
-                  <Link 
-                    to={`/admin/members/${m.id}`} 
-                    className="font-medium hover:text-primary transition-colors"
-                    onClick={(e) => e.stopPropagation()} // Prevent row click when clicking name
-                  >
+                  <span className="font-medium group-hover:text-primary transition-colors">
                     {m.first_name} {m.last_name}
-                  </Link>
+                  </span>
                   <div className="text-xs text-muted-foreground md:hidden">{m.email}</div>
                 </TableCell>
-                <TableCell className="hidden md:table-cell text-muted-foreground">{m.email}</TableCell>
+
+                <TableCell className="hidden md:table-cell text-muted-foreground">
+                  {m.email}
+                </TableCell>
+                
                 <TableCell className="hidden lg:table-cell text-muted-foreground">
                   {[m.city, m.state].filter(Boolean).join(', ') || '—'}
                 </TableCell>
+                
                 <TableCell>
                   <Badge variant="outline" className={cn("text-xs font-medium border", STATUS_STYLES[m.status] || STATUS_STYLES.pending)}>
                     {m.status || 'pending'}
                   </Badge>
                 </TableCell>
+                
                 <TableCell className="hidden sm:table-cell text-muted-foreground text-sm">
                   {m.created_date ? format(new Date(m.created_date), 'dd MMM yyyy') : '—'}
                 </TableCell>
+                
                 <TableCell>
-                  <Link to={`/admin/members/${m.id}`} onClick={(e) => e.stopPropagation()}>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                  </Link>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </TableCell>
               </TableRow>
             );
