@@ -467,6 +467,13 @@ add_action('rest_api_init', function () {
         'callback' => 'fs_update_agm',
         'permission_callback' => 'fs_check_admin_permissions'
     ]);
+
+    // POST: Delete User Account
+    register_rest_route($namespace, '/admin/users/delete', [
+        'methods' => 'POST',
+        'callback' => 'fs_admin_delete_user',
+        'permission_callback' => 'fs_check_admin_permissions'
+    ]);
 });
 
 add_shortcode('full_send_app', function() {
@@ -603,6 +610,45 @@ function fs_admin_send_email($request) {
 
     $sent = wp_mail($to, $subject, $html_message, $headers);
     return rest_ensure_response(array('success' => $sent));
+}
+
+/**
+ * Deletes a WordPress user and unlinks their Member record
+ */
+function fs_admin_delete_user($request) {
+    $params = $request->get_json_params();
+    $user_id = intval($params['user_id']);
+
+    // 1. Security Check: Don't allow deleting yourself
+    if ($user_id === get_current_user_id()) {
+        return new WP_Error('denied', 'You cannot delete your own account.', ['status' => 403]);
+    }
+
+    $user = get_userdata($user_id);
+    if (!$user) {
+        return new WP_Error('not_found', 'User not found.', ['status' => 404]);
+    }
+
+    // 2. Security Check: Don't allow deleting other Administrators via this endpoint
+    if (in_array('administrator', (array)$user->roles)) {
+        return new WP_Error('denied', 'Administrators cannot be deleted via the portal.', ['status' => 403]);
+    }
+
+    // 3. Cleanup: Find the linked member record and remove the WP ID reference
+    $member_id = get_user_meta($user_id, 'fs_member_id', true);
+    if ($member_id) {
+        delete_post_meta($member_id, '_wp_user_id');
+    }
+
+    // 4. Delete the User
+    require_once(ABSPATH . 'wp-admin/includes/user.php');
+    $deleted = wp_delete_user($user_id);
+
+    if ($deleted) {
+        return rest_ensure_response(['success' => true, 'message' => 'User deleted successfully.']);
+    }
+
+    return new WP_Error('delete_failed', 'Failed to delete user.', ['status' => 500]);
 }
 
 function fs_get_agms($request) {
