@@ -235,6 +235,8 @@ add_action('rest_api_init', function () {
                 'id'                => $post->ID,
                 'first_name'        => get_post_meta($post->ID, '_first_name', true),
                 'last_name'         => get_post_meta($post->ID, '_last_name', true),
+                // FIX: Added 'dob' so the admin view can retrieve it
+                'dob'               => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
                 'email'             => get_post_meta($post->ID, '_email', true),
                 'phone'             => get_post_meta($post->ID, '_phone', true),
                 'street_address'    => get_post_meta($post->ID, '_street_address', true),
@@ -260,11 +262,35 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $id = $request['id'];
             $params = $request->get_json_params();
-            if (isset($params['status'])) {
-                update_post_meta($id, '_status', sanitize_text_field($params['status']));
-                return ['status' => 'success', 'message' => 'Status updated'];
+            
+            // FIX: Expanded to allow admins to edit all fields, not just status
+            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms', 'status'];
+            $updated = false;
+
+            foreach ($params as $key => $value) {
+                if (in_array($key, $allowed_fields)) {
+                    if ($key === 'email') {
+                        $new_email = sanitize_email($value);
+                        if (!empty($new_email)) {
+                            update_post_meta($id, '_email', $new_email);
+                            // Keep WP User synced if it exists
+                            $wp_user_id = get_post_meta($id, '_wp_user_id', true);
+                            if ($wp_user_id) {
+                                wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
+                            }
+                        }
+                    } else {
+                        $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
+                        update_post_meta($id, '_' . $key, $sanitized_value);
+                    }
+                    $updated = true;
+                }
             }
-            return new WP_Error('invalid_data', 'No status provided', ['status' => 400]);
+
+            if ($updated) {
+                return ['status' => 'success', 'message' => 'Member updated successfully'];
+            }
+            return new WP_Error('invalid_data', 'No valid fields provided to update', ['status' => 400]);
         }
     ]);
 
@@ -366,8 +392,8 @@ add_action('rest_api_init', function () {
 
             $params = $request->get_json_params();
             
-            // Define exactly which keys are allowed to be updated by the user
-            $allowed_fields = ['email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
+            // FIX: Added first_name, last_name, and dob so users can update these fields (or admins editing themselves)
+            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
 
             foreach ($params as $key => $value) {
                 if (in_array($key, $allowed_fields)) {
