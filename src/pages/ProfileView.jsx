@@ -52,7 +52,7 @@ export default function ProfileView() {
   const profileData = isEditingSelf ? user?.member_details : fetchedMember;
   const isLoading = isLoadingAuth || (!!id && isFetching);
 
-    // Add this helper at the top of your file or inside the component
+  // Add this helper at the top of your file or inside the component
   const formatToInputDate = (dateStr) => {
     if (!dateStr) return '';
     // If it's already YYYY-MM-DD, return it
@@ -73,7 +73,8 @@ export default function ProfileView() {
       setForm({
         first_name: profileData.first_name || '',
         last_name: profileData.last_name || '',
-        dob: formatToInputDate(profileData.dob) || '',
+        // Fallback to check multiple possible DB keys for date of birth
+        dob: formatToInputDate(profileData.dob || profileData.date_of_birth) || '',
         status: profileData.status || 'active',
         email: profileData.email || user?.email || '', 
         phone: profileData.phone || '',
@@ -104,9 +105,22 @@ export default function ProfileView() {
 
     try {
       if (isEditingSelf) {
-        // If an admin saves their own profile, use the /update-me endpoint 
-        // Your backend /update-me should be updated to handle saving if a record doesn't exist
-        await base44.post('/update-me', form);
+        if (!profileData && isAdmin) {
+          // If no record exists, we must create one. 
+          // We split the YYYY-MM-DD back into parts so the /join endpoint understands it
+          const [y, m, d] = form.dob ? form.dob.split('-') : ['', '', ''];
+          
+          await base44.post('/join', {
+            ...form,
+            member_type: 'adult',
+            dob_day: d,
+            dob_month: m,
+            dob_year: y
+          });
+        } else {
+          // Standard update for existing records
+          await base44.post('/update-me', form);
+        }
         await checkLoginStatus(); 
       } else {
         await base44.post(`/members/${id}`, form);
@@ -116,6 +130,7 @@ export default function ProfileView() {
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
+      console.error(err);
       toast.error('Failed to update profile.');
       setSaveStatus('error');
     }
@@ -234,7 +249,6 @@ export default function ProfileView() {
                 )}
               </div>
 
-              {/* ... Rest of the form remains the same as previous version ... */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <Label>Email Address</Label>
@@ -280,6 +294,29 @@ export default function ProfileView() {
             </form>
           </CardContent>
         </Card>
+
+        {/* RESTORED DEBUG BLOCKS */}
+        {isAdmin && (
+          <div className="mt-8 space-y-4">
+            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+               <h3 className="text-green-400 font-mono text-xs mb-2 uppercase tracking-widest flex justify-between">
+                <span>Debug: Raw DB Record</span>
+                <span className="text-[10px] opacity-50">Source: {isEditingSelf ? 'AuthContext' : 'API Endpoint'}</span>
+               </h3>
+               <pre className="text-green-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
+                  {JSON.stringify(profileData || "No record found in members table", null, 2)}
+               </pre>
+            </div>
+
+            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
+               <h3 className="text-blue-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: UI Form State</h3>
+               <pre className="text-blue-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
+                  {JSON.stringify(form, null, 2)}
+               </pre>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
