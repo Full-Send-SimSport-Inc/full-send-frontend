@@ -69,23 +69,23 @@ export default function ProfileView() {
   };
   
 useEffect(() => {
-    if (profileData) {
-      // Force lowercase and trim spaces to satisfy the strict Select dropdown
-      const cleanStatus = (profileData.status || 'pending').toLowerCase().trim();
-      
-      setForm({
-        first_name: profileData.first_name || '',
-        last_name: profileData.last_name || '',
-        dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
-        status: cleanStatus, // <-- Safely cleaned
-        email: profileData.email || user?.email || '', 
-        phone: profileData.phone || '',
-        street_address: profileData.street_address || '',
-        city: profileData.city || '',
-        state: profileData.state || '', 
-        postcode: profileData.postcode || '',
-        discord_username: profileData.discord_username || '',
-        sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
+    if (profileData && Object.keys(profileData).length > 0) {
+            // Determine the correct status from the API response
+        const dbStatus = profileData.status || 'pending';
+        
+        setForm({
+            first_name: profileData.first_name || '',
+            last_name: profileData.last_name || '',
+            dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
+            status: dbStatus, // Set it once and don't let it "fall back"
+            email: profileData.email || '',
+            phone: profileData.phone || '',
+            street_address: profileData.street_address || '',
+            city: profileData.city || '',
+            state: profileData.state || '',
+            postcode: profileData.postcode || '',
+            discord_username: profileData.discord_username || '',
+            sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
       });
     } else if (isEditingSelf && user) {
         setForm(prev => ({
@@ -235,21 +235,23 @@ useEffect(() => {
                   />
                 </div>
 
-                {hasFullPermissions && (
-                <div className="space-y-2">
-                    <Label>Account Status</Label>
-                    <Select 
-                    value={form.status || 'pending'} // <-- Added failsafe here
-                    onValueChange={val => handleChange('status', val)}
-                    >
-                    <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                    </Select>
-                </div>
+                {hasFullPermissions && form.status && ( // Only show if form.status is NOT empty
+                    <div className="space-y-2">
+                        <Label>Account Status</Label>
+                        <Select 
+                        value={form.status} // No more '|| pending' here!
+                        onValueChange={val => handleChange('status', val)}
+                        >
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
                 )}
               </div>
 
