@@ -14,13 +14,12 @@ import Join from '@/pages/Join';
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminMembers from '@/pages/AdminMembers';
-import MemberDetail from '@/pages/MemberDetail';
 import AdminAGM from '@/pages/AdminAGM';
 import AGMDetail from '@/pages/AGMDetail';
 import AdminEmail from '@/pages/AdminEmail'; 
 import AdminUsers from '@/pages/AdminUsers';
-import MyProfile from '@/pages/MyProfile';
 import Login from '@/pages/Login';
+import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
 
 function ScrollToTop() {
@@ -63,7 +62,7 @@ function AppRoutes() {
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
-        <Route path="/my-profile" element={isAuthenticated ? <MyProfile /> : <Navigate to="/login" replace />} />
+        <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
 
         {/* ADMIN NESTED ROUTES */}
         <Route 
@@ -72,7 +71,7 @@ function AppRoutes() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="members" element={<AdminMembers />} />
-          <Route path="members/:id" element={<MemberDetail />} />
+          <Route path="members/:id" element={<ProfileView />} />
           <Route path="agm" element={<AdminAGM />} />
           <Route path="agm/:id" element={<AGMDetail />} />
           <Route path="email" element={<AdminEmail />} />
