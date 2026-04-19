@@ -104,37 +104,19 @@ export default function ProfileView() {
 
     try {
       if (isEditingSelf) {
-        if (!profileData && isAdmin) {
-          // 1. If no record exists, use the JOIN/Registration endpoint
-          // This creates the row in the members table linked to your user_id
-          await base44.post('/join', {
-            ...form,
-            member_type: 'adult',
-            // Ensure we pass any flags required by your join logic
-          });
-        } else {
-          // 2. Standard update for existing records
-          await base44.post('/update-me', form);
-        }
+        // If an admin saves their own profile, use the /update-me endpoint 
+        // Your backend /update-me should be updated to handle saving if a record doesn't exist
+        await base44.post('/update-me', form);
         await checkLoginStatus(); 
       } else {
-        // Admin editing someone else (already confirmed working)
         await base44.post(`/members/${id}`, form);
         queryClient.invalidateQueries(['member', id]);
       }
-      
       toast.success('Profile updated successfully!');
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
-      console.error("Submission error details:", err.response?.data);
-      
-      // Fallback: If /join is also not the right route or method
-      if (err.response?.status === 404) {
-        toast.error('Configuration Error: Registration endpoint not found.');
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to update profile.');
-      }
+      toast.error('Failed to update profile.');
       setSaveStatus('error');
     }
   };
