@@ -21,6 +21,7 @@ import Login from '@/pages/Login';
 import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
 import Portal from '@/pages/Portal';
+import SetupAccount from '@/auth/SetupAccount';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -64,7 +65,9 @@ function AppRoutes() {
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
+        <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
         <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
+        
 
         {/* ADMIN NESTED ROUTES */}
         <Route 
