@@ -156,38 +156,58 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            $existing_query = new WP_Query([
+            $email = sanitize_email($params['email']);
+            $first_name = sanitize_text_field($params['first_name']);
+            $last_name = sanitize_text_field($params['last_name']);
+            $dob = sanitize_text_field($params['dob']);
+
+            // 1. Check if Email already exists as a WordPress User
+            if (email_exists($email)) {
+                return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your portal instead.', ['status' => 409]);
+            }
+
+            // 2. Check if a Member record already exists with this Email
+            $email_check = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_key' => '_email',
+                'meta_value' => $email,
+                'post_status' => 'any',
+                'posts_per_page' => 1
+            ]);
+
+            if ($email_check->have_posts()) {
+                return new WP_Error('registration_conflict', 'A membership application for this email is already on file or being processed.', ['status' => 409]);
+            }
+
+            // 3. Check if Name + DOB already exists (Identifies re-registration attempts)
+            $identity_query = new WP_Query([
                 'post_type' => 'fs_member',
                 'meta_query' => [
                     'relation' => 'AND',
-                    ['key' => '_first_name', 'value' => sanitize_text_field($params['first_name'])],
-                    ['key' => '_last_name', 'value' => sanitize_text_field($params['last_name'])],
-                    ['key' => '_dob', 'value' => sanitize_text_field($params['dob'])]
+                    ['key' => '_first_name', 'value' => $first_name],
+                    ['key' => '_last_name', 'value' => $last_name],
+                    ['key' => '_dob', 'value' => $dob]
                 ],
                 'post_status' => 'any',
                 'posts_per_page' => 1
             ]);
 
-            $post_id = null;
-            if ($existing_query->have_posts()) {
-                $post_id = $existing_query->posts[0]->ID;
-                $wp_user_id = get_post_meta($post_id, '_wp_user_id', true);
-                if ($wp_user_id) {
-                    delete_user_meta($wp_user_id, 'fs_account_disabled');
-                    wp_update_user(['ID' => $wp_user_id, 'user_email' => sanitize_email($params['email'])]);
-                }
-            } else {
-                $post_id = wp_insert_post([
-                    'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
-                    'post_type'    => 'fs_member',
-                    'post_status'  => 'publish',
-                ]);
+            if ($identity_query->have_posts()) {
+                return new WP_Error('registration_conflict', 'A member record with this name and date of birth already exists in our system.', ['status' => 409]);
             }
+
+            // 4. Create new FS Member post (No conflicts found)
+            $post_id = wp_insert_post([
+                'post_title'   => $first_name . ' ' . $last_name,
+                'post_type'    => 'fs_member',
+                'post_status'  => 'publish',
+            ]);
 
             if (is_wp_error($post_id) || !$post_id) {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
             
+            // Save metadata
             foreach ($params as $key => $value) {
                 $target_key = $key;
                 if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
@@ -202,7 +222,12 @@ add_action('rest_api_init', function () {
             }
             
             update_post_meta($post_id, '_status', 'pending');
-            return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
+            return [
+                'status' => 'success', 
+                'message' => 'Application Submitted!', 
+                'id' => $post_id, 
+                'email' => $email
+            ];
         }
     ]);
 
