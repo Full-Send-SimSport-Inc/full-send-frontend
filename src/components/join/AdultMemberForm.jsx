@@ -10,8 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import { RegionSelect, CountrySelect, StateSelect } from "react-country-state-city";
-import "react-country-state-city/dist/react-country-state-city.css";
 
 const SIM_PLATFORMS = [
   "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
@@ -19,23 +17,24 @@ const SIM_PLATFORMS = [
   "LMU", "Project Motor Racing", "Rennsport", "Other"
 ];
 
-// Added "Other / Non-AU" for international members
-const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA", "Other / Non-AU"];
+const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 
-// New Regions array
-const REGIONS = ["Africa", "Asia", "Europe", "North America", "Oceania", "South America"];
+// Hardcoded with Oceania at the top
+const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
 export default function AdultMemberForm({ onBack }) {
   const [memberType, setMemberType] = useState('');
+  
+  // Custom states for the API filtering
+  const [countries, setCountries] = useState([]);
+  const [loadingCountries, setLoadingCountries] = useState(false);
+
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
-    street_address: '', city: '', state: '', postcode: '', 
-    country: '', region: '', // New mandatory fields
-    has_discord: null, discord_username: '', // Discord logic
+    region: '', country: '', street_address: '', city: '', state: '', postcode: '', 
+    has_discord: null, discord_username: '', 
     sim_platforms: [], agreed_to_terms: false, dob: '',
   });
-  const [regionId, setRegionId] = useState(0);
-const [countryId, setCountryId] = useState(0);
   
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -43,21 +42,58 @@ const [countryId, setCountryId] = useState(0);
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
+  // --- NEW REGION HANDLING LOGIC ---
+  const handleRegionChange = async (selectedRegion) => {
+    handleChange('region', selectedRegion);
+    handleChange('country', '');
+    handleChange('state', '');
+    setCountries([]);
+
+    if (!selectedRegion) return;
+    setLoadingCountries(true);
+
+    try {
+      let url = `https://restcountries.com/v3.1/region/${selectedRegion.toLowerCase()}`;
+      // API uses "subregion" for the Americas
+      if (selectedRegion === 'North America' || selectedRegion === 'South America') {
+        url = `https://restcountries.com/v3.1/subregion/${encodeURIComponent(selectedRegion.toLowerCase())}`;
+      }
+
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // Extract country names and sort alphabetically
+      let countryNames = data.map(c => c.name.common).sort();
+
+      // Force Australia to the top if Oceania is selected
+      if (selectedRegion === 'Oceania') {
+        countryNames = countryNames.filter(c => c !== 'Australia' && c !== 'New Zealand');
+        countryNames.unshift('New Zealand'); 
+        countryNames.unshift('Australia');
+      }
+
+      setCountries(countryNames);
+    } catch (err) {
+      console.error("Failed to fetch countries", err);
+    } finally {
+      setLoadingCountries(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // 1. Validation Checks
     if (!form.agreed_to_terms) return setError("You must agree to the terms to continue.");
     if (!memberType) return setError("Please select a membership type.");
     if (!form.dob) return setError("Please select your full date of birth.");
     
-    // New Location Validation
-    if (!form.city) return setError("City/Suburb is required.");
-    if (!form.state) return setError("State is required.");
+    // City removed from mandatory validation
     if (!form.region) return setError("Region is required.");
     if (!form.country) return setError("Country is required.");
+    if (form.country === 'Australia' && !form.state) {
+      return setError("State is required for Australian residents.");
+    }
 
-    // Discord Validation (Applied to everyone, or you can wrap this in `if (memberType === 'racing')`)
     if (form.has_discord === null) return setError("Please specify if you have a Discord account.");
     if (form.has_discord === 'no') return setError("A Discord account is mandatory. Please create one using the link provided and enter your username.");
     if (form.has_discord === 'yes' && !form.discord_username) return setError("Please enter your Discord username.");
@@ -66,14 +102,12 @@ const [countryId, setCountryId] = useState(0);
     setError('');
 
     try {
-      // Prepare Payload
       const payload = {
         ...form,
         member_type: 'adult',
         sub_type: memberType
       };
 
-      // Send to WordPress
       const response = await base44.post('/join', payload);
       
       setSubmittedData({
@@ -185,81 +219,90 @@ const [countryId, setCountryId] = useState(0);
 
             {/* Location Details */}
             <div>
-            <h3 className="text-lg font-semibold mb-4">Location Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold mb-4">Location Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  
+                {/* 1. REGION SELECT */}
                 <div className="space-y-2 md:col-span-2">
-                <Label>Street Address</Label>
-                <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" />
-                </div>
-
-                {/* REGION SELECT */}
-                <div className="space-y-2 md:col-span-2">
-                <Label>Region *</Label>
-                <RegionSelect
-                    onChange={(val) => {
-                    setRegionId(val.id);
-                    handleChange('region', val.name);
-                    }}
-                    placeHolder="Select Region"
-                    inputClassName="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                />
-                </div>
-
-                {/* COUNTRY SELECT */}
-                <div className="space-y-2">
-                <Label>Country *</Label>
-                <CountrySelect
-                    regionid={regionId}
-                    onChange={(val) => {
-                    setCountryId(val.id);
-                    handleChange('country', val.name);
-                    // Clear state if country changes to avoid mismatched data
-                    handleChange('state', ''); 
-                    }}
-                    placeHolder="Select Country"
-                    inputClassName="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                />
-                </div>
-
-                {/* STATE SELECT (Conditional for Australia) */}
-                <div className="space-y-2">
-                <Label>State / Province *</Label>
-                {form.country === 'Australia' ? (
-                    <Select value={form.state} onValueChange={v => handleChange('state', v)} required>
-                    <SelectTrigger><SelectValue placeholder="Select AU State" /></SelectTrigger>
+                  <Label>Region *</Label>
+                  <Select value={form.region} onValueChange={handleRegionChange} required>
+                    <SelectTrigger><SelectValue placeholder="Select geographic region" /></SelectTrigger>
                     <SelectContent>
-                        {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {REGIONS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                     </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 2. COUNTRY SELECT (Only visible if Region selected) */}
+                {form.region && (
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <Label>Country *</Label>
+                    <Select value={form.country} onValueChange={v => { handleChange('country', v); handleChange('state', ''); }} disabled={loadingCountries} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder={loadingCountries ? "Loading..." : "Select Country"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
                     </Select>
-                ) : (
-                    <StateSelect
-                    countryid={countryId}
-                    onChange={(val) => handleChange('state', val.name)}
-                    placeHolder="Select State"
-                    inputClassName="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                    />
+                  </div>
                 )}
+
+                {/* 3. STATE SELECT (Only visible if Country selected) */}
+                {form.country && (
+                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                    {/* Dynamic Label: Only shows asterisk if Australia */}
+                    <Label>State / Province {form.country === 'Australia' && '*'}</Label>
+                    
+                    {form.country === 'Australia' ? (
+                    <Select 
+                        value={form.state} 
+                        onValueChange={v => handleChange('state', v)} 
+                        required
+                    >
+                        <SelectTrigger><SelectValue placeholder="Select AU State" /></SelectTrigger>
+                        <SelectContent>
+                        {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        </SelectContent>
+                    </Select>
+                    ) : (
+                    <Input 
+                        value={form.state} 
+                        onChange={e => handleChange('state', e.target.value)} 
+                        placeholder="e.g. California, Ontario (Optional)" 
+                        /* 'required' removed here */
+                    />
+                    )}
+                </div>
+                )}
+
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Street Address</Label>
+                  <Input 
+                    value={form.street_address} 
+                    onChange={e => handleChange('street_address', e.target.value)} 
+                    placeholder="123 Main St" 
+                  />
                 </div>
 
                 <div className="space-y-2">
-                <Label>City / Suburb *</Label>
-                <Input 
+                  <Label>City / Suburb</Label>
+                  <Input 
                     value={form.city} 
                     onChange={e => handleChange('city', e.target.value)} 
                     placeholder="Melbourne" 
-                    required 
-                />
+                  />
                 </div>
 
                 <div className="space-y-2">
-                <Label>Postcode</Label>
-                <Input 
+                  <Label>Postcode</Label>
+                  <Input 
                     value={form.postcode} 
                     onChange={e => handleChange('postcode', e.target.value)} 
                     placeholder="3000" 
-                />
+                  />
                 </div>
-            </div>
+              </div>
             </div>
 
             {/* Discord & Sim Racing */}
@@ -297,7 +340,6 @@ const [countryId, setCountryId] = useState(0);
                     </label>
                   </div>
 
-                  {/* Conditional Discord Outputs */}
                   {form.has_discord === 'yes' && (
                     <div className="pt-3 space-y-2 animate-in fade-in">
                       <Label>Discord Username *</Label>

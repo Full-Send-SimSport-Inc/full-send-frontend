@@ -64,6 +64,12 @@
   }
 }
 
+@font-face {
+  font-family: 'TwemojiMozilla';
+  /* Use the absolute WP path. Vite will leave this exactly as is. */
+  src: url("https://www.fullsendsimsport.com.au/wp-content/uploads/TwemojiMozilla.ttf") format("truetype");
+}
+
 /* --- WordPress Admin Layout Overrides --- */
 
 /* Target the specific WordPress block structure you found */
