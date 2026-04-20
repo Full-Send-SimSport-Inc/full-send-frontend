@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Loader2, UserCircle, Lock, ArrowLeft, Shield, Info, AlertTriangle, MessageSquare, Monitor
+  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, Info, AlertTriangle, MessageSquare, Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -52,6 +52,7 @@ export default function ProfileView() {
   const isEditingSelf = !id; 
   const hasFullPermissions = isAdmin; 
 
+  const [isLocked, setIsLocked] = useState(true); // Global form lock state
   const [form, setForm] = useState({
     first_name: '', last_name: '', dob: '', status: '',
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
@@ -131,6 +132,11 @@ export default function ProfileView() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid) return;
+
+    // "Are you sure?" confirmation alert
+    const confirmSave = window.confirm("Are you sure you want to save these changes to the member profile?");
+    if (!confirmSave) return;
+
     setSaveStatus('saving');
     try {
       if (isEditingSelf) {
@@ -142,6 +148,7 @@ export default function ProfileView() {
       }
       toast.success('Profile updated successfully!');
       setSaveStatus('success');
+      setIsLocked(true); // Re-lock after successful save
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
       toast.error('Failed to update profile.');
@@ -158,6 +165,15 @@ export default function ProfileView() {
           {!isEditingSelf && <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>}
           <h2 className="text-2xl font-bold tracking-tight">{isEditingSelf ? 'My Profile' : 'Edit Member'}</h2>
         </div>
+        
+        {/* Toggle Lock Button */}
+        <Button 
+          variant={isLocked ? "outline" : "destructive"} 
+          onClick={() => setIsLocked(!isLocked)}
+          className="gap-2"
+        >
+          {isLocked ? <><Unlock className="w-4 h-4" /> Unlock for Editing</> : <><Lock className="w-4 h-4" /> Cancel & Lock</>}
+        </Button>
       </div>
 
       <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
@@ -175,20 +191,26 @@ export default function ProfileView() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader><CardTitle>Member Information</CardTitle></CardHeader>
+        <Card className={cn("transition-all", isLocked ? "opacity-95" : "ring-2 ring-primary/20 shadow-lg")}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle>Member Information</CardTitle>
+            {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Record Locked</span>}
+          </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
               
+              {/* Identity Section - Locked even if form is unlocked (unless Full Admin) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                {!hasFullPermissions && <div className="absolute top-2 right-2 text-xs font-medium text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Locked</div>}
-                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={!hasFullPermissions} /></div>
-                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={!hasFullPermissions} /></div>
-                <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={!hasFullPermissions} /></div>
+                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                   <Lock className="w-3 h-3" /> Fixed Identity Fields
+                </div>
+                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
+                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
+                <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
                 {hasFullPermissions && (
                     <div className="space-y-2">
                         <Label>Account Status</Label>
-                        <Select value={form.status} onValueChange={val => handleChange('status', val)}>
+                        <Select value={form.status} onValueChange={val => handleChange('status', val)} disabled={isLocked}>
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent>
                               <SelectItem value="active">Active</SelectItem>
@@ -204,15 +226,15 @@ export default function ProfileView() {
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Parent Details</h3></div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
-                    <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={!hasFullPermissions} /></div>
-                    <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={!hasFullPermissions} /></div>
+                    <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
+                    <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
                   </div>
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} /></div>
-                <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
               </div>
 
               {/* Communication Preferences */}
@@ -220,8 +242,8 @@ export default function ProfileView() {
                 <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
                   {COMM_PREFS.map(pref => (
-                    <label key={pref} className="flex items-center gap-2 cursor-pointer group">
-                      <Checkbox checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
+                    <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
+                      <Checkbox disabled={isLocked} checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
                         const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
                         handleChange('comm_prefs', next);
                       }}/>
@@ -232,30 +254,26 @@ export default function ProfileView() {
               </div>
 
               {/* Sim Racing Profile */}
-                <div className="space-y-6 pt-4 border-t">
+              <div className="space-y-6 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
                 
                 <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                    <Monitor className="w-4 h-4" /> Sim Environment *
-                    </Label>
-                    {/* Switched from Select to Input to fix the default value binding issue */}
+                    <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
                     <Input 
-                    placeholder="e.g. PC with wheel and pedals" 
-                    value={form.sim_environment} 
-                    onChange={e => handleChange('sim_environment', e.target.value)} 
+                        disabled={isLocked}
+                        placeholder="e.g. PC with wheel and pedals" 
+                        value={form.sim_environment} 
+                        onChange={e => handleChange('sim_environment', e.target.value)} 
                     />
-                    <p className="text-[10px] text-muted-foreground italic">
-                    Common setups: Console/PC with controller or wheel/pedals.
-                    </p>
                 </div>
 
                 <div className="space-y-3">
                     <Label>Racing Interests *</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {RACING_INTERESTS.map(interest => (
-                        <label key={interest} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
+                        <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
                         <Checkbox 
+                            disabled={isLocked}
                             checked={form.racing_interests.includes(interest)} 
                             onCheckedChange={(checked) => {
                             const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
@@ -272,8 +290,9 @@ export default function ProfileView() {
                     <Label>Platforms & Software</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {SIM_PLATFORMS.map(p => (
-                        <label key={p} className="flex items-center gap-2 cursor-pointer group">
+                        <label key={p} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
                         <Checkbox 
+                            disabled={isLocked}
                             checked={form.sim_platforms.includes(p)} 
                             onCheckedChange={checked => {
                             const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
@@ -286,42 +305,36 @@ export default function ProfileView() {
                     ))}
                     </div>
                     {form.sim_platforms.includes("Other") && (
-                    <div className="mt-2 animate-in fade-in slide-in-from-top-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground">Other Platforms</Label>
                         <Input 
+                        disabled={isLocked}
                         placeholder="Specify other platforms" 
                         value={form.sim_platforms_other} 
                         onChange={e => handleChange('sim_platforms_other', e.target.value)} 
+                        className="mt-2"
                         />
-                    </div>
                     )}
                 </div>
-                </div>
+              </div>
 
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>Region</Label><Input value={form.region} disabled /></div>
                   <div className="space-y-2"><Label>Country</Label><Input value={form.country} disabled /></div>
-                  <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>State</Label><Input value={form.state} onChange={e => handleChange('state', e.target.value)} /></div>
+                  <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} disabled={isLocked} /></div>
+                  <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} disabled={isLocked} /></div>
+                  <div className="space-y-2"><Label>State</Label><Input value={form.state} onChange={e => handleChange('state', e.target.value)} disabled={isLocked} /></div>
                 </div>
               </div>
 
-              <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid} className="w-full h-12 text-lg">
+              {/* Submit Button - Only enabled when unlocked */}
+              <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid || isLocked} className="w-full h-12 text-lg">
                 {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}
               </Button>
+              {isLocked && <p className="text-center text-xs text-muted-foreground italic">Unlock the form to enable the save button.</p>}
             </form>
           </CardContent>
         </Card>
-
-        {isAdmin && (
-          <div className="p-4 bg-slate-900 rounded-lg border border-slate-700 mt-8">
-             <h3 className="text-green-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: Record Details</h3>
-             <pre className="text-green-400 text-[10px] overflow-auto max-h-40">{JSON.stringify(profileData, null, 2)}</pre>
-          </div>
-        )}
       </main>
     </div>
   );
