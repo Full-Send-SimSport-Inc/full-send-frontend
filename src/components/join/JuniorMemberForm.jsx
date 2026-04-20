@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart } from 'lucide-react'; // Added icons
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart } from 'lucide-react'; 
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -18,22 +18,22 @@ const SIM_PLATFORMS = [
 ];
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
-
-// Hardcoded with Oceania at the top
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
 export default function JuniorMemberForm({ onBack }) {
-  const [memberType, setMemberType] = useState('junior_racing'); // New state for selection
+  const [memberType, setMemberType] = useState('junior_racing');
     
-  // Custom states for the API filtering
   const [countries, setCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
 
   const [form, setForm] = useState({
+    parent_name: '', parent_email: '', // Preserved
     first_name: '', last_name: '', email: '', phone: '',
     region: '', country: '', street_address: '', city: '', state: '', postcode: '', 
     has_discord: null, discord_username: '', 
-    sim_platforms: [], agreed_to_terms: false, dob: '',
+    sim_platforms: [], 
+    sim_platforms_other: '', // Added as requested
+    agreed_to_terms: false, dob: '',
   });
   
   const [submitting, setSubmitting] = useState(false);
@@ -42,7 +42,6 @@ export default function JuniorMemberForm({ onBack }) {
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
-  // --- NEW REGION HANDLING LOGIC ---
   const handleRegionChange = async (selectedRegion) => {
     handleChange('region', selectedRegion);
     handleChange('country', '');
@@ -54,7 +53,6 @@ export default function JuniorMemberForm({ onBack }) {
 
     try {
       let url = `https://restcountries.com/v3.1/region/${selectedRegion.toLowerCase()}`;
-      // API uses "subregion" for the Americas
       if (selectedRegion === 'North America' || selectedRegion === 'South America') {
         url = `https://restcountries.com/v3.1/subregion/${encodeURIComponent(selectedRegion.toLowerCase())}`;
       }
@@ -62,10 +60,8 @@ export default function JuniorMemberForm({ onBack }) {
       const response = await fetch(url);
       const data = await response.json();
       
-      // Extract country names and sort alphabetically
       let countryNames = data.map(c => c.name.common).sort();
 
-      // Force Australia to the top if Oceania is selected
       if (selectedRegion === 'Oceania') {
         countryNames = countryNames.filter(c => c !== 'Australia' && c !== 'New Zealand');
         countryNames.unshift('New Zealand'); 
@@ -87,7 +83,6 @@ export default function JuniorMemberForm({ onBack }) {
     if (!memberType) return setError("Please select a membership type.");
     if (!form.dob) return setError("Please select your full date of birth.");
     
-    // City removed from mandatory validation
     if (!form.region) return setError("Region is required.");
     if (!form.country) return setError("Country is required.");
     if (form.country === 'Australia' && !form.state) {
@@ -115,20 +110,9 @@ export default function JuniorMemberForm({ onBack }) {
         email: form.email
       });
     } catch (err) {
-      // 1. Try to find the message in all possible locations
-      const serverMessage = 
-        err.response?.data?.message || // Standard Axios / WP REST
-        err.data?.message ||           // Some custom wrappers
-        err.message;                   // Generic JS error message
-
-      // 2. Set the error for the UI
+      const serverMessage = err.response?.data?.message || err.data?.message || err.message;
       setError(serverMessage || "An error occurred during submission.");
-
-      // 3. Log the full error to console so we can see the exact structure if it fails again
       console.error("Full Error Object:", err);
-      if (err.response) {
-        console.error("Server Response Data:", err.response.data);
-      }
     } finally {
       setSubmitting(false);
     }
@@ -168,15 +152,13 @@ export default function JuniorMemberForm({ onBack }) {
 
   const isFormValid = 
     memberType &&
-    form.first_name.trim() !== '' &&
-    form.last_name.trim() !== '' &&
+    form.parent_name.trim() !== '' &&
+    form.parent_email.trim() !== '' &&
     form.email.trim() !== '' &&
     form.dob !== '' &&
     form.region !== '' &&
     form.country !== '' &&
-    // State only required if Australia
     (form.country !== 'Australia' || form.state !== '') &&
-    // Discord MUST be 'yes' AND username must be filled
     form.has_discord === 'yes' &&
     form.discord_username.trim() !== '' &&
     form.agreed_to_terms;
@@ -191,7 +173,6 @@ export default function JuniorMemberForm({ onBack }) {
         <CardContent className="p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
             
-            {/* Membership Selection Buttons */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
@@ -217,7 +198,6 @@ export default function JuniorMemberForm({ onBack }) {
               </button>
             </div>
 
-            {/* Parent/Guardian Details */}
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
               <div className="flex items-center gap-2 mb-4 text-primary">
                 <ShieldCheck className="w-5 h-5" />
@@ -238,7 +218,6 @@ export default function JuniorMemberForm({ onBack }) {
               </p>
             </div>
 
-            {/* Junior Personal Details */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Junior Member Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -271,12 +250,9 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
             </div>
 
-            {/* Location Details */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Location Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  
-                {/* 1. REGION SELECT */}
                 <div className="space-y-2 md:col-span-2">
                   <Label>Region *</Label>
                   <Select value={form.region} onValueChange={handleRegionChange} required>
@@ -287,7 +263,6 @@ export default function JuniorMemberForm({ onBack }) {
                   </Select>
                 </div>
 
-                {/* 2. COUNTRY SELECT (Only visible if Region selected) */}
                 {form.region && (
                   <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                     <Label>Country *</Label>
@@ -302,69 +277,43 @@ export default function JuniorMemberForm({ onBack }) {
                   </div>
                 )}
 
-                {/* 3. STATE SELECT (Only visible if Country selected) */}
                 {form.country && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                    {/* Dynamic Label: Only shows asterisk if Australia */}
+                  <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
                     <Label>State / Province {form.country === 'Australia' && '*'}</Label>
-                    
                     {form.country === 'Australia' ? (
-                    <Select 
-                        value={form.state} 
-                        onValueChange={v => handleChange('state', v)} 
-                        required
-                    >
+                      <Select value={form.state} onValueChange={v => handleChange('state', v)} required>
                         <SelectTrigger><SelectValue placeholder="Select AU State" /></SelectTrigger>
                         <SelectContent>
-                        {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          {AU_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                         </SelectContent>
-                    </Select>
+                      </Select>
                     ) : (
-                    <Input 
-                        value={form.state} 
-                        onChange={e => handleChange('state', e.target.value)} 
-                        placeholder="e.g. California, Ontario (Optional)" 
-                        /* 'required' removed here */
-                    />
+                      <Input value={form.state} onChange={e => handleChange('state', e.target.value)} placeholder="e.g. California, Ontario (Optional)" />
                     )}
-                </div>
+                  </div>
                 )}
 
                 <div className="space-y-2 md:col-span-2">
                   <Label>Street Address</Label>
-                  <Input 
-                    value={form.street_address} 
-                    onChange={e => handleChange('street_address', e.target.value)} 
-                    placeholder="123 Main St" 
-                  />
+                  <Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" />
                 </div>
 
                 <div className="space-y-2">
                   <Label>City / Suburb</Label>
-                  <Input 
-                    value={form.city} 
-                    onChange={e => handleChange('city', e.target.value)} 
-                    placeholder="Melbourne" 
-                  />
+                  <Input value={form.city} onChange={e => handleChange('city', e.target.value)} placeholder="Melbourne" />
                 </div>
 
                 <div className="space-y-2">
                   <Label>Postcode</Label>
-                  <Input 
-                    value={form.postcode} 
-                    onChange={e => handleChange('postcode', e.target.value)} 
-                    placeholder="3000" 
-                  />
+                  <Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} placeholder="3000" />
                 </div>
               </div>
             </div>
 
-{/* Discord & Sim Racing */}
             <div>
               <h3 className="text-lg font-semibold mb-4">Community & Racing</h3>
               <div className="grid grid-cols-1 gap-6">
                 
-                {/* Mandatory Discord Section */}
                 <div className="space-y-3 p-4 bg-slate-50 border rounded-lg">
                   <Label className="text-base">Do you have a Discord account? *</Label>
                   <p className="text-sm text-muted-foreground mb-2">
@@ -380,7 +329,7 @@ export default function JuniorMemberForm({ onBack }) {
                         checked={form.has_discord === 'yes'} 
                         onChange={() => handleChange('has_discord', 'yes')} 
                       /> 
-                      <span className="font-medium">Yes, I have an account</span>
+                      <span className="font-medium ml-2">Yes, I have an account</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input 
@@ -390,7 +339,7 @@ export default function JuniorMemberForm({ onBack }) {
                         checked={form.has_discord === 'no'} 
                         onChange={() => handleChange('has_discord', 'no')} 
                       /> 
-                      <span className="font-medium">No, I don't</span>
+                      <span className="font-medium ml-2">No, I don't</span>
                     </label>
                   </div>
 
@@ -409,13 +358,8 @@ export default function JuniorMemberForm({ onBack }) {
                   {form.has_discord === 'no' && (
                     <div className="pt-3 animate-in fade-in">
                       <div className="p-4 bg-blue-50 border border-blue-200 rounded-md text-blue-800 text-sm flex flex-col gap-2">
-                        <p><strong>You will need a Discord account to complete your application.</strong></p>
-                        <a 
-                          href="https://discord.com/register" 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="inline-flex items-center gap-1 font-bold text-blue-700 hover:underline w-fit"
-                        >
+                        <p><strong>You will need a Discord account for team communications. Please create your Discord account and then return to complete your application.</strong></p>
+                        <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-blue-700 hover:underline w-fit">
                           Click here to create a free account
                         </a>
                       </div>
@@ -424,25 +368,42 @@ export default function JuniorMemberForm({ onBack }) {
                 </div>
 
                 {memberType === 'junior_racing' && (
-                  <div className="space-y-2">
-                    <Label>Sim Platforms (select all that apply)</Label>
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                      {SIM_PLATFORMS.map(p => (
-                        <label key={p} className="flex items-center gap-2 cursor-pointer">
-                          <Checkbox 
-                            checked={form.sim_platforms.includes(p)}
-                            onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} 
-                          />
-                          <span className="text-sm">{p}</span>
-                        </label>
-                      ))}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Sim Platforms (select all that apply)</Label>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        {SIM_PLATFORMS.map(p => (
+                          <label key={p} className="flex items-center gap-2 cursor-pointer">
+                            <Checkbox 
+                              checked={form.sim_platforms.includes(p)}
+                              onCheckedChange={checked => {
+                                const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                                handleChange('sim_platforms', next);
+                                if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                              }} 
+                            />
+                            <span className="text-sm">{p}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
+
+                    {form.sim_platforms.includes('Other') && (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 pl-6 border-l-2 border-primary/20">
+                        <Label htmlFor="sim_platforms_other" className="text-xs uppercase tracking-wider text-muted-foreground">Please specify other platform(s)</Label>
+                        <Input 
+                          id="sim_platforms_other" 
+                          placeholder="e.g. BeamNG, Dirt Rally 2.0" 
+                          value={form.sim_platforms_other} 
+                          onChange={e => handleChange('sim_platforms_other', e.target.value)} 
+                        />
+                      </motion.div>
+                    )}
                   </div>
                 )}
-              </div> {/* <--- WAS MISSING (Closes grid) */}
-            </div> {/* <--- WAS MISSING (Closes Community & Racing section) */}
+              </div>
+            </div>
 
-            {/* Terms */}
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
