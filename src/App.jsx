@@ -13,11 +13,10 @@ import MainLayout from '@/layouts/MainLayout';
 import Join from '@/pages/Join'; 
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
-import AdminMembers from '@/pages/AdminMembers';
+import AdminMemberManager from '@/pages/AdminMemberManager';
 import AdminAGM from '@/pages/AdminAGM';
 import AGMDetail from '@/pages/AGMDetail';
 import AdminEmail from '@/pages/AdminEmail'; 
-import AdminUsers from '@/pages/AdminUsers';
 import Login from '@/pages/Login';
 import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
@@ -73,12 +72,11 @@ function AppRoutes() {
           element={isActuallyAdmin ? <Outlet /> : <Navigate to="/my-profile" replace />}
         >
           <Route index element={<AdminDashboard />} />
-          <Route path="members" element={<AdminMembers />} />
+          <Route path="members" element={<AdminMemberManager />} />
           <Route path="members/:id" element={<ProfileView />} />
           <Route path="agm" element={<AdminAGM />} />
           <Route path="agm/:id" element={<AGMDetail />} />
           <Route path="email" element={<AdminEmail />} />
-          <Route path="users" element={<AdminUsers />} />
         </Route>
 
         <Route path="*" element={<PageNotFound />} />

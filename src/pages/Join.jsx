@@ -10,7 +10,7 @@ export default function Join() {
       <JoinHero />
       <JoinForm />
       <footer className="text-center py-8 text-xs text-muted-foreground space-y-2">
-        <p>© {new Date().getFullYear()} Full Send SimSports Inc. All rights reserved.</p>
+        <p>© {new Date().getFullYear()} Full Send SimSport Inc. All rights reserved.</p>
         <Link
           to="/meetings" className="text-muted-foreground mx-3 inline-flex items-center gap-1.5 hover:text-primary transition-colors">View General Meetings
 

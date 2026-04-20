@@ -7,6 +7,16 @@
 
 if (!defined('ABSPATH')) exit;
 
+add_filter('authenticate', function($user, $username, $password) {
+    if ($user instanceof WP_User) {
+        $is_disabled = get_user_meta($user->ID, 'fs_account_disabled', true);
+        if ($is_disabled) {
+            return new WP_Error('disabled', 'Your account is currently inactive. Please contact the committee or re-register.');
+        }
+    }
+    return $user;
+}, 30, 3);
+
 function fs_register_member_post_type() {
     register_post_type('fs_member', [
         'labels' => [
@@ -146,43 +156,48 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            if (isset($params['member_type']) && $params['member_type'] === 'junior') {
-                $raw_email = $params['parent_email'] ?? $params['parent_guardian_email'] ?? $params['guardian_email'] ?? '';
-                $parent_email = sanitize_email($raw_email);
-                
-                if (empty($parent_email)) {
-                    return new WP_Error('missing_email', "Parent email required for Juniors.", ['status' => 400]);
-                }
-
-                $parent_query = new WP_Query([
-                    'post_type' => 'fs_member',
-                    'meta_key' => '_email',
-                    'meta_value' => $parent_email,
-                    'posts_per_page' => 1,
-                    'post_status' => 'any'
-                ]);
-
-                if (!$parent_query->have_posts()) {
-                    return new WP_Error(
-                        'parent_not_found', 
-                        "No registered member found with email: '{$parent_email}'. Your parent/guardian must register first.", 
-                        ['status' => 400]
-                    );
-                }
-                
-                $params['parent_id'] = $parent_query->posts[0]->ID;
-            }
-
-            $post_id = wp_insert_post([
-                'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
-                'post_type'    => 'fs_member',
-                'post_status'  => 'publish',
+            // --- NEW: RE-REGISTRATION MATCHING LOGIC ---
+            // Look for an existing profile with matching Name & DOB
+            $existing_query = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_query' => [
+                    'relation' => 'AND',
+                    ['key' => '_first_name', 'value' => sanitize_text_field($params['first_name'])],
+                    ['key' => '_last_name', 'value' => sanitize_text_field($params['last_name'])],
+                    ['key' => '_dob', 'value' => sanitize_text_field($params['dob'])]
+                ],
+                'post_status' => 'any',
+                'posts_per_page' => 1
             ]);
+
+            $post_id = null;
+            $is_reactivation = false;
+
+            if ($existing_query->have_posts()) {
+                // MATCH FOUND: Reactivate this record
+                $post_id = $existing_query->posts[0]->ID;
+                $is_reactivation = true;
+                
+                // If they have a linked WP User account, unlock it
+                $wp_user_id = get_post_meta($post_id, '_wp_user_id', true);
+                if ($wp_user_id) {
+                    delete_user_meta($wp_user_id, 'fs_account_disabled');
+                    // Also update their WP email just in case they changed it
+                    wp_update_user(['ID' => $wp_user_id, 'user_email' => sanitize_email($params['email'])]);
+                }
+            } else {
+                // NO MATCH: Create new post normally
+                $post_id = wp_insert_post([
+                    'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
+                    'post_type'    => 'fs_member',
+                    'post_status'  => 'publish',
+                ]);
+            }
 
             if (is_wp_error($post_id) || !$post_id) {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
-
+            
             foreach ($params as $key => $value) {
                 $target_key = $key;
                 if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
@@ -293,13 +308,23 @@ add_action('rest_api_init', function () {
                         if (!empty($new_email)) {
                             update_post_meta($id, '_email', $new_email);
                             $wp_user_id = get_post_meta($id, '_wp_user_id', true);
-                            if ($wp_user_id) {
-                                wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
-                            }
+                            if ($wp_user_id) wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
                         }
                     } else {
                         $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
                         update_post_meta($id, '_' . $key, $sanitized_value);
+                        
+                        // NEW: Auto-Disable WP Account logic based on member status
+                        if ($key === 'status') {
+                            $wp_user_id = get_post_meta($id, '_wp_user_id', true);
+                            if ($wp_user_id) {
+                                if ($sanitized_value === 'inactive') {
+                                    update_user_meta($wp_user_id, 'fs_account_disabled', '1');
+                                } else {
+                                    delete_user_meta($wp_user_id, 'fs_account_disabled');
+                                }
+                            }
+                        }
                     }
                     $updated = true;
                 }
