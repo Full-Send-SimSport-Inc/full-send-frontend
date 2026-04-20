@@ -21,7 +21,7 @@ import Login from '@/pages/Login';
 import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
 import Portal from '@/pages/Portal';
-import SetupAccount from '@/auth/SetupAccount';
+import SetupAccount from '@/components/auth/SetupAccount';
 
 function ScrollToTop() {
   const { pathname } = useLocation();

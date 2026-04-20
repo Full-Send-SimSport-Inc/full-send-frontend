@@ -11,7 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Loader2, UserCircle, CheckCircle2, AlertCircle, Lock, 
-  ArrowLeft, Shield, Users, Info
+  ArrowLeft, Shield, Users, Info, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -31,13 +31,14 @@ export default function ProfileView() {
   const isAdmin = user?.roles?.some(r => ['administrator', 'committee'].includes(r));
   const isEditingSelf = !id; 
   
-  // FIX: If I am an admin, I should have admin permissions even on my own profile
   const hasFullPermissions = isAdmin; 
 
   const [form, setForm] = useState({
     first_name: '', last_name: '', dob: '', status: '',
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
-    discord_username: '', sim_platforms: []
+    discord_username: '', sim_platforms: [],
+    parent_name: '', parent_email: '',
+    region: '', country: '', member_type: '' // Added missing FS Member record fields
   });
 
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -48,36 +49,30 @@ export default function ProfileView() {
     enabled: !!id,
   });
 
-  // Determine profile data source
   const profileData = isEditingSelf ? user?.member_details : fetchedMember;
   const isLoading = isLoadingAuth || (!!id && isFetching);
 
-  // Add this helper at the top of your file or inside the component
   const formatToInputDate = (dateStr) => {
     if (!dateStr) return '';
-    // If it's already YYYY-MM-DD, return it
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
     
-    // If it's DD/MM/YYYY (from your registration stitch), convert it
     const parts = dateStr.split('/');
     if (parts.length === 3) {
         const [d, m, y] = parts;
-        // Ensure leading zeros for month and day
         return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
     }
     return '';
   };
   
-useEffect(() => {
+  useEffect(() => {
     if (profileData && Object.keys(profileData).length > 0) {
-            // Determine the correct status from the API response
         const dbStatus = profileData.status || 'pending';
         
         setForm({
             first_name: profileData.first_name || '',
             last_name: profileData.last_name || '',
             dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
-            status: dbStatus, // Set it once and don't let it "fall back"
+            status: dbStatus,
             email: profileData.email || '',
             phone: profileData.phone || '',
             street_address: profileData.street_address || '',
@@ -85,7 +80,12 @@ useEffect(() => {
             state: profileData.state || '',
             postcode: profileData.postcode || '',
             discord_username: profileData.discord_username || '',
-            sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : []
+            sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : [],
+            parent_name: profileData.parent_name || '', 
+            parent_email: profileData.parent_email || '',
+            region: profileData.region || '',
+            country: profileData.country || '',
+            member_type: profileData.member_type || ''
       });
     } else if (isEditingSelf && user) {
         setForm(prev => ({
@@ -98,17 +98,31 @@ useEffect(() => {
     }
   }, [profileData, user, isEditingSelf]);
 
+  // Mandatory Validation Logic
+  const isFormValid = 
+    form.first_name.trim() !== '' &&
+    form.last_name.trim() !== '' &&
+    form.dob !== '' &&
+    form.email.trim() !== '' &&
+    form.discord_username.trim() !== '' &&
+    form.region !== '' &&
+    form.country !== '' &&
+    // State mandatory ONLY if Australia
+    (form.country !== 'Australia' || form.state.trim() !== '') &&
+    // Junior fields mandatory ONLY if Junior member
+    (form.member_type !== 'junior' || (form.parent_name.trim() !== '' && form.parent_email.trim() !== ''));
+
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!isFormValid) return;
+
     setSaveStatus('saving');
 
     try {
       if (isEditingSelf) {
         if (!profileData && isAdmin) {
-          // If no record exists, we must create one. 
-          // We split the YYYY-MM-DD back into parts so the /join endpoint understands it
           const [y, m, d] = form.dob ? form.dob.split('-') : ['', '', ''];
           
           await base44.post('/join', {
@@ -119,7 +133,6 @@ useEffect(() => {
             dob_year: y
           });
         } else {
-          // Standard update for existing records
           await base44.post('/update-me', form);
         }
         await checkLoginStatus(); 
@@ -139,7 +152,6 @@ useEffect(() => {
 
   if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
   
-  // Adjusted Error State: If admin viewing self, don't show "Not Found" even if record is missing
   if (!profileData && !isEditingSelf) return (
     <div className="p-20 text-center space-y-4">
       <Shield className="w-12 h-12 text-destructive mx-auto" />
@@ -163,7 +175,6 @@ useEffect(() => {
 
       <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
         
-        {/* Notice for Admins without a record */}
         {isEditingSelf && isAdmin && !user?.member_details && (
             <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-start gap-3 text-blue-800 text-sm">
                 <Info className="w-5 h-5 shrink-0" />
@@ -205,7 +216,7 @@ useEffect(() => {
                 )}
                 
                 <div className="space-y-2">
-                  <Label>First Name</Label>
+                  <Label>First Name *</Label>
                   <Input 
                     value={form.first_name} 
                     onChange={e => handleChange('first_name', e.target.value)} 
@@ -215,7 +226,7 @@ useEffect(() => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Last Name</Label>
+                  <Label>Last Name *</Label>
                   <Input 
                     value={form.last_name} 
                     onChange={e => handleChange('last_name', e.target.value)} 
@@ -225,7 +236,7 @@ useEffect(() => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Date of Birth</Label>
+                  <Label>Date of Birth *</Label>
                   <Input 
                     type="date"
                     value={form.dob} 
@@ -235,11 +246,11 @@ useEffect(() => {
                   />
                 </div>
 
-                {hasFullPermissions && form.status && ( // Only show if form.status is NOT empty
+                {hasFullPermissions && form.status && (
                     <div className="space-y-2">
                         <Label>Account Status</Label>
                         <Select 
-                        value={form.status} // No more '|| pending' here!
+                        value={form.status}
                         onValueChange={val => handleChange('status', val)}
                         >
                         <SelectTrigger>
@@ -255,10 +266,46 @@ useEffect(() => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* JUNIOR PARENT DETAILS - Only visible for Junior Member Type */}
+              {profileData?.member_type === 'junior' && (
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Shield className="w-5 h-5" />
+                    <h3 className="font-semibold text-lg">Parent / Guardian Details</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg border border-primary/10">
+                    <div className="space-y-2">
+                      <Label>Parent Name *</Label>
+                      <Input 
+                        value={form.parent_name} 
+                        onChange={e => handleChange('parent_name', e.target.value)}
+                        disabled={!hasFullPermissions}
+                        className={!hasFullPermissions ? "bg-muted" : "bg-white"}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Parent Email *</Label>
+                      <Input 
+                        type="email"
+                        value={form.parent_email} 
+                        onChange={e => handleChange('parent_email', e.target.value)}
+                        disabled={!hasFullPermissions}
+                        className={!hasFullPermissions ? "bg-muted" : "bg-white"}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
                 <div className="space-y-2">
-                    <Label>Email Address</Label>
+                    <Label>Email Address *</Label>
                     <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} />
+                </div>
+                <div className="space-y-2">
+                    <Label>Discord Username *</Label>
+                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} />
                 </div>
                 <div className="space-y-2">
                     <Label>Phone Number</Label>
@@ -269,9 +316,14 @@ useEffect(() => {
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Region *</Label><Input value={form.region} disabled className="bg-muted" /></div>
+                  <div className="space-y-2"><Label>Country *</Label><Input value={form.country} disabled className="bg-muted" /></div>
                   <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
                   <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>State</Label><Input placeholder="e.g. NSW" value={form.state} onChange={e => handleChange('state', e.target.value.toUpperCase())} /></div>
+                  <div className="space-y-2">
+                    <Label>State {form.country === 'Australia' && '*'}</Label>
+                    <Input placeholder="e.g. NSW" value={form.state} onChange={e => handleChange('state', e.target.value.toUpperCase())} />
+                  </div>
                   <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} /></div>
                 </div>
               </div>
@@ -294,14 +346,25 @@ useEffect(() => {
                 </div>
               </div>
 
-              <Button type="submit" disabled={saveStatus === 'saving'} className="w-full h-12 text-lg">
-                {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-              </Button>
+              <div className="space-y-3">
+                <Button 
+                  type="submit" 
+                  disabled={saveStatus === 'saving' || !isFormValid} 
+                  className="w-full h-12 text-lg"
+                >
+                  {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
+                </Button>
+                
+                {!isFormValid && (
+                  <p className="text-xs text-destructive flex items-center justify-center gap-1">
+                    <AlertTriangle className="w-3 h-3" /> Please fill all mandatory (*) fields.
+                  </p>
+                )}
+              </div>
             </form>
           </CardContent>
         </Card>
 
-        {/* RESTORED DEBUG BLOCKS */}
         {isAdmin && (
           <div className="mt-8 space-y-4">
             <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
