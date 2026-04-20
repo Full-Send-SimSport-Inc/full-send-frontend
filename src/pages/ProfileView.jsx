@@ -38,7 +38,7 @@ export default function ProfileView() {
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
     discord_username: '', sim_platforms: [],
     parent_name: '', parent_email: '',
-    region: '', country: '', member_type: '' // Added missing FS Member record fields
+    region: '', country: '', member_type: '' 
   });
 
   const [saveStatus, setSaveStatus] = useState('idle');
@@ -105,8 +105,8 @@ export default function ProfileView() {
     form.dob !== '' &&
     form.email.trim() !== '' &&
     form.discord_username.trim() !== '' &&
-    form.region !== '' &&
-    form.country !== '' &&
+    form.region.trim() !== '' &&
+    form.country.trim() !== '' &&
     // State mandatory ONLY if Australia
     (form.country !== 'Australia' || form.state.trim() !== '') &&
     // Junior fields mandatory ONLY if Junior member
@@ -266,7 +266,6 @@ export default function ProfileView() {
                 )}
               </div>
 
-              {/* JUNIOR PARENT DETAILS - Only visible for Junior Member Type */}
               {profileData?.member_type === 'junior' && (
                 <div className="space-y-4 pt-4 border-t">
                   <div className="flex items-center gap-2 text-primary">
@@ -316,8 +315,14 @@ export default function ProfileView() {
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Region *</Label><Input value={form.region} disabled className="bg-muted" /></div>
-                  <div className="space-y-2"><Label>Country *</Label><Input value={form.country} disabled className="bg-muted" /></div>
+                  <div className="space-y-2">
+                    <Label>Region *</Label>
+                    <Input value={form.region} onChange={e => handleChange('region', e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Country *</Label>
+                    <Input value={form.country} onChange={e => handleChange('country', e.target.value)} />
+                  </div>
                   <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
                   <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
                   <div className="space-y-2">
