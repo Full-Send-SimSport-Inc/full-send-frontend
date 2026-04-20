@@ -23,6 +23,16 @@ import PageNotFound from '@/lib/PageNotFound';
 import Portal from '@/pages/Portal';
 import SetupAccount from '@/components/auth/SetupAccount';
 
+// Defensive fix for Storefront theme script crashes
+if (typeof window.storefrontUrls === 'undefined') {
+    window.storefrontUrls = {
+        "home": "/",
+        "cart": "/cart",
+        "checkout": "/checkout",
+        "account": "/my-account"
+    };
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {

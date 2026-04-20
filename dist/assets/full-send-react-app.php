@@ -34,6 +34,41 @@ function fs_register_member_post_type() {
         'has_archive' => false,
     ]);
 }
+
+/**
+ * Prevent Storefront theme scripts from crashing the React Portal
+ */
+add_action('wp_enqueue_scripts', function() {
+    if (is_page('portal')) {
+        // This is the common handle for Ecwid's frontend scripts
+        wp_dequeue_script('ecwid-frontend-js');
+        wp_dequeue_script('ecwid-scripts'); 
+    }
+}, 999);
+
+add_action('wp_enqueue_scripts', function() {
+    if (is_page('portal')) {
+        wp_localize_script('jquery', 'storefrontUrls', [
+            'home' => home_url('/'),
+            // ... rest of the keys as above
+        ]);
+    }
+}, 5); // Priority 5 ensures it runs very early
+
+add_action('wp_enqueue_scripts', function() {
+    // Only target the portal page
+    if (is_page('portal') || (defined('REST_REQUEST') && REST_REQUEST)) {
+        
+        // Dequeue the specific scripts that look for 'storefrontUrls'
+        wp_dequeue_script('storefront-header-cart');
+        wp_dequeue_script('storefront-functions');
+        wp_dequeue_script('storefront-sticky-payment');
+        
+        // Sometimes themes use different handles, let's catch the main one
+        wp_deregister_script('storefront-functions');
+    }
+}, 999); // Priority 999 ensures we run AFTER the theme has enqueued them
+
 add_action('init', 'fs_register_member_post_type');
 
 add_action('init', function() {
@@ -478,11 +513,26 @@ add_action('rest_api_init', function () {
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
     wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
+    
+    // 1. Your existing App Params
     wp_localize_script('fs-react-js', 'appParams', [
         'restUrl'   => esc_url_raw(rest_url('full-send/v1')),
         'nonce'     => wp_create_nonce('wp_rest'),
         'logoutUrl' => wp_logout_url(home_url('/portal/'))
     ]);
+
+    // 2. THE FIX: Satisfy the Ecwid plugin's specific object requirement
+    // We create the window.ec.config object structure it expects.
+    $ecwid_mock = "
+        window.ec = window.ec || {};
+        window.ec.config = window.ec.config || {};
+        window.ec.config.storefrontUrls = window.ec.config.storefrontUrls || {
+            'cleanUrls': true,
+            'historyApi': true
+        };
+    ";
+    wp_add_inline_script('fs-react-js', $ecwid_mock, 'before');
+
     return '<div id="root"></div>';
 });
 

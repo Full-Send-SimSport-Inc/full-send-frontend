@@ -8,7 +8,14 @@ import { User, UserPlus, Loader2 } from 'lucide-react';
 export default function Portal() {
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const navigate = useNavigate();
-
+ 
+  useEffect(() => {
+  // Check if the WooCommerce object is missing and mock it to prevent the crash
+    if (typeof window.storefrontUrls === 'undefined') {
+        window.storefrontUrls = {}; 
+    }
+  }, []);
+  
   useEffect(() => {
     if (!isLoadingAuth && isAuthenticated) {
        console.log("DEBUG: Portal page detected authenticated user, redirecting to profile...");
