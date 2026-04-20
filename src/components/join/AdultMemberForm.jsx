@@ -82,7 +82,8 @@ export default function AdultMemberForm({ onBack }) {
 
     setError(serverMessage || fallbackMessage);
     console.error("Submission Error:", err.response?.data); // Helpful for debugging
-    }; finally {
+    };
+    } finally {
       setLoadingCountries(false);
     }
   };
