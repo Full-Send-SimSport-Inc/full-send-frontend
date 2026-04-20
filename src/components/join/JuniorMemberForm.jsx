@@ -74,15 +74,7 @@ export default function JuniorMemberForm({ onBack }) {
 
       setCountries(countryNames);
     } catch (err) {
-    // 1. Check for the message from the PHP WP_Error
-    const serverMessage = err.response?.data?.message;
-    
-    // 2. Check if the error is a string itself (some wrappers do this)
-    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
-
-    setError(serverMessage || fallbackMessage);
-    console.error("Submission Error:", err.response?.data); // Helpful for debugging
-    };
+      console.error("Failed to fetch countries", err);
     } finally {
       setLoadingCountries(false);
     }
@@ -123,15 +115,7 @@ export default function JuniorMemberForm({ onBack }) {
         email: form.email
       });
     } catch (err) {
-    // 1. Check for the message from the PHP WP_Error
-    const serverMessage = err.response?.data?.message;
-    
-    // 2. Check if the error is a string itself (some wrappers do this)
-    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
-
-    setError(serverMessage || fallbackMessage);
-    console.error("Submission Error:", err.response?.data); // Helpful for debugging
-    };
+      setError(err.response?.data?.message || "An error occurred during submission.");
     } finally {
       setSubmitting(false);
     }
