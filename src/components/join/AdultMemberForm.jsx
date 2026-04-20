@@ -74,7 +74,15 @@ export default function AdultMemberForm({ onBack }) {
 
       setCountries(countryNames);
     } catch (err) {
-      console.error("Failed to fetch countries", err);
+    // 1. Check for the message from the PHP WP_Error
+    const serverMessage = err.response?.data?.message;
+    
+    // 2. Check if the error is a string itself (some wrappers do this)
+    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
+
+    setError(serverMessage || fallbackMessage);
+    console.error("Submission Error:", err.response?.data); // Helpful for debugging
+    };
     } finally {
       setLoadingCountries(false);
     }
@@ -115,7 +123,15 @@ export default function AdultMemberForm({ onBack }) {
         email: form.email
       });
     } catch (err) {
-      setError(err.response?.data?.message || "An error occurred during submission.");
+    // 1. Check for the message from the PHP WP_Error
+    const serverMessage = err.response?.data?.message;
+    
+    // 2. Check if the error is a string itself (some wrappers do this)
+    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
+
+    setError(serverMessage || fallbackMessage);
+    console.error("Submission Error:", err.response?.data); // Helpful for debugging
+    };
     } finally {
       setSubmitting(false);
     }
