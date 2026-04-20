@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gamepad2, Heart } from 'lucide-react'; // Added icons
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart } from 'lucide-react'; // Added icons
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -201,7 +201,7 @@ export default function JuniorMemberForm({ onBack }) {
                   memberType === 'junior_racing' ? "border-primary bg-primary/5 shadow-inner" : "border-border hover:border-primary/40"
                 )}
               >
-                <Gamepad2 className={cn("w-6 h-6", memberType === 'junior_racing' ? "text-primary" : "text-muted-foreground")} />
+                <Gauge className={cn("w-6 h-6", memberType === 'junior_racing' ? "text-primary" : "text-muted-foreground")} />
                 <span className="font-bold">Racing Junior</span>
               </button>
               <button

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, Gamepad2, Heart, ExternalLink } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Gauge, Heart, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 
@@ -198,7 +198,7 @@ export default function AdultMemberForm({ onBack }) {
                 <button type="button" onClick={() => setMemberType('racing')}
                   className={cn("p-4 rounded-xl border-2 text-left transition-all",
                     memberType === 'racing' ? "border-primary bg-primary/5" : "border-border hover:border-primary/40")}>
-                  <Gamepad2 className={cn("w-6 h-6 mb-2", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
+                  <Gauge className={cn("w-6 h-6 mb-2", memberType === 'racing' ? "text-primary" : "text-muted-foreground")} />
                   <p className="font-semibold text-sm">Racing Member</p>
                   <p className="text-xs text-muted-foreground mt-1">Active sim racer competing in events</p>
                 </button>

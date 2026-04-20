@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Heart, Users } from 'lucide-react';
+import { Gauge, Heart, User, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import AdultMemberForm from './AdultMemberForm';
 import JuniorMemberForm from './JuniorMemberForm';
@@ -8,7 +8,7 @@ import JuniorMemberForm from './JuniorMemberForm';
 const options = [
   {
     key: 'adult',
-    icon: Gamepad2,
+    icon: User,
     title: 'Adult Membership',
     subtitle: '18 and over',
     description: 'Choose between a Racing Member (active competitor) or Supporting Member (non-racing supporter/parent/guardian).',

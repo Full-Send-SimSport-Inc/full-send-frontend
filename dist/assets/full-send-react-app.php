@@ -163,7 +163,7 @@ add_action('rest_api_init', function () {
 
             // 1. Check if Email already exists as a WordPress User
             if (email_exists($email)) {
-                return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your portal instead.', ['status' => 409]);
+                return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your existing account.', ['status' => 409]);
             }
 
             // 2. Check if a Member record already exists with this Email

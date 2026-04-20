@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Gamepad2, Users, Trophy } from 'lucide-react';
+import { Zap, Flag, Trophy } from 'lucide-react';
 
 export default function JoinHero() {
   return (
@@ -16,7 +16,7 @@ export default function JoinHero() {
         className="relative max-w-2xl mx-auto text-center">
         
         <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm rounded-full px-4 py-2 mb-6 text-sm font-medium">
-          <Gamepad2 className="w-4 h-4" />
+          <Zap className="w-4 h-4" />
           Full Send SimSport Inc.
         </div>
         <h1 className="text-4xl md:text-5xl font-black tracking-tight mb-4">Join Our Team
@@ -27,7 +27,7 @@ export default function JoinHero() {
         </p>
         <div className="flex items-center justify-center gap-8 text-sm text-white/70">
           <div className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
+            <Flag className="w-4 h-4" />
             <span>Official Membership</span>
           </div>
           <div className="flex items-center gap-2">
