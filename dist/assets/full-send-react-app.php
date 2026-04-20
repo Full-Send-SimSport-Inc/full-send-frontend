@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Full Send React App
  * Description: WordPress backend API and loader for the Full Send SimSports React App.
- * Version: 1.1
+ * Version: 1.2
  */
 
 if (!defined('ABSPATH')) exit;
@@ -64,7 +64,6 @@ add_action('rest_api_init', function () {
             $member_id = get_user_meta($user->ID, 'fs_member_id', true);
 
             // --- START AUTO-LINK LOGIC ---
-            // If no linked record found, try to find one by email and link it now
             if (!$member_id) {
                 $member_query = new WP_Query([
                     'post_type' => 'fs_member',
@@ -85,7 +84,6 @@ add_action('rest_api_init', function () {
             $member_details = null;
 
             if ($member_id) {
-                // 1. RELATIONAL LOOKUP (Parent/Child)
                 $parent_id = get_post_meta($member_id, '_parent_id', true);
                 $parent_name = get_post_meta($member_id, '_parent_name', true);
                 $parent_email = get_post_meta($member_id, '_parent_email', true);
@@ -113,28 +111,30 @@ add_action('rest_api_init', function () {
                     ];
                 }
 
-                // 1. STATUS FALLBACK: Ensure new members show as 'pending'
                 $raw_status = get_post_meta($member_id, '_status', true);
                 $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
 
                 $member_details = [
-                    'member_id'        => $member_id,
-                    'first_name'       => get_post_meta($member_id, '_first_name', true),
-                    'last_name'        => get_post_meta($member_id, '_last_name', true),
-                    'email'            => get_post_meta($member_id, '_email', true),
-                    'phone'            => get_post_meta($member_id, '_phone', true),
-                    'street_address'   => get_post_meta($member_id, '_street_address', true),
-                    'city'             => get_post_meta($member_id, '_city', true),
-                    'state'            => get_post_meta($member_id, '_state', true),
-                    'postcode'         => get_post_meta($member_id, '_postcode', true),
-                    'dob'              => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
-                    'discord_username' => get_post_meta($member_id, '_discord_username', true),
-                    'sim_platforms'    => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
-                    'membership_type'  => get_post_meta($member_id, '_membership_type', true),
-                    'status'           => $display_status, // This sends 'pending' to React
-                    'parent_name'      => $parent_name,
-                    'parent_email'     => $parent_email,
-                    'children'         => $children
+                    'member_id'           => $member_id,
+                    'first_name'          => get_post_meta($member_id, '_first_name', true),
+                    'last_name'           => get_post_meta($member_id, '_last_name', true),
+                    'email'               => get_post_meta($member_id, '_email', true),
+                    'phone'               => get_post_meta($member_id, '_phone', true),
+                    'street_address'      => get_post_meta($member_id, '_street_address', true),
+                    'city'                => get_post_meta($member_id, '_city', true),
+                    'state'               => get_post_meta($member_id, '_state', true),
+                    'postcode'            => get_post_meta($member_id, '_postcode', true),
+                    'region'              => get_post_meta($member_id, '_region', true), // Added
+                    'country'             => get_post_meta($member_id, '_country', true), // Added
+                    'dob'                 => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
+                    'discord_username'    => get_post_meta($member_id, '_discord_username', true),
+                    'sim_platforms'       => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
+                    'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true), // Added
+                    'membership_type'     => get_post_meta($member_id, '_membership_type', true),
+                    'status'              => $display_status,
+                    'parent_name'         => $parent_name,
+                    'parent_email'        => $parent_email,
+                    'children'            => $children
                 ];
             }
 
@@ -156,8 +156,6 @@ add_action('rest_api_init', function () {
         'callback' => function($request) {
             $params = $request->get_json_params();
             
-            // --- NEW: RE-REGISTRATION MATCHING LOGIC ---
-            // Look for an existing profile with matching Name & DOB
             $existing_query = new WP_Query([
                 'post_type' => 'fs_member',
                 'meta_query' => [
@@ -171,22 +169,14 @@ add_action('rest_api_init', function () {
             ]);
 
             $post_id = null;
-            $is_reactivation = false;
-
             if ($existing_query->have_posts()) {
-                // MATCH FOUND: Reactivate this record
                 $post_id = $existing_query->posts[0]->ID;
-                $is_reactivation = true;
-                
-                // If they have a linked WP User account, unlock it
                 $wp_user_id = get_post_meta($post_id, '_wp_user_id', true);
                 if ($wp_user_id) {
                     delete_user_meta($wp_user_id, 'fs_account_disabled');
-                    // Also update their WP email just in case they changed it
                     wp_update_user(['ID' => $wp_user_id, 'user_email' => sanitize_email($params['email'])]);
                 }
             } else {
-                // NO MATCH: Create new post normally
                 $post_id = wp_insert_post([
                     'post_title'   => sanitize_text_field($params['first_name'] . ' ' . $params['last_name']),
                     'post_type'    => 'fs_member',
@@ -212,7 +202,6 @@ add_action('rest_api_init', function () {
             }
             
             update_post_meta($post_id, '_status', 'pending');
-
             return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $params['email']];
         }
     ]);
@@ -268,25 +257,28 @@ add_action('rest_api_init', function () {
             }
 
             return [
-                'id'                => $post->ID,
-                'first_name'        => get_post_meta($post->ID, '_first_name', true),
-                'last_name'         => get_post_meta($post->ID, '_last_name', true),
-                'dob'               => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
-                'email'             => get_post_meta($post->ID, '_email', true),
-                'phone'             => get_post_meta($post->ID, '_phone', true),
-                'street_address'    => get_post_meta($post->ID, '_street_address', true),
-                'city'              => get_post_meta($post->ID, '_city', true),
-                'state'             => get_post_meta($post->ID, '_state', true),
-                'postcode'          => get_post_meta($post->ID, '_postcode', true),
-                'discord_username'  => get_post_meta($post->ID, '_discord_username', true),
-                'member_type'       => get_post_meta($post->ID, '_member_type', true),
-                'sim_platforms'     => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
-                'status'            => get_post_meta($post->ID, '_status', true) ?: 'pending',
-                'created_date'      => $post->post_date,
-                'parent_id'         => $parent_id,
-                'parent_name'       => $parent_name,
-                'parent_email'      => $parent_email,
-                'children'          => $children
+                'id'                  => $post->ID,
+                'first_name'          => get_post_meta($post->ID, '_first_name', true),
+                'last_name'           => get_post_meta($post->ID, '_last_name', true),
+                'dob'                 => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
+                'email'               => get_post_meta($post->ID, '_email', true),
+                'phone'               => get_post_meta($post->ID, '_phone', true),
+                'street_address'      => get_post_meta($post->ID, '_street_address', true),
+                'city'                => get_post_meta($post->ID, '_city', true),
+                'state'               => get_post_meta($post->ID, '_state', true),
+                'postcode'            => get_post_meta($post->ID, '_postcode', true),
+                'region'              => get_post_meta($post->ID, '_region', true), // Added
+                'country'             => get_post_meta($post->ID, '_country', true), // Added
+                'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
+                'member_type'         => get_post_meta($post->ID, '_member_type', true),
+                'sim_platforms'       => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
+                'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true), // Added
+                'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
+                'created_date'        => $post->post_date,
+                'parent_id'           => $parent_id,
+                'parent_name'         => $parent_name,
+                'parent_email'        => $parent_email,
+                'children'            => $children
             ];
         }
     ]);
@@ -298,7 +290,7 @@ add_action('rest_api_init', function () {
             $id = $request['id'];
             $params = $request->get_json_params();
             
-            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms', 'status'];
+            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'region', 'country', 'discord_username', 'sim_platforms', 'sim_platforms_other', 'status'];
             $updated = false;
 
             foreach ($params as $key => $value) {
@@ -314,7 +306,6 @@ add_action('rest_api_init', function () {
                         $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
                         update_post_meta($id, '_' . $key, $sanitized_value);
                         
-                        // NEW: Auto-Disable WP Account logic based on member status
                         if ($key === 'status') {
                             $wp_user_id = get_post_meta($id, '_wp_user_id', true);
                             if ($wp_user_id) {
@@ -342,7 +333,6 @@ add_action('rest_api_init', function () {
         'permission_callback' => '__return_true', 
         'callback' => function($request) {
             $params = $request->get_json_params();
-            
             if (empty($params)) {
                 $raw_body = $request->get_body();
                 $params = json_decode($raw_body, true);
@@ -430,7 +420,7 @@ add_action('rest_api_init', function () {
             if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
             $params = $request->get_json_params();
-            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'discord_username', 'sim_platforms'];
+            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'region', 'country', 'discord_username', 'sim_platforms', 'sim_platforms_other'];
 
             foreach ($params as $key => $value) {
                 if (in_array($key, $allowed_fields)) {
@@ -451,54 +441,13 @@ add_action('rest_api_init', function () {
         }
     ]);
 
-    // GET: List all users for Admin Dashboard
-    register_rest_route($namespace, '/admin/users', [
-        'methods' => 'GET',
-        'callback' => 'fs_admin_get_users',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // POST: Update User Role
-    register_rest_route($namespace, '/admin/users/role', [
-        'methods' => 'POST',
-        'callback' => 'fs_admin_update_role',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // POST: Send Mass Email
-    register_rest_route($namespace, '/admin/send-email', [
-        'methods' => 'POST',
-        'callback' => 'fs_admin_send_email',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // GET: List all meetings
-    register_rest_route($namespace, '/agm', [
-        'methods' => 'GET',
-        'callback' => 'fs_get_agms',
-        'permission_callback' => '__return_true'
-    ]);
-
-    // POST: Create a new meeting
-    register_rest_route($namespace, '/agm', [
-        'methods' => 'POST',
-        'callback' => 'fs_create_agm',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // POST: Update an existing meeting
-    register_rest_route($namespace, '/agm/(?P<id>\d+)', [
-        'methods' => 'POST',
-        'callback' => 'fs_update_agm',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
-
-    // POST: Delete User Account
-    register_rest_route($namespace, '/admin/users/delete', [
-        'methods' => 'POST',
-        'callback' => 'fs_admin_delete_user',
-        'permission_callback' => 'fs_check_admin_permissions'
-    ]);
+    register_rest_route($namespace, '/admin/users', ['methods' => 'GET', 'callback' => 'fs_admin_get_users', 'permission_callback' => 'fs_check_admin_permissions']);
+    register_rest_route($namespace, '/admin/users/role', ['methods' => 'POST', 'callback' => 'fs_admin_update_role', 'permission_callback' => 'fs_check_admin_permissions']);
+    register_rest_route($namespace, '/admin/send-email', ['methods' => 'POST', 'callback' => 'fs_admin_send_email', 'permission_callback' => 'fs_check_admin_permissions']);
+    register_rest_route($namespace, '/agm', ['methods' => 'GET', 'callback' => 'fs_get_agms', 'permission_callback' => '__return_true']);
+    register_rest_route($namespace, '/agm', ['methods' => 'POST', 'callback' => 'fs_create_agm', 'permission_callback' => 'fs_check_admin_permissions']);
+    register_rest_route($namespace, '/agm/(?P<id>\d+)', ['methods' => 'POST', 'callback' => 'fs_update_agm', 'permission_callback' => 'fs_check_admin_permissions']);
+    register_rest_route($namespace, '/admin/users/delete', ['methods' => 'POST', 'callback' => 'fs_admin_delete_user', 'permission_callback' => 'fs_check_admin_permissions']);
 });
 
 add_shortcode('full_send_app', function() {
@@ -522,7 +471,6 @@ add_action('admin_init', function() {
         wp_safe_redirect(home_url('/portal/#/admin'));
         exit;
     } 
-    
     wp_safe_redirect(home_url('/portal/#/my-profile'));
     exit;
 });
@@ -637,42 +585,18 @@ function fs_admin_send_email($request) {
     return rest_ensure_response(array('success' => $sent));
 }
 
-/**
- * Deletes a WordPress user and unlinks their Member record
- */
 function fs_admin_delete_user($request) {
     $params = $request->get_json_params();
     $user_id = intval($params['user_id']);
-
-    // 1. Security Check: Don't allow deleting yourself
-    if ($user_id === get_current_user_id()) {
-        return new WP_Error('denied', 'You cannot delete your own account.', ['status' => 403]);
-    }
-
+    if ($user_id === get_current_user_id()) return new WP_Error('denied', 'You cannot delete your own account.', ['status' => 403]);
     $user = get_userdata($user_id);
-    if (!$user) {
-        return new WP_Error('not_found', 'User not found.', ['status' => 404]);
-    }
-
-    // 2. Security Check: Don't allow deleting other Administrators via this endpoint
-    if (in_array('administrator', (array)$user->roles)) {
-        return new WP_Error('denied', 'Administrators cannot be deleted via the portal.', ['status' => 403]);
-    }
-
-    // 3. Cleanup: Find the linked member record and remove the WP ID reference
+    if (!$user) return new WP_Error('not_found', 'User not found.', ['status' => 404]);
+    if (in_array('administrator', (array)$user->roles)) return new WP_Error('denied', 'Administrators cannot be deleted via the portal.', ['status' => 403]);
     $member_id = get_user_meta($user_id, 'fs_member_id', true);
-    if ($member_id) {
-        delete_post_meta($member_id, '_wp_user_id');
-    }
-
-    // 4. Delete the User
+    if ($member_id) delete_post_meta($member_id, '_wp_user_id');
     require_once(ABSPATH . 'wp-admin/includes/user.php');
     $deleted = wp_delete_user($user_id);
-
-    if ($deleted) {
-        return rest_ensure_response(['success' => true, 'message' => 'User deleted successfully.']);
-    }
-
+    if ($deleted) return rest_ensure_response(['success' => true]);
     return new WP_Error('delete_failed', 'Failed to delete user.', ['status' => 500]);
 }
 
@@ -711,8 +635,6 @@ function fs_update_agm($request) {
     $params = $request->get_json_params();
     if (isset($params['title'])) wp_update_post(['ID' => $id, 'post_title' => sanitize_text_field($params['title'])]);
     $fields = ['meeting_date', 'location', 'status', 'quorum_minimum', 'notes', 'attendee_ids'];
-    foreach ($fields as $field) {
-        if (isset($params[$field])) update_post_meta($id, '_' . $field, $params[$field]);
-    }
+    foreach ($fields as $field) if (isset($params[$field])) update_post_meta($id, '_' . $field, $params[$field]);
     return rest_ensure_response(['success' => true]);
 }
