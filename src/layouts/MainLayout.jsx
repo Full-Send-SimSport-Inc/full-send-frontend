@@ -85,6 +85,17 @@ export default function MainLayout() {
                 <>
                   <div className="w-px h-6 bg-slate-200 mx-2" />
                   
+                  <Link
+                    to="/admin"
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      location.pathname.startsWith('/admin/members') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    )}
+                   >
+                    <Users className="w-4 h-4" />
+                    Member Dashboard
+                  </Link>
+
                   {/* Unified Management Link */}
                   <Link
                     to="/admin/members"
@@ -94,7 +105,7 @@ export default function MainLayout() {
                     )}
                    >
                     <Users className="w-4 h-4" />
-                    Management
+                    Member Management
                   </Link>
 
                   <Link
