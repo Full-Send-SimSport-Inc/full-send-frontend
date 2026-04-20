@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Loader2, UserCircle, CheckCircle2, AlertCircle, Lock, 
-  ArrowLeft, Shield, Users, Info, AlertTriangle
+  Loader2, UserCircle, Lock, ArrowLeft, Shield, Info, AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -30,20 +29,20 @@ export default function ProfileView() {
   
   const isAdmin = user?.roles?.some(r => ['administrator', 'committee'].includes(r));
   const isEditingSelf = !id; 
-  
   const hasFullPermissions = isAdmin; 
 
   const [form, setForm] = useState({
     first_name: '', last_name: '', dob: '', status: '',
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
     discord_username: '', sim_platforms: [],
+    sim_platforms_other: '', 
     parent_name: '', parent_email: '',
     region: '', country: '', member_type: '' 
   });
 
   const [saveStatus, setSaveStatus] = useState('idle');
 
-  const { data: fetchedMember, isLoading: isFetching, error } = useQuery({
+  const { data: fetchedMember, isLoading: isFetching } = useQuery({
     queryKey: ['member', id],
     queryFn: () => base44.get(`/members/${id}`),
     enabled: !!id,
@@ -55,7 +54,6 @@ export default function ProfileView() {
   const formatToInputDate = (dateStr) => {
     if (!dateStr) return '';
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-    
     const parts = dateStr.split('/');
     if (parts.length === 3) {
         const [d, m, y] = parts;
@@ -66,13 +64,11 @@ export default function ProfileView() {
   
   useEffect(() => {
     if (profileData && Object.keys(profileData).length > 0) {
-        const dbStatus = profileData.status || 'pending';
-        
         setForm({
             first_name: profileData.first_name || '',
             last_name: profileData.last_name || '',
             dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
-            status: dbStatus,
+            status: profileData.status || 'pending',
             email: profileData.email || '',
             phone: profileData.phone || '',
             street_address: profileData.street_address || '',
@@ -81,6 +77,7 @@ export default function ProfileView() {
             postcode: profileData.postcode || '',
             discord_username: profileData.discord_username || '',
             sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : [],
+            sim_platforms_other: profileData.sim_platforms_other || '',
             parent_name: profileData.parent_name || '', 
             parent_email: profileData.parent_email || '',
             region: profileData.region || '',
@@ -98,7 +95,6 @@ export default function ProfileView() {
     }
   }, [profileData, user, isEditingSelf]);
 
-  // Mandatory Validation Logic
   const isFormValid = 
     form.first_name.trim() !== '' &&
     form.last_name.trim() !== '' &&
@@ -107,30 +103,39 @@ export default function ProfileView() {
     form.discord_username.trim() !== '' &&
     form.region.trim() !== '' &&
     form.country.trim() !== '' &&
-    // State mandatory ONLY if Australia
     (form.country !== 'Australia' || form.state.trim() !== '') &&
-    // Junior fields mandatory ONLY if Junior member
     (form.member_type !== 'junior' || (form.parent_name.trim() !== '' && form.parent_email.trim() !== ''));
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
+  const handleSimPlatformChange = (platform, checked) => {
+    setForm(prev => {
+      const newPlatforms = checked 
+        ? [...prev.sim_platforms, platform] 
+        : prev.sim_platforms.filter(x => x !== platform);
+      
+      // Clear "other" text if the "Other" checkbox is unchecked
+      const newOtherText = (!newPlatforms.includes("Other")) ? "" : prev.sim_platforms_other;
+      
+      return { 
+        ...prev, 
+        sim_platforms: newPlatforms,
+        sim_platforms_other: newOtherText
+      };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isFormValid) return;
-
     setSaveStatus('saving');
-
     try {
       if (isEditingSelf) {
         if (!profileData && isAdmin) {
-          const [y, m, d] = form.dob ? form.dob.split('-') : ['', '', ''];
-          
+          // Creating admin record: passing dob string directly
           await base44.post('/join', {
             ...form,
-            member_type: 'adult',
-            dob_day: d,
-            dob_month: m,
-            dob_year: y
+            member_type: 'adult'
           });
         } else {
           await base44.post('/update-me', form);
@@ -151,7 +156,6 @@ export default function ProfileView() {
   };
 
   if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  
   if (!profileData && !isEditingSelf) return (
     <div className="p-20 text-center space-y-4">
       <Shield className="w-12 h-12 text-destructive mx-auto" />
@@ -221,7 +225,6 @@ export default function ProfileView() {
                     value={form.first_name} 
                     onChange={e => handleChange('first_name', e.target.value)} 
                     disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
                   />
                 </div>
 
@@ -231,7 +234,6 @@ export default function ProfileView() {
                     value={form.last_name} 
                     onChange={e => handleChange('last_name', e.target.value)} 
                     disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
                   />
                 </div>
 
@@ -242,20 +244,14 @@ export default function ProfileView() {
                     value={form.dob} 
                     onChange={e => handleChange('dob', e.target.value)} 
                     disabled={!hasFullPermissions} 
-                    className={!hasFullPermissions ? "bg-muted" : ""} 
                   />
                 </div>
 
                 {hasFullPermissions && form.status && (
                     <div className="space-y-2">
                         <Label>Account Status</Label>
-                        <Select 
-                        value={form.status}
-                        onValueChange={val => handleChange('status', val)}
-                        >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select Status" />
-                        </SelectTrigger>
+                        <Select value={form.status} onValueChange={val => handleChange('status', val)}>
+                        <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="active">Active</SelectItem>
                             <SelectItem value="pending">Pending</SelectItem>
@@ -272,26 +268,14 @@ export default function ProfileView() {
                     <Shield className="w-5 h-5" />
                     <h3 className="font-semibold text-lg">Parent / Guardian Details</h3>
                   </div>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg border border-primary/10">
                     <div className="space-y-2">
                       <Label>Parent Name *</Label>
-                      <Input 
-                        value={form.parent_name} 
-                        onChange={e => handleChange('parent_name', e.target.value)}
-                        disabled={!hasFullPermissions}
-                        className={!hasFullPermissions ? "bg-muted" : "bg-white"}
-                      />
+                      <Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={!hasFullPermissions} />
                     </div>
                     <div className="space-y-2">
                       <Label>Parent Email *</Label>
-                      <Input 
-                        type="email"
-                        value={form.parent_email} 
-                        onChange={e => handleChange('parent_email', e.target.value)}
-                        disabled={!hasFullPermissions}
-                        className={!hasFullPermissions ? "bg-muted" : "bg-white"}
-                      />
+                      <Input type="email" value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={!hasFullPermissions} />
                     </div>
                   </div>
                 </div>
@@ -315,14 +299,8 @@ export default function ProfileView() {
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Region *</Label>
-                    <Input value={form.region} onChange={e => handleChange('region', e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Country *</Label>
-                    <Input value={form.country} onChange={e => handleChange('country', e.target.value)} />
-                  </div>
+                  <div className="space-y-2"><Label>Region *</Label><Input value={form.region} onChange={e => handleChange('region', e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Country *</Label><Input value={form.country} onChange={e => handleChange('country', e.target.value)} /></div>
                   <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
                   <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
                   <div className="space-y-2">
@@ -340,26 +318,30 @@ export default function ProfileView() {
                     <label key={p} className="flex items-center gap-2 cursor-pointer group">
                       <Checkbox 
                         checked={form.sim_platforms.includes(p)}
-                        onCheckedChange={checked => handleChange('sim_platforms', checked 
-                          ? [...form.sim_platforms, p] 
-                          : form.sim_platforms.filter(x => x !== p)
-                        )} 
+                        onCheckedChange={checked => handleSimPlatformChange(p, checked)} 
                       />
                       <span className="text-sm group-hover:text-primary">{p}</span>
                     </label>
                   ))}
                 </div>
+
+                {form.sim_platforms.includes("Other") && (
+                  <div className="mt-4 p-4 bg-muted/40 rounded-lg animate-in fade-in slide-in-from-top-2">
+                    <Label className="text-xs">Please specify other sim platforms:</Label>
+                    <Input 
+                      placeholder="e.g. KartKraft, Richard Burns Rally..." 
+                      className="mt-1.5 bg-white"
+                      value={form.sim_platforms_other}
+                      onChange={(e) => handleChange('sim_platforms_other', e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-3">
-                <Button 
-                  type="submit" 
-                  disabled={saveStatus === 'saving' || !isFormValid} 
-                  className="w-full h-12 text-lg"
-                >
+                <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid} className="w-full h-12 text-lg">
                   {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
                 </Button>
-                
                 {!isFormValid && (
                   <p className="text-xs text-destructive flex items-center justify-center gap-1">
                     <AlertTriangle className="w-3 h-3" /> Please fill all mandatory (*) fields.
@@ -381,7 +363,6 @@ export default function ProfileView() {
                   {JSON.stringify(profileData || "No record found in members table", null, 2)}
                </pre>
             </div>
-
             <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
                <h3 className="text-blue-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: UI Form State</h3>
                <pre className="text-blue-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
