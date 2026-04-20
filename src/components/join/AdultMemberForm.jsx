@@ -115,7 +115,20 @@ export default function AdultMemberForm({ onBack }) {
         email: form.email
       });
     } catch (err) {
-      setError(err.response?.data?.message || "An error occurred during submission.");
+      // 1. Try to find the message in all possible locations
+      const serverMessage = 
+        err.response?.data?.message || // Standard Axios / WP REST
+        err.data?.message ||           // Some custom wrappers
+        err.message;                   // Generic JS error message
+
+      // 2. Set the error for the UI
+      setError(serverMessage || "An error occurred during submission.");
+
+      // 3. Log the full error to console so we can see the exact structure if it fails again
+      console.error("Full Error Object:", err);
+      if (err.response) {
+        console.error("Server Response Data:", err.response.data);
+      }
     } finally {
       setSubmitting(false);
     }
