@@ -31,7 +31,7 @@ export default function AdminDashboard() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of Full Send SimSports membership.</p>
+        <p className="text-muted-foreground mt-1">Overview of Full Send SimSport membership.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
