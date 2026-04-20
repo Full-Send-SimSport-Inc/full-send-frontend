@@ -74,18 +74,19 @@ export default function AdultMemberForm({ onBack }) {
 
       setCountries(countryNames);
     } catch (err) {
-        // 1. Extract the specific message from the PHP WP_Error response
-        const serverMessage = err.response?.data?.message;
-        
-        // 2. Fallback if the error object is a string or empty
-        const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
+    // 1. Check for the message from the PHP WP_Error
+    const serverMessage = err.response?.data?.message;
+    
+    // 2. Check if the error is a string itself (some wrappers do this)
+    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
 
-        setError(serverMessage || fallbackMessage);
-        console.error("Submission Error Details:", err.response?.data); 
-        } finally {
-        setSubmitting(false);
-        }
+    setError(serverMessage || fallbackMessage);
+    console.error("Submission Error:", err.response?.data); // Helpful for debugging
     };
+    } finally {
+      setLoadingCountries(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -122,18 +123,19 @@ export default function AdultMemberForm({ onBack }) {
         email: form.email
       });
     } catch (err) {
-        // 1. Extract the specific message from the PHP WP_Error response
-        const serverMessage = err.response?.data?.message;
-        
-        // 2. Fallback if the error object is a string or empty
-        const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
+    // 1. Check for the message from the PHP WP_Error
+    const serverMessage = err.response?.data?.message;
+    
+    // 2. Check if the error is a string itself (some wrappers do this)
+    const fallbackMessage = typeof err === 'string' ? err : "An error occurred during submission.";
 
-        setError(serverMessage || fallbackMessage);
-        console.error("Submission Error Details:", err.response?.data); 
-        } finally {
-        setSubmitting(false);
-        }
+    setError(serverMessage || fallbackMessage);
+    console.error("Submission Error:", err.response?.data); // Helpful for debugging
     };
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (submittedData) {
     return (
