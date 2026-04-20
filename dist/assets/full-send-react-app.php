@@ -163,8 +163,11 @@ add_action('rest_api_init', function () {
                     'country'             => get_post_meta($member_id, '_country', true), // Added
                     'dob'                 => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
                     'discord_username'    => get_post_meta($member_id, '_discord_username', true),
+                    'comm_prefs'          => maybe_unserialize(get_post_meta($member_id, '_comm_prefs', true)) ?: ['Email'],
+                    'sim_environment'     => get_post_meta($member_id, '_sim_environment', true),
                     'sim_platforms'       => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
                     'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true), // Added
+                    'racing_interests'    => maybe_unserialize(get_post_meta($member_id, '_racing_interests', true)) ?: [],
                     'membership_type'     => get_post_meta($member_id, '_membership_type', true),
                     'status'              => $display_status,
                     'parent_name'         => $parent_name,
@@ -196,6 +199,11 @@ add_action('rest_api_init', function () {
             $last_name = sanitize_text_field($params['last_name']);
             $dob = sanitize_text_field($params['dob']);
 
+            // Mandatory Field Validation
+            if (empty($params['comm_prefs'])) return new WP_Error('missing_data', 'At least one communication preference is required.', ['status' => 400]);
+            if (empty($params['sim_environment'])) return new WP_Error('missing_data', 'Sim racing environment selection is required.', ['status' => 400]);
+            if (empty($params['racing_interests'])) return new WP_Error('missing_data', 'At least one racing interest is required.', ['status' => 400]);
+
             // 1. Check if Email already exists as a WordPress User
             if (email_exists($email)) {
                 return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your existing account.', ['status' => 409]);
@@ -214,7 +222,7 @@ add_action('rest_api_init', function () {
                 return new WP_Error('registration_conflict', 'A membership application for this email is already on file or being processed.', ['status' => 409]);
             }
 
-            // 3. Check if Name + DOB already exists (Identifies re-registration attempts)
+            // 3. Check if Name + DOB already exists
             $identity_query = new WP_Query([
                 'post_type' => 'fs_member',
                 'meta_query' => [
@@ -231,7 +239,7 @@ add_action('rest_api_init', function () {
                 return new WP_Error('registration_conflict', 'A member record with this name and date of birth already exists in our system.', ['status' => 409]);
             }
 
-            // 4. Create new FS Member post (No conflicts found)
+            // 4. Create new FS Member post
             $post_id = wp_insert_post([
                 'post_title'   => $first_name . ' ' . $last_name,
                 'post_type'    => 'fs_member',
@@ -242,7 +250,7 @@ add_action('rest_api_init', function () {
                 return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
             }
             
-            // Save metadata
+            // Save metadata with array handling
             foreach ($params as $key => $value) {
                 $target_key = $key;
                 if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
@@ -250,7 +258,8 @@ add_action('rest_api_init', function () {
 
                 $meta_key = '_' . $target_key;
                 if (is_array($value)) {
-                    update_post_meta($post_id, $meta_key, $value);
+                    $sanitized_array = array_map('sanitize_text_field', $value);
+                    update_post_meta($post_id, $meta_key, $sanitized_array);
                 } else {
                     update_post_meta($post_id, $meta_key, sanitize_text_field($value));
                 }
@@ -331,6 +340,9 @@ add_action('rest_api_init', function () {
                 'country'             => get_post_meta($post->ID, '_country', true), // Added
                 'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
                 'member_type'         => get_post_meta($post->ID, '_member_type', true),
+                'comm_prefs'          => maybe_unserialize(get_post_meta($post->ID, '_comm_prefs', true)) ?: [],
+                'sim_environment'     => get_post_meta($post->ID, '_sim_environment', true),
+                'racing_interests'    => maybe_unserialize(get_post_meta($post->ID, '_racing_interests', true)) ?: [],
                 'sim_platforms'       => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
                 'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true), // Added
                 'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
@@ -350,7 +362,13 @@ add_action('rest_api_init', function () {
             $id = $request['id'];
             $params = $request->get_json_params();
             
-            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'region', 'country', 'discord_username', 'sim_platforms', 'sim_platforms_other', 'status'];
+            $allowed_fields = [
+                'first_name', 'last_name', 'dob', 'email', 'phone', 
+                'street_address', 'city', 'state', 'postcode', 
+                'region', 'country', 'discord_username', 
+                'comm_prefs', 'sim_environment', 'racing_interests',
+                'sim_platforms', 'sim_platforms_other', 'status'
+            ];
             $updated = false;
 
             foreach ($params as $key => $value) {
@@ -480,7 +498,13 @@ add_action('rest_api_init', function () {
             if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
             $params = $request->get_json_params();
-            $allowed_fields = ['first_name', 'last_name', 'dob', 'email', 'phone', 'street_address', 'city', 'state', 'postcode', 'region', 'country', 'discord_username', 'sim_platforms', 'sim_platforms_other'];
+            $allowed_fields = [
+                'first_name', 'last_name', 'dob', 'email', 'phone', 
+                'street_address', 'city', 'state', 'postcode', 
+                'region', 'country', 'discord_username', 
+                'comm_prefs', 'sim_environment', 'racing_interests',
+                'sim_platforms', 'sim_platforms_other'
+            ];
 
             foreach ($params as $key => $value) {
                 if (in_array($key, $allowed_fields)) {
@@ -491,7 +515,7 @@ add_action('rest_api_init', function () {
                             update_post_meta($member_id, '_email', $new_email);
                         }
                     } else {
-                        $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
+                        $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
                         update_post_meta($member_id, '_' . $key, $sanitized_value);
                     }
                 }

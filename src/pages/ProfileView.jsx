@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Loader2, UserCircle, Lock, ArrowLeft, Shield, Info, AlertTriangle
+  Loader2, UserCircle, Lock, ArrowLeft, Shield, Info, AlertTriangle, MessageSquare, Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -19,6 +19,27 @@ const SIM_PLATFORMS = [
   "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
   "rFactor 2", "Automobilista 2", "Gran Turismo", "F1 Series",
   "LMU", "Project Motor Racing", "Rennsport", "Other"
+];
+
+const COMM_PREFS = ["Discord", "Twitter/X", "Instagram", "Facebook", "Bluesky", "Linkedin", "Email"];
+
+const SIM_ENVIRONMENTS = [
+  "Console with controller/gamepad",
+  "Console with wheel and pedals",
+  "PC with controller/gamepad",
+  "PC with wheel and pedals"
+];
+
+const RACING_INTERESTS = [
+  "Road Racing (Open Wheelers/Formula Style)",
+  "Road Racing (Sports Cars/Hypercars)",
+  "Oval Racing (Open Wheelers/Formula Style)",
+  "Oval Racing (Sports Cars/Hypercars)",
+  "Dirt Road Racing",
+  "Dirt Oval Racing",
+  "Team Endurance Racing",
+  "Solo Endurance Racing",
+  "Solo Sprint Racing"
 ];
 
 export default function ProfileView() {
@@ -34,7 +55,11 @@ export default function ProfileView() {
   const [form, setForm] = useState({
     first_name: '', last_name: '', dob: '', status: '',
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
-    discord_username: '', sim_platforms: [],
+    discord_username: '', 
+    comm_prefs: [],
+    sim_environment: '',
+    racing_interests: [],
+    sim_platforms: [],
     sim_platforms_other: '', 
     parent_name: '', parent_email: '',
     region: '', country: '', member_type: '' 
@@ -76,6 +101,9 @@ export default function ProfileView() {
             state: profileData.state || '',
             postcode: profileData.postcode || '',
             discord_username: profileData.discord_username || '',
+            comm_prefs: Array.isArray(profileData.comm_prefs) ? profileData.comm_prefs : ['Email'],
+            sim_environment: profileData.sim_environment || '',
+            racing_interests: Array.isArray(profileData.racing_interests) ? profileData.racing_interests : [],
             sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : [],
             sim_platforms_other: profileData.sim_platforms_other || '',
             parent_name: profileData.parent_name || '', 
@@ -84,14 +112,6 @@ export default function ProfileView() {
             country: profileData.country || '',
             member_type: profileData.member_type || ''
       });
-    } else if (isEditingSelf && user) {
-        setForm(prev => ({
-            ...prev,
-            first_name: user.first_name || '',
-            last_name: user.last_name || '',
-            email: user.email || '',
-            status: 'active'
-        }));
     }
   }, [profileData, user, isEditingSelf]);
 
@@ -101,29 +121,12 @@ export default function ProfileView() {
     form.dob !== '' &&
     form.email.trim() !== '' &&
     form.discord_username.trim() !== '' &&
-    form.region.trim() !== '' &&
-    form.country.trim() !== '' &&
-    (form.country !== 'Australia' || form.state.trim() !== '') &&
+    form.comm_prefs.length > 0 &&
+    form.sim_environment !== '' &&
+    form.racing_interests.length > 0 &&
     (form.member_type !== 'junior' || (form.parent_name.trim() !== '' && form.parent_email.trim() !== ''));
 
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
-
-  const handleSimPlatformChange = (platform, checked) => {
-    setForm(prev => {
-      const newPlatforms = checked 
-        ? [...prev.sim_platforms, platform] 
-        : prev.sim_platforms.filter(x => x !== platform);
-      
-      // Clear "other" text if the "Other" checkbox is unchecked
-      const newOtherText = (!newPlatforms.includes("Other")) ? "" : prev.sim_platforms_other;
-      
-      return { 
-        ...prev, 
-        sim_platforms: newPlatforms,
-        sim_platforms_other: newOtherText
-      };
-    });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -131,15 +134,7 @@ export default function ProfileView() {
     setSaveStatus('saving');
     try {
       if (isEditingSelf) {
-        if (!profileData && isAdmin) {
-          // Creating admin record: passing dob string directly
-          await base44.post('/join', {
-            ...form,
-            member_type: 'adult'
-          });
-        } else {
-          await base44.post('/update-me', form);
-        }
+        await base44.post('/update-me', form);
         await checkLoginStatus(); 
       } else {
         await base44.post(`/members/${id}`, form);
@@ -149,58 +144,31 @@ export default function ProfileView() {
       setSaveStatus('success');
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
-      console.error(err);
       toast.error('Failed to update profile.');
       setSaveStatus('error');
     }
   };
 
   if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
-  if (!profileData && !isEditingSelf) return (
-    <div className="p-20 text-center space-y-4">
-      <Shield className="w-12 h-12 text-destructive mx-auto" />
-      <h2 className="text-xl font-bold text-destructive">Member Not Found</h2>
-      <Button onClick={() => navigate(-1)} variant="outline">Go Back</Button>
-    </div>
-  );
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {!isEditingSelf && (
-            <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back
-            </Button>
-          )}
+          {!isEditingSelf && <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>}
           <h2 className="text-2xl font-bold tracking-tight">{isEditingSelf ? 'My Profile' : 'Edit Member'}</h2>
         </div>
       </div>
 
       <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
         
-        {isEditingSelf && isAdmin && !user?.member_details && (
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg flex items-start gap-3 text-blue-800 text-sm">
-                <Info className="w-5 h-5 shrink-0" />
-                <div>
-                    <p className="font-bold">Administrator Account</p>
-                    <p>You don't have a member profile record yet. Filling out this form will create your entry in the members database.</p>
-                </div>
-            </div>
-        )}
-
         <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border">
-          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center">
-            <UserCircle className="w-10 h-10" />
-          </div>
+          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center"><UserCircle className="w-10 h-10" /></div>
           <div>
             <h1 className="text-2xl font-bold">{form.first_name} {form.last_name}</h1>
             <p className="text-muted-foreground flex items-center gap-2">
-              <span className="capitalize">{isAdmin ? 'Administrator' : (profileData?.member_type || 'Member')}</span>
-              <span className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
-                  form.status === 'active' ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
-              )}>
+              <span className="capitalize">{form.member_type || 'Member'}</span>
+              <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", form.status === 'active' ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700")}>
                   {form.status || 'pending'}
               </span>
             </p>
@@ -210,168 +178,130 @@ export default function ProfileView() {
         <Card>
           <CardHeader><CardTitle>Member Information</CardTitle></CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-8">
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                {!hasFullPermissions && (
-                  <div className="absolute top-2 right-2 text-xs font-medium text-muted-foreground flex items-center gap-1">
-                    <Lock className="w-3 h-3" /> Locked
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <Label>First Name *</Label>
-                  <Input 
-                    value={form.first_name} 
-                    onChange={e => handleChange('first_name', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Last Name *</Label>
-                  <Input 
-                    value={form.last_name} 
-                    onChange={e => handleChange('last_name', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Date of Birth *</Label>
-                  <Input 
-                    type="date"
-                    value={form.dob} 
-                    onChange={e => handleChange('dob', e.target.value)} 
-                    disabled={!hasFullPermissions} 
-                  />
-                </div>
-
-                {hasFullPermissions && form.status && (
+                {!hasFullPermissions && <div className="absolute top-2 right-2 text-xs font-medium text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Locked</div>}
+                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={!hasFullPermissions} /></div>
+                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={!hasFullPermissions} /></div>
+                <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={!hasFullPermissions} /></div>
+                {hasFullPermissions && (
                     <div className="space-y-2">
                         <Label>Account Status</Label>
                         <Select value={form.status} onValueChange={val => handleChange('status', val)}>
-                        <SelectTrigger><SelectValue placeholder="Select Status" /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                              <SelectItem value="active">Active</SelectItem>
+                              <SelectItem value="pending">Pending</SelectItem>
+                              <SelectItem value="inactive">Inactive</SelectItem>
+                          </SelectContent>
                         </Select>
                     </div>
                 )}
               </div>
 
-              {profileData?.member_type === 'junior' && (
+              {form.member_type === 'junior' && (
                 <div className="space-y-4 pt-4 border-t">
-                  <div className="flex items-center gap-2 text-primary">
-                    <Shield className="w-5 h-5" />
-                    <h3 className="font-semibold text-lg">Parent / Guardian Details</h3>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg border border-primary/10">
-                    <div className="space-y-2">
-                      <Label>Parent Name *</Label>
-                      <Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={!hasFullPermissions} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Parent Email *</Label>
-                      <Input type="email" value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={!hasFullPermissions} />
-                    </div>
+                  <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Parent Details</h3></div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
+                    <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={!hasFullPermissions} /></div>
+                    <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={!hasFullPermissions} /></div>
                   </div>
                 </div>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                <div className="space-y-2">
-                    <Label>Email Address *</Label>
-                    <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} />
+                <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} /></div>
+              </div>
+
+              {/* Communication Preferences */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
+                  {COMM_PREFS.map(pref => (
+                    <label key={pref} className="flex items-center gap-2 cursor-pointer group">
+                      <Checkbox checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
+                        const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
+                        handleChange('comm_prefs', next);
+                      }}/>
+                      <span className="text-sm group-hover:text-primary">{pref}</span>
+                    </label>
+                  ))}
                 </div>
+              </div>
+
+              {/* Sim Racing Profile */}
+              <div className="space-y-6 pt-4 border-t">
+                <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
+                
                 <div className="space-y-2">
-                    <Label>Discord Username *</Label>
-                    <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} />
+                  <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
+                  <Select value={form.sim_environment} onValueChange={v => handleChange('sim_environment', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select equipment" /></SelectTrigger>
+                    <SelectContent>{SIM_ENVIRONMENTS.map(env => <SelectItem key={env} value={env}>{env}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-                <div className="space-y-2">
-                    <Label>Phone Number</Label>
-                    <Input value={form.phone} onChange={e => handleChange('phone', e.target.value)} />
+
+                <div className="space-y-3">
+                  <Label>Racing Interests *</Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {RACING_INTERESTS.map(interest => (
+                      <label key={interest} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
+                        <Checkbox checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
+                          const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                          handleChange('racing_interests', next);
+                        }}/>
+                        <span className="text-[11px] leading-tight">{interest}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Platforms & Software</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {SIM_PLATFORMS.map(p => (
+                      <label key={p} className="flex items-center gap-2 cursor-pointer group">
+                        <Checkbox checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
+                          const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                          handleChange('sim_platforms', next);
+                          if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                        }} />
+                        <span className="text-sm group-hover:text-primary">{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {form.sim_platforms.includes("Other") && (
+                    <Input placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
+                  )}
                 </div>
               </div>
 
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2"><Label>Region *</Label><Input value={form.region} onChange={e => handleChange('region', e.target.value)} /></div>
-                  <div className="space-y-2"><Label>Country *</Label><Input value={form.country} onChange={e => handleChange('country', e.target.value)} /></div>
+                  <div className="space-y-2"><Label>Region</Label><Input value={form.region} disabled /></div>
+                  <div className="space-y-2"><Label>Country</Label><Input value={form.country} disabled /></div>
                   <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
                   <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
-                  <div className="space-y-2">
-                    <Label>State {form.country === 'Australia' && '*'}</Label>
-                    <Input placeholder="e.g. NSW" value={form.state} onChange={e => handleChange('state', e.target.value.toUpperCase())} />
-                  </div>
-                  <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} /></div>
+                  <div className="space-y-2"><Label>State</Label><Input value={form.state} onChange={e => handleChange('state', e.target.value)} /></div>
                 </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t">
-                <h3 className="font-semibold text-lg text-primary">Sim Platforms</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {SIM_PLATFORMS.map(p => (
-                    <label key={p} className="flex items-center gap-2 cursor-pointer group">
-                      <Checkbox 
-                        checked={form.sim_platforms.includes(p)}
-                        onCheckedChange={checked => handleSimPlatformChange(p, checked)} 
-                      />
-                      <span className="text-sm group-hover:text-primary">{p}</span>
-                    </label>
-                  ))}
-                </div>
-
-                {form.sim_platforms.includes("Other") && (
-                  <div className="mt-4 p-4 bg-muted/40 rounded-lg animate-in fade-in slide-in-from-top-2">
-                    <Label className="text-xs">Please specify other sim platforms:</Label>
-                    <Input 
-                      placeholder="e.g. KartKraft, Richard Burns Rally..." 
-                      className="mt-1.5 bg-white"
-                      value={form.sim_platforms_other}
-                      onChange={(e) => handleChange('sim_platforms_other', e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid} className="w-full h-12 text-lg">
-                  {saveStatus === 'saving' ? 'Saving...' : 'Save Changes'}
-                </Button>
-                {!isFormValid && (
-                  <p className="text-xs text-destructive flex items-center justify-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Please fill all mandatory (*) fields.
-                  </p>
-                )}
-              </div>
+              <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid} className="w-full h-12 text-lg">
+                {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}
+              </Button>
             </form>
           </CardContent>
         </Card>
 
         {isAdmin && (
-          <div className="mt-8 space-y-4">
-            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
-               <h3 className="text-green-400 font-mono text-xs mb-2 uppercase tracking-widest flex justify-between">
-                <span>Debug: Raw DB Record</span>
-                <span className="text-[10px] opacity-50">Source: {isEditingSelf ? 'AuthContext' : 'API Endpoint'}</span>
-               </h3>
-               <pre className="text-green-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
-                  {JSON.stringify(profileData || "No record found in members table", null, 2)}
-               </pre>
-            </div>
-            <div className="p-4 bg-slate-900 rounded-lg border border-slate-700">
-               <h3 className="text-blue-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: UI Form State</h3>
-               <pre className="text-blue-400 text-[10px] overflow-auto max-h-60 p-2 bg-black/30 rounded">
-                  {JSON.stringify(form, null, 2)}
-               </pre>
-            </div>
+          <div className="p-4 bg-slate-900 rounded-lg border border-slate-700 mt-8">
+             <h3 className="text-green-400 font-mono text-xs mb-2 uppercase tracking-widest">Debug: Record Details</h3>
+             <pre className="text-green-400 text-[10px] overflow-auto max-h-40">{JSON.stringify(profileData, null, 2)}</pre>
           </div>
         )}
-
       </main>
     </div>
   );
