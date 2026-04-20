@@ -232,51 +232,71 @@ export default function ProfileView() {
               </div>
 
               {/* Sim Racing Profile */}
-              <div className="space-y-6 pt-4 border-t">
+                <div className="space-y-6 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
                 
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
-                  <Select value={form.sim_environment} onValueChange={v => handleChange('sim_environment', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select equipment" /></SelectTrigger>
-                    <SelectContent>{SIM_ENVIRONMENTS.map(env => <SelectItem key={env} value={env}>{env}</SelectItem>)}</SelectContent>
-                  </Select>
+                    <Label className="flex items-center gap-2">
+                    <Monitor className="w-4 h-4" /> Sim Environment *
+                    </Label>
+                    {/* Switched from Select to Input to fix the default value binding issue */}
+                    <Input 
+                    placeholder="e.g. PC with wheel and pedals" 
+                    value={form.sim_environment} 
+                    onChange={e => handleChange('sim_environment', e.target.value)} 
+                    />
+                    <p className="text-[10px] text-muted-foreground italic">
+                    Common setups: Console/PC with controller or wheel/pedals.
+                    </p>
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Racing Interests *</Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Label>Racing Interests *</Label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {RACING_INTERESTS.map(interest => (
-                      <label key={interest} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
-                        <Checkbox checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
-                          const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
-                          handleChange('racing_interests', next);
-                        }}/>
+                        <label key={interest} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border">
+                        <Checkbox 
+                            checked={form.racing_interests.includes(interest)} 
+                            onCheckedChange={(checked) => {
+                            const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                            handleChange('racing_interests', next);
+                            }}
+                        />
                         <span className="text-[11px] leading-tight">{interest}</span>
-                      </label>
+                        </label>
                     ))}
-                  </div>
+                    </div>
                 </div>
 
                 <div className="space-y-3">
-                  <Label>Platforms & Software</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <Label>Platforms & Software</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {SIM_PLATFORMS.map(p => (
-                      <label key={p} className="flex items-center gap-2 cursor-pointer group">
-                        <Checkbox checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
-                          const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
-                          handleChange('sim_platforms', next);
-                          if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
-                        }} />
+                        <label key={p} className="flex items-center gap-2 cursor-pointer group">
+                        <Checkbox 
+                            checked={form.sim_platforms.includes(p)} 
+                            onCheckedChange={checked => {
+                            const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                            handleChange('sim_platforms', next);
+                            if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                            }} 
+                        />
                         <span className="text-sm group-hover:text-primary">{p}</span>
-                      </label>
+                        </label>
                     ))}
-                  </div>
-                  {form.sim_platforms.includes("Other") && (
-                    <Input placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
-                  )}
+                    </div>
+                    {form.sim_platforms.includes("Other") && (
+                    <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                        <Label className="text-[10px] uppercase text-muted-foreground">Other Platforms</Label>
+                        <Input 
+                        placeholder="Specify other platforms" 
+                        value={form.sim_platforms_other} 
+                        onChange={e => handleChange('sim_platforms_other', e.target.value)} 
+                        />
+                    </div>
+                    )}
                 </div>
-              </div>
+                </div>
 
               <div className="space-y-4 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Location</h3>
