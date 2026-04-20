@@ -153,6 +153,21 @@ export default function JuniorMemberForm({ onBack }) {
     );
   }
 
+  const isFormValid = 
+    memberType &&
+    form.first_name.trim() !== '' &&
+    form.last_name.trim() !== '' &&
+    form.email.trim() !== '' &&
+    form.dob !== '' &&
+    form.region !== '' &&
+    form.country !== '' &&
+    // State only required if Australia
+    (form.country !== 'Australia' || form.state !== '') &&
+    // Discord MUST be 'yes' AND username must be filled
+    form.has_discord === 'yes' &&
+    form.discord_username.trim() !== '' &&
+    form.agreed_to_terms;
+
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
       className="max-w-2xl mx-auto py-10 px-6">
@@ -428,8 +443,8 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
             )}
 
-            <Button type="submit" disabled={submitting} size="lg" className="w-full text-base font-semibold">
-              {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Junior Application'}
+            <Button type="submit" disabled={submitting || !isFormValid} size="lg" className="w-full text-base font-semibold">
+              {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Submit Application'}
             </Button>
           </form>
         </CardContent>
