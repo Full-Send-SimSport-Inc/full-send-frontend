@@ -84,7 +84,7 @@ export default function OnboardingView({ user, onComplete }) {
       <Card className="shadow-2xl border-primary/20">
         <CardHeader className="bg-primary/5 border-b pb-6">
           <CardTitle className="text-2xl font-black flex items-center gap-2">
-            🚀 Welcome, {user.display_name}!
+            🏎️ Welcome, {user.display_name}!
           </CardTitle>
           <p className="text-muted-foreground text-sm mt-1">
             Let's finish setting up your racing profile before you hit the track.
@@ -94,7 +94,7 @@ export default function OnboardingView({ user, onComplete }) {
           <form onSubmit={handleSubmit} className="space-y-8">
             
             {/* Discord - Mandatory */}
-            <div className="p-5 bg-slate-900 text-white rounded-xl shadow-inner">
+            <div className="p-5 bg-accent text-white rounded-xl shadow-inner">
                <Label className="text-base font-bold mb-3 block">Discord Username *</Label>
                <Input 
                  value={form.discord_username} 
