@@ -14,7 +14,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
 } from "@/components/ui/alert-dialog";
 import { 
-  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, Info, AlertTriangle, MessageSquare, Monitor
+  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, AlertTriangle, MessageSquare, Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -55,14 +55,14 @@ export default function ProfileView() {
     const queryClient = useQueryClient();
     const { user, checkLoginStatus, isLoadingAuth, refreshUser } = useAuth();
     
-    // -- 1. HIERARCHY CALCULATIONS --
+    // 1. Hierarchy Logic
     const getWeight = (roles) => {
         const roleArray = Array.isArray(roles) ? roles : [roles];
         return Math.max(...roleArray.map(r => ROLE_WEIGHTS[r] || 0));
     };
 
     const currentUserWeight = useMemo(() => getWeight(user?.roles || []), [user]);
-    const isAdmin = currentUserWeight >= 20; // Committee or higher
+    const isAdmin = currentUserWeight >= 20; 
     const isEditingSelf = !id || parseInt(id) === user?.member_details?.member_id;
 
     const [isLocked, setIsLocked] = useState(true);
@@ -86,7 +86,7 @@ export default function ProfileView() {
 
     const [saveStatus, setSaveStatus] = useState('idle');
 
-    // -- 2. DATA FETCHING --
+    // 2. Data Fetching
     const { data: fetchedMember, isLoading: isFetching, error: fetchError } = useQuery({
         queryKey: ['member', id],
         queryFn: () => base44.get(`/members/${id}`),
@@ -97,13 +97,12 @@ export default function ProfileView() {
     const profileData = isEditingSelf ? user?.member_details : fetchedMember;
     const isLoading = isLoadingAuth || (!!id && !isEditingSelf && isFetching);
 
-    // -- 3. PERMISSION CHECKS --
-    // Can the logged in user manage THIS specific profile?
+    // 3. Permissions Check
     const canManageThisRecord = useMemo(() => {
         if (isEditingSelf) return true;
         if (!isAdmin) return false;
         const targetWeight = getWeight(profileData?.roles || 'fs_member');
-        return currentUserWeight > targetWeight; // Must be higher rank to edit
+        return currentUserWeight > targetWeight;
     }, [isEditingSelf, isAdmin, currentUserWeight, profileData]);
 
     const formatToInputDate = (dateStr) => {
@@ -147,19 +146,17 @@ export default function ProfileView() {
         }
     }, [profileData, isEditingSelf]);
 
-    // Handle 403 Forbidden (Trying to access a superior)
     if (fetchError?.response?.status === 403) {
         return (
             <div className="max-w-md mx-auto mt-20 p-8 text-center bg-white rounded-xl shadow-lg border">
                 <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-                <p className="text-muted-foreground mb-6">You do not have the required rank to view or edit this profile.</p>
+                <p className="text-muted-foreground mb-6">You do not have the required rank to edit this profile.</p>
                 <Button onClick={() => navigate('/admin/members')}>Return to Directory</Button>
             </div>
         );
     }
 
-    // Gatekeeper for onboarding
     if (user && user.onboarding_complete === false && isEditingSelf) {
         return <OnboardingView user={user} onComplete={refreshUser} />;
     }
@@ -169,19 +166,6 @@ export default function ProfileView() {
     const handleChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
         setHasChanges(true);
-    };
-
-    const handleToggleLock = () => {
-        if (!canManageThisRecord) {
-            toast.error("You cannot edit a member of equal or higher rank.");
-            return;
-        }
-        if (isLocked) {
-            setIsLocked(false);
-        } else {
-            if (hasChanges) setShowCancelConfirm(true);
-            else setIsLocked(true);
-        }
     };
 
     const processSubmit = async () => {
@@ -211,30 +195,17 @@ export default function ProfileView() {
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
             
-            {/* ALERT DIALOGS (Preserved from original) */}
             <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Confirm Update</AlertDialogTitle>
-                        <AlertDialogDescription>Are you sure you want to save these changes?</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={processSubmit}>Save</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle>Confirm Update</AlertDialogTitle><AlertDialogDescription>Are you sure you want to save these changes?</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={processSubmit}>Save Changes</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
             <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-destructive">Discard Changes?</AlertDialogTitle>
-                        <AlertDialogDescription>All unsaved changes will be lost.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Continue Editing</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => { setIsLocked(true); setHasChanges(false); setShowCancelConfirm(false); }} className="bg-destructive">Discard</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle className="text-destructive">Discard Changes?</AlertDialogTitle><AlertDialogDescription>All unsaved changes will be lost.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Stay & Edit</AlertDialogCancel><AlertDialogAction onClick={() => { setIsLocked(true); setHasChanges(false); setShowCancelConfirm(false); }} className="bg-destructive">Discard Changes</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
@@ -243,15 +214,14 @@ export default function ProfileView() {
                     {!isEditingSelf && <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>}
                     <h2 className="text-2xl font-bold tracking-tight">{isEditingSelf ? 'My Profile' : 'Edit Member'}</h2>
                 </div>
-                
                 {canManageThisRecord && (
-                    <Button variant={isLocked ? "outline" : "destructive"} onClick={handleToggleLock} className="gap-2">
-                        {isLocked ? <><Unlock className="w-4 h-4" /> Unlock</> : <><Lock className="w-4 h-4" /> Cancel</>}
+                    <Button variant={isLocked ? "outline" : "destructive"} onClick={() => isLocked ? setIsLocked(false) : (hasChanges ? setShowCancelConfirm(true) : setIsLocked(true))} className="gap-2">
+                        {isLocked ? <><Unlock className="w-4 h-4" /> Unlock for Editing</> : <><Lock className="w-4 h-4" /> Cancel & Lock</>}
                     </Button>
                 )}
             </div>
 
-            <main className="space-y-6">
+            <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
                 <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border">
                     <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center"><UserCircle className="w-10 h-10" /></div>
                     <div>
@@ -265,74 +235,175 @@ export default function ProfileView() {
                     </div>
                 </div>
 
-                <Card className={cn(isLocked ? "opacity-95" : "ring-2 ring-primary/20 shadow-lg")}>
+                <Card className={cn("transition-all", isLocked ? "opacity-95" : "ring-2 ring-primary/20 shadow-lg")}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle>Member Information</CardTitle>
-                        {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Locked</span>}
+                        {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Record Locked</span>}
                     </CardHeader>
-                    <CardContent className="space-y-8">
-                        
-                        {/* IDENTITY SECTION */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                            {/* BYPASS LOGIC: If I am a higher rank admin, Identity is NOT locked when I unlock the form */}
-                            <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                                {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Identity Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Identity Editable</>}
-                            </div>
+                    <CardContent>
+                        <div className="space-y-8">
                             
-                            <div className="space-y-2">
-                                <Label>First Name</Label>
-                                <Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} 
-                                    disabled={isLocked || isEditingSelf} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Last Name</Label>
-                                <Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} 
-                                    disabled={isLocked || isEditingSelf} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Date of Birth</Label>
-                                <Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} 
-                                    disabled={isLocked || isEditingSelf} />
+                            {/* IDENTITY SECTION */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+                                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                                    {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Identity Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Identity Editable</>}
+                                </div>
+                                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                                <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                                {isAdmin && !isEditingSelf && (
+                                    <div className="space-y-2">
+                                        <Label>Account Status</Label>
+                                        <Select value={form.status} onValueChange={val => handleChange('status', val)} disabled={isLocked}>
+                                            <SelectTrigger><SelectValue /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="active">Active</SelectItem>
+                                                <SelectItem value="pending">Pending</SelectItem>
+                                                <SelectItem value="inactive">Inactive</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
 
-                            {isAdmin && !isEditingSelf && (
-                                <div className="space-y-2">
-                                    <Label>Account Status</Label>
-                                    <Select value={form.status} onValueChange={val => handleChange('status', val)} disabled={isLocked}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="active">Active</SelectItem>
-                                            <SelectItem value="pending">Pending</SelectItem>
-                                            <SelectItem value="inactive">Inactive</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                            {/* JUNIOR / PARENT SECTION */}
+                            {form.member_type === 'junior' && (
+                                <div className="space-y-4 pt-4 border-t">
+                                    <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Parent Details</h3></div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
+                                        <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                                        <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                                    </div>
                                 </div>
                             )}
-                        </div>
 
-                        {/* REMAINING FIELDS (Preserved logic) */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                            <div className="space-y-2"><Label>Email Address</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
-                            <div className="space-y-2"><Label>Discord Username</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
-                        </div>
-
-                        {/* Location / Sim Profile / etc - Same as your original file but using the 'isLocked' flag */}
-                        <div className="space-y-4 pt-4 border-t">
-                            <h3 className="font-semibold text-lg text-primary">Address</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} disabled={isLocked} /></div>
-                                <div className="space-y-2"><Label>City</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} disabled={isLocked} /></div>
-                                <div className="space-y-2"><Label>State</Label><Input value={form.state} onChange={e => handleChange('state', e.target.value)} disabled={isLocked} /></div>
+                            {/* CONTACT INFO */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                                <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
+                                <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
                             </div>
-                        </div>
 
-                        <Button 
-                            onClick={() => setShowSaveConfirm(true)} 
-                            disabled={saveStatus === 'saving' || !isFormValid || isLocked} 
-                            className="w-full h-12 text-lg"
-                        >
-                            {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}
-                        </Button>
+                            {/* COMM PREFS */}
+                            <div className="space-y-4 pt-4 border-t">
+                                <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
+                                    {COMM_PREFS.map(pref => (
+                                        <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
+                                            <Checkbox disabled={isLocked} checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
+                                                const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
+                                                handleChange('comm_prefs', next);
+                                            }}/>
+                                            <span className="text-sm group-hover:text-primary">{pref}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* SIM RACING PROFILE */}
+                            <div className="space-y-6 pt-4 border-t">
+                                <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
+                                <div className="space-y-2">
+                                    <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
+                                    <Input disabled={isLocked} placeholder="e.g. PC with wheel and pedals" value={form.sim_environment} onChange={e => handleChange('sim_environment', e.target.value)} />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label>Racing Interests *</Label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        {RACING_INTERESTS.map(interest => (
+                                            <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
+                                                <Checkbox disabled={isLocked} checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
+                                                    const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                                                    handleChange('racing_interests', next);
+                                                }}/>
+                                                <span className="text-[11px] leading-tight">{interest}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <Label>Platforms & Software</Label>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                        {SIM_PLATFORMS.map(p => (
+                                            <label key={p} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
+                                                <Checkbox disabled={isLocked} checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
+                                                    const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                                                    handleChange('sim_platforms', next);
+                                                    if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                                                }} />
+                                                <span className="text-sm group-hover:text-primary">{p}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    {form.sim_platforms.includes("Other") && (
+                                        <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* LOCATION SECTION */}
+                            <div className="space-y-4 pt-4 border-t">
+                                <h3 className="font-semibold text-lg text-primary">Location</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Region</Label>
+                                        <Input 
+                                            value={form.region} 
+                                            onChange={e => handleChange('region', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Country</Label>
+                                        <Input 
+                                            value={form.country} 
+                                            onChange={e => handleChange('country', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label>Street Address</Label>
+                                        <Input 
+                                            value={form.street_address} 
+                                            onChange={e => handleChange('street_address', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>City / Suburb</Label>
+                                        <Input 
+                                            value={form.city} 
+                                            onChange={e => handleChange('city', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>State</Label>
+                                        <Input 
+                                            value={form.state} 
+                                            onChange={e => handleChange('state', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Postcode</Label>
+                                        <Input 
+                                            value={form.postcode} 
+                                            onChange={e => handleChange('postcode', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Button 
+                                onClick={() => setShowSaveConfirm(true)} 
+                                disabled={saveStatus === 'saving' || !isFormValid || isLocked} 
+                                className="w-full h-12 text-lg"
+                            >
+                                {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}
+                            </Button>
+                            {isLocked && <p className="text-center text-xs text-muted-foreground italic">Unlock the record to enable editing.</p>}
+                        </div>
                     </CardContent>
                 </Card>
             </main>
