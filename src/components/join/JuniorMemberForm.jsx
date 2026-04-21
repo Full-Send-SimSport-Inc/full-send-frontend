@@ -214,7 +214,7 @@ export default function JuniorMemberForm({ onBack }) {
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg border">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                I agree to apply for junior membership of Full Send SimSport Inc. I understand that my parent or guardian must confirm consent before my application is processed. *
+                I agree to apply for junior membership of Full Send SimSport Inc. I understand that my parent or guardian must confirm consent for my details to be sorted for memberships management purposes before my application is processed. *
               </Label>
             </div>
 
