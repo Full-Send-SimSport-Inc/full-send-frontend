@@ -83,26 +83,27 @@ export default function MainLayout() {
 
               {isAdmin && (
                 <>
-                  <div className="w-px h-6 bg-slate-200 mx-2" />
-                  
+                    <div className="w-px h-6 bg-slate-200 mx-2" />
+                    
                   <Link
                     to="/admin"
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      location.pathname.startsWith('/admin') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        // Only highlight if it's EXACTLY /admin
+                        location.pathname === '/admin' ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
-                   >
-                    <Users className="w-4 h-4" />
+                    >
+                    <LayoutDashboard className="w-4 h-4" />
                     Member Dashboard
                   </Link>
 
                   <Link
                     to="/admin/members"
                     className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                      location.pathname.startsWith('/admin/members') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                        location.pathname.startsWith('/admin/members') ? "bg-blue-50 text-blue-700" : "text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
-                   >
+                    >
                     <Users className="w-4 h-4" />
                     Member Management
                   </Link>
