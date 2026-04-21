@@ -380,7 +380,11 @@ register_rest_route($namespace, '/parental-consent', [
 
         if ($action === 'decline') {
             update_post_meta($post_id, '_parental_consent_given', 'no');
-            update_post_meta($post_id, '_status', 'inactive');
+            update_post_meta($post_id, '_status', 'denied');
+            wp_update_post([
+                'ID'          => $post_id,
+                'post_status' => 'denied',
+            ]);            
 
             // Notify the Junior
             $subject = "Update regarding your Full Send SimSport Application";
@@ -1037,44 +1041,54 @@ function fs_generate_member_id($fs_member_post_id) {
  * TRIGGER: When status changes to 'active', perform the heavy lifting.
  */
 function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
+    // Don't do anything if the status hasn't actually changed
     if ($new_status === $old_status) return;
 
     $email = get_post_meta($post_id, '_email', true);
     $first_name = get_post_meta($post_id, '_first_name', true);
+    if (!$email) return;
 
+    // --- CASE: ACTIVE (Approved) ---
     if ($new_status === 'active') {
         // 1. Generate Member ID (FSS-100000X)
         $member_id_code = fs_generate_member_id($post_id);
 
-        // 2. Check if WP User exists, if not, create one using Member ID as Username
+        // 2. Check if WP User exists, if not, create one
         $user_id = email_exists($email);
         if (!$user_id) {
-            // We create a random temporary password; they will reset it via the magic link
             $tmp_pass = wp_generate_password(24, true);
             $user_id = wp_create_user($member_id_code, $tmp_pass, $email);
             
-            // Set basic user data
             wp_update_user([
                 'ID' => $user_id,
                 'first_name' => $first_name,
                 'last_name'  => get_post_meta($post_id, '_last_name', true),
-                'display_name' => $member_id_code // Sign-in via ID
+                'display_name' => $member_id_code
             ]);
             
             update_user_meta($user_id, 'fs_member_id', $post_id);
             update_post_meta($post_id, '_wp_user_id', $user_id);
         }
 
-        // 3. Send the "Magic Link" for Password Setup
+        // 3. Send the "Welcome & Magic Link" email
         $setup_link = home_url("/portal/#/setup-account/{$post_id}/" . urlencode($email));
-        
         $subject = "Account Approved - Welcome to Full Send SimSport";
         $body = "<h2>Congratulations {$first_name}!</h2>";
-        $body .= "<p>Your membership has been approved. We’re thrilled to have you onboard!</p>";
-        $body .= "<p>Your official Member ID is: <strong>{$member_id_code}</strong></p>";
-        $body .= "<p>Please click the button below to set your password and complete your racing profile:</p>";
+        $body .= "<p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p>";
+        $body .= "<p>Please click below to set your password and complete your profile:</p>";
         $body .= "<div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #e11d48; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
-        $body .= "<p>Once set up, you can log in using either your email or your Member ID.</p>";
+
+        fs_send_automated_email($email, $subject, $body);
+    }
+
+    // --- CASE: INACTIVE / DENIED (Rejected) ---
+    // This triggers when an admin rejects the application
+    elseif ($new_status === 'inactive' || $new_status === 'denied') {
+        $subject = "Update regarding your Full Send SimSport Application";
+        $body = "<h2>Hi " . esc_html($first_name) . ",</h2>";
+        $body .= "<p>Thank you for your interest in joining Full Send SimSport.</p>";
+        $body .= "<p>After reviewing your application, the committee has decided not to proceed with your membership at this time.</p>";
+        $body .= "<p>Your application has been marked as inactive. If you have any questions, please reach out to the committee.</p>";
 
         fs_send_automated_email($email, $subject, $body);
     }
@@ -1112,6 +1126,23 @@ function fs_admin_send_email($request) {
     $sent = wp_mail($to, $subject, $html_message, $headers);
     return rest_ensure_response(array('success' => $sent));
 }
+
+/**
+ * This hook catches the meta update and passes the 
+ * Old Status and New Status to our handler function.
+ */
+add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $new_status) {
+    // Only trigger for our specific member post type and our specific status key
+    if ($meta_key !== '_status' || get_post_type($post_id) !== 'fs_member') {
+        return;
+    }
+
+    // Get the previous status to prevent double-sending if the admin hits "Save" twice
+    // without actually changing the dropdown value.
+    $old_status = get_post_meta($post_id, '_status', true);
+
+    fs_handle_status_change_emails($post_id, $new_status, $old_status);
+}, 10, 4);
 
 function fs_admin_delete_user($request) {
     $params = $request->get_json_params();
@@ -1166,6 +1197,18 @@ function fs_update_agm($request) {
     foreach ($fields as $field) if (isset($params[$field])) update_post_meta($id, '_' . $field, $params[$field]);
     return rest_ensure_response(['success' => true]);
 }
+
+function fs_register_denied_post_status() {
+    register_post_status('denied', [
+        'label'                     => _x('Denied', 'post'),
+        'public'                    => false,
+        'exclude_from_search'       => true,
+        'show_in_admin_all_list'    => false, // This is the key to removing "clutter"
+        'show_in_admin_status_list' => true,  // This adds a "Denied" link at the top
+        'label_count'               => _n_noop('Denied <span class="count">(%s)</span>', 'Denied <span class="count">(%s)</span>'),
+    ]);
+}
+add_action('init', 'fs_register_denied_post_status');
 
 /**
  * DEV ONLY: Run this once to reset Member ID sequencing
