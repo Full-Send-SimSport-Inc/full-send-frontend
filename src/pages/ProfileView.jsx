@@ -10,6 +10,10 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
+} from "@/components/ui/alert-dialog";
+import { 
   Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, Info, AlertTriangle, MessageSquare, Monitor
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -22,13 +26,6 @@ const SIM_PLATFORMS = [
 ];
 
 const COMM_PREFS = ["Discord", "Twitter/X", "Instagram", "Facebook", "Bluesky", "Linkedin", "Email"];
-
-const SIM_ENVIRONMENTS = [
-  "Console with controller/gamepad",
-  "Console with wheel and pedals",
-  "PC with controller/gamepad",
-  "PC with wheel and pedals"
-];
 
 const RACING_INTERESTS = [
   "Road Racing (Open Wheelers/Formula Style)",
@@ -52,7 +49,11 @@ export default function ProfileView() {
   const isEditingSelf = !id; 
   const hasFullPermissions = isAdmin; 
 
-  const [isLocked, setIsLocked] = useState(true); // Global form lock state
+  const [isLocked, setIsLocked] = useState(true);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
+
   const [form, setForm] = useState({
     first_name: '', last_name: '', dob: '', status: '',
     email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
@@ -90,7 +91,7 @@ export default function ProfileView() {
   
   useEffect(() => {
     if (profileData && Object.keys(profileData).length > 0) {
-        setForm({
+        const initialForm = {
             first_name: profileData.first_name || '',
             last_name: profileData.last_name || '',
             dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
@@ -112,7 +113,9 @@ export default function ProfileView() {
             region: profileData.region || '',
             country: profileData.country || '',
             member_type: profileData.member_type || ''
-      });
+      };
+      setForm(initialForm);
+      setHasChanges(false);
     }
   }, [profileData, user, isEditingSelf]);
 
@@ -127,17 +130,35 @@ export default function ProfileView() {
     form.racing_interests.length > 0 &&
     (form.member_type !== 'junior' || (form.parent_name.trim() !== '' && form.parent_email.trim() !== ''));
 
-  const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field, value) => {
+    setForm(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+  };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!isFormValid) return;
+  const handleToggleLock = () => {
+    if (isLocked) {
+      setIsLocked(false);
+    } else {
+      if (hasChanges) {
+        setShowCancelConfirm(true);
+      } else {
+        setIsLocked(true);
+      }
+    }
+  };
 
-    // "Are you sure?" confirmation alert
-    const confirmSave = window.confirm("Are you sure you want to save these changes to the member profile?");
-    if (!confirmSave) return;
+  const confirmCancel = () => {
+    // Reset form by re-triggering the useEffect logic via query invalidation or manual reset
+    queryClient.invalidateQueries(['member', id]); 
+    setIsLocked(true);
+    setHasChanges(false);
+    setShowCancelConfirm(false);
+    toast.info("Changes discarded.");
+  };
 
+  const processSubmit = async () => {
     setSaveStatus('saving');
+    setShowSaveConfirm(false);
     try {
       if (isEditingSelf) {
         await base44.post('/update-me', form);
@@ -148,7 +169,8 @@ export default function ProfileView() {
       }
       toast.success('Profile updated successfully!');
       setSaveStatus('success');
-      setIsLocked(true); // Re-lock after successful save
+      setIsLocked(true);
+      setHasChanges(false);
       setTimeout(() => setSaveStatus('idle'), 3000);
     } catch (err) {
       toast.error('Failed to update profile.');
@@ -160,16 +182,54 @@ export default function ProfileView() {
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
+      
+      {/* SAVE CONFIRMATION MODAL */}
+      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-primary">
+              <Shield className="w-5 h-5" /> Confirm Profile Update
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to save these changes? This will update the member record in the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Go Back</AlertDialogCancel>
+            <AlertDialogAction onClick={processSubmit}>Save Changes</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* CANCEL/DISCARD CONFIRMATION MODAL */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" /> Unsaved Changes
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You have made changes to this profile. If you lock the record now, all unsaved changes will be lost. Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay & Edit</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCancel} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Discard Changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           {!isEditingSelf && <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>}
           <h2 className="text-2xl font-bold tracking-tight">{isEditingSelf ? 'My Profile' : 'Edit Member'}</h2>
         </div>
         
-        {/* Toggle Lock Button */}
         <Button 
           variant={isLocked ? "outline" : "destructive"} 
-          onClick={() => setIsLocked(!isLocked)}
+          onClick={handleToggleLock}
           className="gap-2"
         >
           {isLocked ? <><Unlock className="w-4 h-4" /> Unlock for Editing</> : <><Lock className="w-4 h-4" /> Cancel & Lock</>}
@@ -197,13 +257,10 @@ export default function ProfileView() {
             {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Record Locked</span>}
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <div className="space-y-8">
               
-              {/* Identity Section - Locked even if form is unlocked (unless Full Admin) */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                   <Lock className="w-3 h-3" /> Fixed Identity Fields
-                </div>
+                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Identity Locked</div>
                 <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
                 <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
                 <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={!hasFullPermissions || isLocked} /></div>
@@ -256,30 +313,19 @@ export default function ProfileView() {
               {/* Sim Racing Profile */}
               <div className="space-y-6 pt-4 border-t">
                 <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
-                
                 <div className="space-y-2">
                     <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
-                    <Input 
-                        disabled={isLocked}
-                        placeholder="e.g. PC with wheel and pedals" 
-                        value={form.sim_environment} 
-                        onChange={e => handleChange('sim_environment', e.target.value)} 
-                    />
+                    <Input disabled={isLocked} placeholder="e.g. PC with wheel and pedals" value={form.sim_environment} onChange={e => handleChange('sim_environment', e.target.value)} />
                 </div>
-
                 <div className="space-y-3">
                     <Label>Racing Interests *</Label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {RACING_INTERESTS.map(interest => (
                         <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
-                        <Checkbox 
-                            disabled={isLocked}
-                            checked={form.racing_interests.includes(interest)} 
-                            onCheckedChange={(checked) => {
+                        <Checkbox disabled={isLocked} checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
                             const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
                             handleChange('racing_interests', next);
-                            }}
-                        />
+                        }}/>
                         <span className="text-[11px] leading-tight">{interest}</span>
                         </label>
                     ))}
@@ -291,27 +337,17 @@ export default function ProfileView() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {SIM_PLATFORMS.map(p => (
                         <label key={p} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
-                        <Checkbox 
-                            disabled={isLocked}
-                            checked={form.sim_platforms.includes(p)} 
-                            onCheckedChange={checked => {
+                        <Checkbox disabled={isLocked} checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
                             const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
                             handleChange('sim_platforms', next);
                             if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
-                            }} 
-                        />
+                        }} />
                         <span className="text-sm group-hover:text-primary">{p}</span>
                         </label>
                     ))}
                     </div>
                     {form.sim_platforms.includes("Other") && (
-                        <Input 
-                        disabled={isLocked}
-                        placeholder="Specify other platforms" 
-                        value={form.sim_platforms_other} 
-                        onChange={e => handleChange('sim_platforms_other', e.target.value)} 
-                        className="mt-2"
-                        />
+                        <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
                     )}
                 </div>
               </div>
@@ -327,12 +363,15 @@ export default function ProfileView() {
                 </div>
               </div>
 
-              {/* Submit Button - Only enabled when unlocked */}
-              <Button type="submit" disabled={saveStatus === 'saving' || !isFormValid || isLocked} className="w-full h-12 text-lg">
+              <Button 
+                onClick={() => setShowSaveConfirm(true)} 
+                disabled={saveStatus === 'saving' || !isFormValid || isLocked} 
+                className="w-full h-12 text-lg"
+              >
                 {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}
               </Button>
               {isLocked && <p className="text-center text-xs text-muted-foreground italic">Unlock the form to enable the save button.</p>}
-            </form>
+            </div>
           </CardContent>
         </Card>
       </main>
