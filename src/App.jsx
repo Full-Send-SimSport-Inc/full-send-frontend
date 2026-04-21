@@ -59,24 +59,24 @@ function AppRoutes() {
   return (
     <Routes>
         <Route element={<MainLayout />}>
-            
-            {/* ROOT REDIRECTS */}
-            <Route path="/" element={
-            isAuthenticated ? (
-                // If logged in, send admins to dashboard and members to profile
-                isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
-            ) : (
-                // If NOT logged in, show the Login/Register choice page
-                <Portal /> 
-            )
-            } />
+        <Route path="/setup-account/:id/:email" element={<SetupAccount />} />      
+
+        {/* ROOT REDIRECTS */}
+        <Route path="/" element={
+        isAuthenticated ? (
+            // If logged in, send admins to dashboard and members to profile
+            isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
+        ) : (
+            // If NOT logged in, show the Login/Register choice page
+            <Portal /> 
+        )
+        } />
 
         {/* PUBLIC & MEMBER PAGES */}
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
-        <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
-        <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
+         <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
         
 
         {/* ADMIN NESTED ROUTES */}

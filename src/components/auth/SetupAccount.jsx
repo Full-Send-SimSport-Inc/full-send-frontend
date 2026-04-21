@@ -85,9 +85,9 @@ export default function SetupAccount() {
         <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
           <KeyRound className="w-6 h-6 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold">Setup Your Account</h1>
+        <h1 className="text-2xl font-bold">Activate Your Account</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Set a password for <strong>{email}</strong> to access your Full Send member portal.
+          Set a password for <strong>{email}</strong> to access your Full Send SimSport Member Portal.
         </p>
       </div>
 
@@ -131,9 +131,9 @@ export default function SetupAccount() {
               disabled={status === 'loading'}
             >
               {status === 'loading' ? (
-                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Creating Account...</>
+                <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Activating account...</>
               ) : (
-                'Create Account'
+                'Activate Account'
               )}
             </Button>
           </form>

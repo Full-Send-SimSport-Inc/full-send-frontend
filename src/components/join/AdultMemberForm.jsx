@@ -7,36 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, Gauge, Heart, ExternalLink, MessageSquare, Monitor } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, Gauge, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Link } from 'react-router-dom';
-
-const SIM_PLATFORMS = [
-  "iRacing", "Assetto Corsa Competizione", "Assetto Corsa EVO", "Assetto Corsa Rally",
-  "rFactor 2", "Automobilista 2", "Gran Turismo", "F1 Series",
-  "LMU", "Project Motor Racing", "Rennsport", "Other"
-];
-
-const COMM_PREFS = ["Discord", "Twitter/X", "Instagram", "Facebook", "Bluesky", "Linkedin", "Email"];
-
-const SIM_ENVIRONMENTS = [
-  "Console with controller/gamepad",
-  "Console with wheel and pedals",
-  "PC with controller/gamepad",
-  "PC with wheel and pedals"
-];
-
-const RACING_INTERESTS = [
-  "Road Racing (Open Wheelers/Formula Style)",
-  "Road Racing (Sports Cars/Hypercars)",
-  "Oval Racing (Open Wheelers/Formula Style)",
-  "Oval Racing (Sports Cars/Hypercars)",
-  "Dirt Road Racing",
-  "Dirt Oval Racing",
-  "Team Endurance Racing",
-  "Solo Endurance Racing",
-  "Solo Sprint Racing"
-];
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
@@ -49,13 +21,7 @@ export default function AdultMemberForm({ onBack }) {
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
     region: '', country: '', street_address: '', city: '', state: '', postcode: '', 
-    has_discord: null, discord_username: '', 
-    comm_prefs: ['Email'], // Defaulted as requested
-    sim_environment: '',
-    racing_interests: [],
-    sim_platforms: [], 
-    agreed_to_terms: false, 
-    dob: '',
+    agreed_to_terms: false, dob: '',
   });
   
   const [submitting, setSubmitting] = useState(false);
@@ -103,16 +69,6 @@ export default function AdultMemberForm({ onBack }) {
     if (!form.country) return setError("Country is required.");
     if (form.country === 'Australia' && !form.state) return setError("State is required for Australian residents.");
 
-    // Mandatory Discord Check
-    if (form.has_discord === null) return setError("Please specify if you have a Discord account.");
-    if (form.has_discord === 'no') return setError("A Discord account is mandatory.");
-    if (form.has_discord === 'yes' && !form.discord_username) return setError("Please enter your Discord username.");
-
-    // New Mandatory Field Checks
-    if (form.comm_prefs.length === 0) return setError("Please select at least one communication preference.");
-    if (!form.sim_environment) return setError("Please select your sim racing environment.");
-    if (form.racing_interests.length === 0) return setError("Please select at least one racing interest.");
-
     setSubmitting(true);
     setError('');
 
@@ -123,7 +79,6 @@ export default function AdultMemberForm({ onBack }) {
     } catch (err) {
       const serverMessage = err.response?.data?.message || err.data?.message || err.message;
       setError(serverMessage || "An error occurred during submission.");
-      console.error("Full Error Object:", err);
     } finally {
       setSubmitting(false);
     }
@@ -139,12 +94,12 @@ export default function AdultMemberForm({ onBack }) {
                 <CheckCircle2 className="w-10 h-10" />
               </div>
               <h2 className="text-3xl font-black mb-4">Application Received!</h2>
-              <p className="text-muted-foreground mb-8 text-lg">Thank you for applying. The committee will review your application shortly.</p>
+              <p className="text-muted-foreground mb-8 text-lg">
+                Thank you for applying to Full Send SimSport. The committee will review your application shortly. 
+                Keep an eye on your email inbox for your next steps!
+              </p>
               <div className="space-y-3 max-w-sm mx-auto">
-                <Button asChild className="w-full" size="lg">
-                  <Link to={`/setup-account/${submittedData.id}/${submittedData.email}`}>Set Up My Account Password</Link>
-                </Button>
-                <Button onClick={onBack} variant="outline" className="w-full">Return to Options</Button>
+                <Button onClick={onBack} variant="outline" className="w-full">Return to Home</Button>
               </div>
             </motion.div>
           </CardContent>
@@ -162,11 +117,6 @@ export default function AdultMemberForm({ onBack }) {
     form.region !== '' &&
     form.country !== '' &&
     (form.country !== 'Australia' || form.state !== '') &&
-    form.has_discord === 'yes' &&
-    form.discord_username.trim() !== '' &&
-    form.comm_prefs.length > 0 &&
-    form.sim_environment !== '' &&
-    form.racing_interests.length > 0 &&
     form.agreed_to_terms;
 
   return (
@@ -204,115 +154,12 @@ export default function AdultMemberForm({ onBack }) {
             <div>
               <h3 className="text-lg font-semibold mb-4 border-b pb-2">Personal Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="space-y-2">
-                  <Label>First Name *</Label>
-                  <Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} placeholder="John" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Last Name *</Label>
-                  <Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} placeholder="Smith" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Email Address *</Label>
-                  <Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} placeholder="john@example.com" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone Number</Label>
-                  <Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} placeholder="0400 000 000" />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Date of Birth *</Label>
-                  <Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} required className="w-full" />
-                </div>
+                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} required /></div>
+                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} required /></div>
+                <div className="space-y-2"><Label>Email Address *</Label><Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} required /></div>
+                <div className="space-y-2"><Label>Phone Number</Label><Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} required className="w-full" /></div>
               </div>
-            </div>
-
-            {/* Communication Preferences */}
-            <div className="space-y-4 bg-slate-50 p-4 rounded-xl border">
-              <div className="flex items-center gap-2 text-primary">
-                <MessageSquare className="w-5 h-5" />
-                <h3 className="text-lg font-semibold">Communication Preferences *</h3>
-              </div>
-              <p className="text-sm text-muted-foreground">Select your preferred methods of contact (Email is required by default).</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {COMM_PREFS.map(pref => (
-                  <label key={pref} className="flex items-center gap-2 cursor-pointer group">
-                    <Checkbox 
-                      checked={form.comm_prefs.includes(pref)} 
-                      onCheckedChange={(checked) => {
-                        const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
-                        handleChange('comm_prefs', next);
-                      }}
-                    />
-                    <span className="text-sm group-hover:text-primary transition-colors">{pref}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Sim Racing Profile */}
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold mb-4 border-b pb-2">Sim Racing Profile</h3>
-              
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary">
-                  <Monitor className="w-5 h-5" />
-                  <Label className="text-base font-bold">Sim Racing Environment *</Label>
-                </div>
-                <Select value={form.sim_environment} onValueChange={v => handleChange('sim_environment', v)}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="What equipment do you operate with?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SIM_ENVIRONMENTS.map(env => <SelectItem key={env} value={env}>{env}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="text-base font-bold">Racing Interests *</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {RACING_INTERESTS.map(interest => (
-                    <label key={interest} className="flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded transition-colors">
-                      <Checkbox 
-                        checked={form.racing_interests.includes(interest)}
-                        onCheckedChange={(checked) => {
-                          const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
-                          handleChange('racing_interests', next);
-                        }}
-                      />
-                      <span className="text-xs leading-tight">{interest}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {memberType === 'racing' && (
-                <div className="space-y-4">
-                  <Label className="text-base font-bold">Active Platforms (select all that apply)</Label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                    {SIM_PLATFORMS.map(p => (
-                      <label key={p} className="flex items-center gap-2 cursor-pointer">
-                        <Checkbox checked={form.sim_platforms.includes(p)}
-                          onCheckedChange={checked => handleChange('sim_platforms', checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p))} />
-                        <span className="text-sm">{p}</span>
-                      </label>
-                    ))}
-                  </div>
-                {form.sim_platforms.includes('Other') && (
-                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2 mt-4 pl-4 border-l-2 border-primary/20">
-                        <Label htmlFor="sim_platforms_other" className="text-xs uppercase tracking-wider text-muted-foreground">Please specify other platform(s)</Label>
-                        <Input 
-                        id="sim_platforms_other" 
-                        placeholder="e.g. BeamNG, KartKraft, Richard Burns Rally" 
-                        value={form.sim_platforms_other} 
-                        onChange={e => handleChange('sim_platforms_other', e.target.value)} 
-                        className="bg-white"
-                        />
-                    </motion.div>
-                )}  
-                </div>
-              )}
             </div>
 
             {/* Location Details */}
@@ -354,38 +201,17 @@ export default function AdultMemberForm({ onBack }) {
                     )}
                   </div>
                 )}
-                <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} placeholder="123 Main St" /></div>
-                <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} placeholder="Melbourne" /></div>
-                <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} placeholder="3000" /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} /></div>
+                <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} /></div>
+                <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} /></div>
               </div>
-            </div>
-
-            {/* Discord Mandatory Section */}
-            <div className="space-y-3 p-4 bg-slate-900 text-white rounded-lg">
-              <Label className="text-base">Do you have a Discord account? *</Label>
-              <div className="flex gap-6 mt-2">
-                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="discord" checked={form.has_discord === 'yes'} onChange={() => handleChange('has_discord', 'yes')} /> <span>Yes</span></label>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="discord" checked={form.has_discord === 'no'} onChange={() => handleChange('has_discord', 'no')} /> <span>No</span></label>
-              </div>
-              {form.has_discord === 'yes' && (
-                <div className="pt-3 space-y-2 animate-in fade-in">
-                  <Label>Discord Username *</Label>
-                  <Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} placeholder="e.g. username" className="max-w-md bg-white text-black" />
-                </div>
-              )}
-              {form.has_discord === 'no' && (
-                <div className="pt-3 animate-in fade-in bg-blue-600/20 p-3 rounded text-sm">
-                  <p><strong>Discord is mandatory.</strong> Create an account first:</p>
-                  <a href="https://discord.com/register" target="_blank" rel="noreferrer" className="font-bold underline flex items-center gap-1 mt-1">Create Account <ExternalLink className="w-3 h-3" /></a>
-                </div>
-              )}
             </div>
 
             {/* Terms */}
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg border">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                I agree to become a member of Full Send SimSports Inc. and consent to my personal information being stored for membership management purposes. *
+                I agree to apply for membership of Full Send SimSport Inc. and consent to my personal information being stored for application review purposes. *
               </Label>
             </div>
 
