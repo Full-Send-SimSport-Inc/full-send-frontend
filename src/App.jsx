@@ -22,6 +22,7 @@ import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
 import Portal from '@/pages/Portal';
 import SetupAccount from '@/components/auth/SetupAccount';
+import ConsentView from '@/pages/ConsentView';
 
 // Defensive fix for Storefront theme script crashes
 if (typeof window.storefrontUrls === 'undefined') {
@@ -59,7 +60,8 @@ function AppRoutes() {
   return (
     <Routes>
         <Route element={<MainLayout />}>
-        <Route path="/setup-account/:id/:email" element={<SetupAccount />} />      
+        <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
+        <Route path="/consent/:id/:token" element={<ConsentView />} />      
 
         {/* ROOT REDIRECTS */}
         <Route path="/" element={

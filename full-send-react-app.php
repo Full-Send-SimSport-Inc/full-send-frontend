@@ -197,7 +197,7 @@ add_action('rest_api_init', function () {
                     'sim_platforms'       => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
                     'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true),
                     'racing_interests'    => maybe_unserialize(get_post_meta($member_id, '_racing_interests', true)) ?: [],
-                    'membership_type'     => get_post_meta($member_id, '_membership_type', true),
+                    'member_type'     => get_post_meta($member_id, '_member_type', true),
                     'status'              => $display_status,
                     'parent_name'         => $parent_name,
                     'parent_email'        => $parent_email,
@@ -229,6 +229,7 @@ add_action('rest_api_init', function () {
         $first_name = sanitize_text_field($params['first_name']);
         $last_name = sanitize_text_field($params['last_name']);
         $dob = sanitize_text_field($params['dob']);
+        $member_type = strtolower(sanitize_text_field($params['member_type'] ?? 'individual'));
 
         // 1. Check if Email already exists as a WordPress User
         if (email_exists($email)) {
@@ -276,9 +277,10 @@ add_action('rest_api_init', function () {
             return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
         }
         
-        // Save metadata with array handling
+        // 5. Save metadata with parent/guardian key mapping
         foreach ($params as $key => $value) {
             $target_key = $key;
+            // Map incoming frontend keys to standard backend meta keys
             if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
             if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
 
@@ -291,9 +293,38 @@ add_action('rest_api_init', function () {
             }
         }
         
-        fs_email_on_initial_application($post_id, $params);
-
+        // 6. Set initial status
         update_post_meta($post_id, '_status', 'pending');
+
+        // 7. --- AUTO-CONSENT LOGIC ---
+        // If an Adult is registering, check if they have "orphaned" junior applications
+        $auto_consented_children = false;
+        if ($member_type !== 'junior') {
+            $orphaned_juniors = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_query' => [
+                    'relation' => 'AND',
+                    ['key' => '_member_type', 'value' => 'junior'],
+                    ['key' => '_parent_email', 'value' => $email],
+                    ['key' => '_status', 'value' => 'pending']
+                ],
+                'posts_per_page' => -1
+            ]);
+
+            if ($orphaned_juniors->have_posts()) {
+                $auto_consented_children = true; 
+                foreach ($orphaned_juniors->posts as $junior_post) {
+                    update_post_meta($junior_post->ID, '_parental_consent_given', 'yes');
+                    update_post_meta($junior_post->ID, '_parental_consent_date', current_time('mysql'));
+                    update_post_meta($junior_post->ID, '_parental_consent_method', 'auto_on_parent_registration');
+                    update_post_meta($junior_post->ID, '_status', 'awaiting_committee');
+                }
+            }
+        }
+
+        // 8. Trigger emails - Pass flag to suppress redundant consent requests
+        fs_email_on_initial_application($post_id, $params, $auto_consented_children);
+
         return [
             'status' => 'success', 
             'message' => 'Application Submitted!', 
@@ -322,6 +353,54 @@ add_action('rest_api_init', function () {
             return $members;
         }
     ]);
+
+register_rest_route($namespace, '/parental-consent', [
+    'methods' => 'POST',
+    'callback' => function($request) {
+        $params = $request->get_json_params();
+        $post_id = intval($params['id']);
+        $token   = sanitize_text_field($params['token']);
+        $action  = sanitize_text_field($params['action'] ?? 'approve'); // 'approve' or 'decline'
+
+        // 1. Validate the token
+        $stored_token = get_post_meta($post_id, '_parental_consent_token', true);
+        if (!$token || $token !== $stored_token) {
+            return new WP_Error('invalid_token', 'This consent link is invalid or has expired.', ['status' => 403]);
+        }
+
+        // 2. Check if already processed
+        $current_consent = get_post_meta($post_id, '_parental_consent_given', true);
+        if ($current_consent === 'yes' || $current_consent === 'no') {
+            return new WP_Error('already_done', 'A decision has already been recorded for this application.', ['status' => 400]);
+        }
+
+        // 3. Process the action
+        $junior_email = get_post_meta($post_id, '_email', true);
+        $junior_name  = get_post_meta($post_id, '_first_name', true);
+
+        if ($action === 'decline') {
+            update_post_meta($post_id, '_parental_consent_given', 'no');
+            update_post_meta($post_id, '_status', 'inactive');
+
+            // Notify the Junior
+            $subject = "Update regarding your Full Send SimSport Application";
+            $body = "<h2>Hi " . esc_html($junior_name) . ",</h2>";
+            $body .= "<p>Your parent or guardian has declined consent for your membership application.</p>";
+            $body .= "<p>As a result, your application has been cancelled and your account marked as inactive. If you believe this is a mistake, please discuss this with your parent/guardian.</p>";
+            fs_send_automated_email($junior_email, $subject, $body);
+
+            return rest_ensure_response(['success' => true, 'message' => 'Consent declined. The applicant has been notified.']);
+        }
+
+        // Standard Approval
+        update_post_meta($post_id, '_parental_consent_given', 'yes');
+        update_post_meta($post_id, '_parental_consent_date', current_time('mysql'));
+        update_post_meta($post_id, '_status', 'awaiting_committee'); // Move to committee queue
+
+        return rest_ensure_response(['success' => true, 'message' => 'Consent recorded. The application has been forwarded to the committee for final review.']);
+    },
+    'permission_callback' => '__return_true' // Publicly accessible via the secret token
+]);
 
     /**
     * GET CURRENT LOGGED-IN MEMBER DATA
@@ -591,8 +670,8 @@ add_action('rest_api_init', function () {
 
         // Set roles and metadata
         $user = new WP_User($user_id);
-        $membership_type = get_post_meta($member_id, '_member_type', true);
-        if ($membership_type === 'junior') {
+        $member_type = get_post_meta($member_id, '_member_type', true);
+        if ($member_type === 'junior') {
             $user->set_role('fs_junior_member');
         } else {
             $user->set_role('fs_member');
@@ -849,20 +928,68 @@ function fs_send_automated_email($to_email, $subject, $body_content) {
 /**
  * TRIGGER 1: ON REGISTRATION (WELCOME/PENDING)
  */
-function fs_email_on_initial_application($post_id, $params) {
-    $first_name = sanitize_text_field($params['first_name']);
-    $email = sanitize_email($params['email']);
-    
-    // Generate the FSS-ID immediately so we can include it in the email
-    $member_id_display = fs_generate_member_id($post_id);
+function fs_email_on_initial_application($post_id, $params, $skip_parent_email = false) {
+    // 1. Extract and sanitize data
+    $applicant_first_name = sanitize_text_field($params['first_name'] ?? '');
+    $applicant_last_name  = sanitize_text_field($params['last_name'] ?? '');
+    $applicant_email      = sanitize_email($params['email'] ?? '');
+    $member_type          = strtolower(sanitize_text_field($params['member_type'] ?? 'individual'));
+    $parent_email         = sanitize_email($params['parent_email'] ?? '');
+    $parent_name          = sanitize_text_field($params['parent_name'] ?? '');
+    $member_id_display    = fs_generate_member_id($post_id);
 
-    $subject = "Welcome to Full Send SimSport - Application Received";
+    // --- EMAIL 1: TO THE JUNIOR / ADULT APPLICANT ---
+    $subject_applicant = "Welcome to Full Send SimSport - Application Received";
+    $body_applicant = "<h2>Hi " . esc_html($applicant_first_name) . ",</h2>";
+    $body_applicant .= "<p>Thanks for applying to Full Send SimSport! We have received your details.</p>";
     
-    $body = "<h2>Hi " . esc_html($first_name) . ",</h2>";
-    $body .= "<p>Thanks for applying to Full Send SimSport! We have received your details and your application is now being processed.</p>";
-    $body .= "<p>Your account is currently <strong>Pending Review</strong>. Our team is currently reviewing your application to ensure it aligns with our values and mission. We appreciate your patience while we take a look.You will receive another email after account activation.</p>";
+    if ($member_type === 'junior') {
+        $body_applicant .= "<p><strong>Note:</strong> Since you applied as a Junior Member, we have sent a consent request to your parent/guardian (" . esc_html($parent_email) . "). Your application will be processed once they respond.</p>";
+    } else {
+        $body_applicant .= "<p>Your account is currently <strong>Pending Review</strong>. Our team is reviewing your application now. You will receive another email once activated.</p>";
+        if ($skip_parent_email) {
+            $body_applicant .= "<p><strong>Parental Consent:</strong> Your registration has also automatically provided consent for the Junior application(s) linked to your email.</p>";
+        }
+    }
 
-    fs_send_automated_email($email, $subject, $body);
+    fs_send_automated_email($applicant_email, $subject_applicant, $body_applicant);
+
+    // --- EMAIL 2: TO THE PARENT ---
+    // Only send if it's a junior application AND we aren't skipping it (Scenario B)
+    if ($member_type === 'junior' && !empty($parent_email) && !$skip_parent_email) {
+        
+        $consent_token = wp_hash($post_id . '|' . $parent_email . '|' . time());
+        update_post_meta($post_id, '_parental_consent_token', $consent_token);
+        $consent_url = home_url('/portal/#/consent/' . $post_id . '/' . $consent_token);
+
+        $is_parent_registered = email_exists($parent_email);
+        $subject_parent = "ACTION REQUIRED: Parental Consent for " . esc_html($applicant_first_name);
+        
+        $p_body = "<h2>Parental Consent Required</h2>";
+        $p_body .= "<p>Hi " . esc_html($parent_name) . ",</p>";
+        $p_body .= "<p>" . esc_html($applicant_first_name) . " " . esc_html($applicant_last_name) . " has applied to join Full Send SimSport as a Junior Member.</p>";
+        
+        if (!$is_parent_registered) {
+            // SCENARIO: Junior registers first, Parent not in system
+            $p_body .= "<p>As they are under 18, we require your formal consent before we can process their application.</p>";
+            $p_body .= "<div style='background-color: #fff3cd; color: #856404; padding: 15px; border-left: 5px solid #ffeeba; margin: 20px 0;'>";
+            $p_body .= "<strong>Notice:</strong> We see that you do not currently have a Full Send account.<br><br>";
+            $p_body .= "To fully activate your child's membership, you must also <a href='" . home_url('/portal/#/join') . "' style='color: #856404; font-weight: bold;'>register as an Adult Member here</a>.";
+            $p_body .= "<br><br>By registering your own account, you are automatically providing parental consent for this application.";
+            $p_body .= "</div>";
+            $p_body .= "<p>If you do <strong>not</strong> wish to register but want to decline the junior membership request, please use the link below:</p>";
+        } else {
+            // SCENARIO: Junior registers, Parent already exists (Needs to click link)
+            $p_body .= "<p>As they are under 18, please click below to review and either provide or deny consent for their application.</p>";
+        }
+
+        $p_body .= "<div style='margin: 30px 0;'>";
+        $p_body .= "<a href='" . esc_url($consent_url) . "' style='background: #e11d48; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Review Request / Deny Application</a>";
+        $p_body .= "</div>";
+        $p_body .= "<p>Member Reference: " . esc_html($member_id_display) . "</p>";
+
+        fs_send_automated_email($parent_email, $subject_parent, $p_body);
+    }
 }
 
 function fs_generate_member_id($fs_member_post_id) {

@@ -106,7 +106,7 @@ export default function MyProfile() {
           <div>
             <h1 className="text-2xl font-bold">{details.first_name} {details.last_name}</h1>
             <p className="text-muted-foreground">
-              {details.membership_type || 'Member'} • Status: 
+              {details.member_type || 'Member'} • Status: 
               <span className={cn(
                   "ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border",
                   details.status === 'active' 
