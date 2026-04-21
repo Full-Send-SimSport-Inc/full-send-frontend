@@ -5,9 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShieldCheck, User, Search, Download, Mail, Lock, UserX } from 'lucide-react';
+import { ShieldCheck, User, Search, Download, Mail, Lock, UserX, Crown } from 'lucide-react';
 import { toast } from "sonner";
-import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -15,6 +14,14 @@ export default function AdminMemberManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Helper to determine the "highest" role for display in the dropdown
+  const getBestRole = (roles = []) => {
+    if (roles.includes('administrator')) return 'administrator';
+    if (roles.includes('executive_committee')) return 'executive_committee';
+    if (roles.includes('committee')) return 'committee';
+    return 'fs_member';
+  };
 
   // Fetch Members & Users in parallel
   const { data: members = [], isLoading: loadingMembers } = useQuery({
@@ -34,6 +41,7 @@ export default function AdminMemberManager() {
       return {
         ...member,
         wpUser: linkedUser || null,
+        currentRole: linkedUser ? getBestRole(linkedUser.roles) : 'fs_member',
         isDisabled: member.status === 'inactive'
       };
     }).filter(m => {
@@ -49,7 +57,7 @@ export default function AdminMemberManager() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['members'] });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      toast.success(variables.status === 'inactive' ? 'Account disabled & marked inactive.' : `Status updated to ${variables.status}.`);
+      toast.success(variables.status === 'inactive' ? 'Account disabled & parked.' : `Status updated to ${variables.status}.`);
     },
     onError: () => toast.error('Failed to update status.')
   });
@@ -60,7 +68,10 @@ export default function AdminMemberManager() {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       toast.success('Access role updated.');
     },
-    onError: () => toast.error('Failed to update role.')
+    onError: (error) => {
+      const message = error.response?.data?.message || 'Failed to update role.';
+      toast.error(message);
+    }
   });
 
   const exportCSV = () => {
@@ -68,7 +79,7 @@ export default function AdminMemberManager() {
     const rows = unifiedData.map(m => [
       m.first_name, m.last_name, m.email, m.status, 
       m.wpUser ? 'Yes' : 'No', 
-      m.wpUser?.roles.includes('committee') ? 'Committee' : (m.wpUser ? 'Member' : 'N/A')
+      m.currentRole
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const link = document.createElement("a");
@@ -106,6 +117,7 @@ export default function AdminMemberManager() {
             <SelectItem value="active">Active</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
+            <SelectItem value="denied">Denied (Consent)</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -118,9 +130,16 @@ export default function AdminMemberManager() {
                 
                 {/* User Info */}
                 <div className="flex items-center gap-3 w-full lg:w-1/3">
-                  <div className={cn("w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0", member.wpUser?.roles.includes('committee') || member.wpUser?.roles.includes('administrator') ? "bg-primary/10" : "bg-slate-100")}>
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0", 
+                    member.currentRole === 'administrator' || member.currentRole === 'executive_committee' ? "bg-amber-100" : 
+                    member.currentRole === 'committee' ? "bg-primary/10" : "bg-slate-100"
+                  )}>
                     {member.isDisabled ? <UserX className="w-5 h-5 text-muted-foreground" /> 
-                    : (member.wpUser?.roles.includes('committee') || member.wpUser?.roles.includes('administrator') ? <ShieldCheck className="w-5 h-5 text-primary" /> : <User className="w-5 h-5 text-slate-500" />)}
+                    : member.currentRole === 'administrator' ? <Crown className="w-5 h-5 text-amber-600" />
+                    : member.currentRole === 'executive_committee' ? <ShieldCheck className="w-5 h-5 text-amber-600" />
+                    : member.currentRole === 'committee' ? <ShieldCheck className="w-5 h-5 text-primary" /> 
+                    : <User className="w-5 h-5 text-slate-500" />}
                   </div>
                   <div>
                     <Link to={`/admin/members/${member.id}`} className="font-bold text-sm hover:underline hover:text-primary">
@@ -142,34 +161,40 @@ export default function AdminMemberManager() {
                     value={member.status} 
                     onValueChange={(status) => updateStatus.mutate({ id: member.id, status })}
                   >
-                    <SelectTrigger className={cn("w-32 h-9 text-xs font-bold", member.status === 'active' && "text-green-700 bg-green-50 border-green-200", member.status === 'inactive' && "text-red-700 bg-red-50 border-red-200", member.status === 'pending' && "text-orange-700 bg-orange-50 border-orange-200")}>
+                    <SelectTrigger className={cn("w-36 h-9 text-xs font-bold", 
+                      member.status === 'active' && "text-green-700 bg-green-50 border-green-200", 
+                      (member.status === 'inactive' || member.status === 'denied') && "text-red-700 bg-red-50 border-red-200", 
+                      member.status === 'pending' && "text-orange-700 bg-orange-50 border-orange-200"
+                    )}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="active">Active</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="inactive">Inactive</SelectItem>
+                      <SelectItem value="denied">Denied</SelectItem>
                     </SelectContent>
                   </Select>
 
-                  {/* WP Role Dropdown (Only if they have an account & aren't admin) */}
+                  {/* WP Role Dropdown - Hierarchy aware */}
                   {member.wpUser && !member.wpUser.roles.includes('administrator') && (
                      <Select
-                     value={member.wpUser.roles.includes('committee') ? 'committee' : 'fs_member'}
+                     value={member.currentRole}
                      onValueChange={(role) => updateRole.mutate({ id: member.wpUser.id, role })}
                      disabled={member.isDisabled}
                    >
-                     <SelectTrigger className="w-32 h-9 text-xs">
+                     <SelectTrigger className="w-40 h-9 text-xs">
                        {member.isDisabled ? <span className="flex items-center"><Lock className="w-3 h-3 mr-1"/> Locked</span> : <SelectValue />}
                      </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value="fs_member">Member Role</SelectItem>
-                       <SelectItem value="committee">Committee Role</SelectItem>
+                       <SelectItem value="fs_member">Standard Member</SelectItem>
+                       <SelectItem value="committee">Committee</SelectItem>
+                       <SelectItem value="executive_committee">Executive Committee</SelectItem>
                      </SelectContent>
                    </Select>
                   )}
                   {member.wpUser?.roles.includes('administrator') && (
-                     <div className="w-32 h-9 flex items-center px-3 text-xs font-bold text-primary bg-primary/5 rounded-md border border-primary/20">System Admin</div>
+                     <div className="w-40 h-9 flex items-center px-3 text-xs font-bold text-amber-700 bg-amber-50 rounded-md border border-amber-200">System Admin</div>
                   )}
                 </div>
               </div>

@@ -862,6 +862,7 @@ function fs_initialize_custom_roles() {
         }
     }
 }
+add_action('init', 'fs_initialize_custom_roles');
 
 function fs_check_admin_permissions() {
     $user = wp_get_current_user();
@@ -896,13 +897,49 @@ function fs_admin_get_users() {
 
 function fs_admin_update_role($request) {
     $params = $request->get_json_params();
-    $user_id = intval($params['user_id']);
+    $target_user_id = intval($params['user_id']);
     $new_role = sanitize_text_field($params['new_role']);
-    $user = new WP_User($user_id);
-    if (!$user->exists()) return new WP_Error('no_user', 'User not found', array('status' => 404));
-    if (in_array('administrator', $user->roles)) return new WP_Error('forbidden', 'Forbidden', array('status' => 403));
-    $user->set_role($new_role);
-    return rest_ensure_response(array('success' => true));
+    
+    $current_user = wp_get_current_user();
+    $target_user = get_userdata($target_user_id);
+
+    if (!$target_user) {
+        return new WP_Error('not_found', 'User not found', ['status' => 404]);
+    }
+
+    // --- HIERARCHY SECURITY ---
+    $my_weight = fs_get_role_weight($current_user->roles);
+    $target_current_weight = fs_get_role_weight($target_user->roles);
+    $new_role_weight = fs_get_role_weight([$new_role]);
+
+    // If you aren't a full WordPress Administrator, we check the weights
+    if (!in_array('administrator', (array)$current_user->roles)) {
+        
+        // 1. You cannot demote or promote someone who is already higher than or equal to you
+        if ($target_current_weight >= $my_weight) {
+            return new WP_Error('denied', 'Permission Denied: You cannot modify a user of equal or higher rank.', ['status' => 403]);
+        }
+
+        // 2. You cannot promote someone TO your own rank or higher
+        if ($new_role_weight >= $my_weight) {
+            return new WP_Error('denied', 'Permission Denied: You cannot promote a user to your own rank or higher.', ['status' => 403]);
+        }
+    }
+
+    // Only allow valid club roles to be set via this endpoint
+    $allowed_roles = ['fs_member', 'fs_junior_member', 'committee', 'executive_committee'];
+    if (!in_array($new_role, $allowed_roles)) {
+        return new WP_Error('invalid_role', 'Invalid role selection.', ['status' => 400]);
+    }
+
+    // Set the role
+    $target_user->set_role($new_role);
+    
+    return [
+        'success' => true, 
+        'message' => 'Role updated to ' . $new_role,
+        'new_role' => $new_role
+    ];
 }
 
 /**
