@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
@@ -81,6 +82,7 @@ export default function ProfileView() {
         sim_platforms_other: '', 
         parent_name: '', parent_email: '',
         region: '', country: '', member_type: '',
+        reason_for_joining: '', // Added field
         onboarding_complete: false
     });
 
@@ -140,6 +142,7 @@ export default function ProfileView() {
                 region: profileData.region || '',
                 country: profileData.country || '',
                 member_type: profileData.member_type || '',
+                reason_for_joining: profileData.reason_for_joining || '', // Added field
                 onboarding_complete: !!profileData.onboarding_complete
             });
             setHasChanges(false);
@@ -337,6 +340,27 @@ export default function ProfileView() {
                                     {form.sim_platforms.includes("Other") && (
                                         <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
                                     )}
+                                </div>
+                            </div>
+
+                            {/* RECRUITMENT & MISSION ALIGNMENT */}
+                            <div className="space-y-4 pt-4 border-t">
+                                <div className="flex items-center gap-2 text-primary">
+                                    <Shield className="w-5 h-5" />
+                                    <h3 className="font-semibold text-lg">Recruitment & Mission Alignment</h3>
+                                </div>
+                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+                                    <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                                        {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
+                                    </div>
+                                    <Label>Why did you join Full Send SimSport?</Label>
+                                    <Textarea 
+                                        value={form.reason_for_joining} 
+                                        onChange={e => handleChange('reason_for_joining', e.target.value)} 
+                                        disabled={isLocked || isEditingSelf} 
+                                        className="min-h-[100px] bg-white resize-none"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground italic">Note: This is provided during application for committee review.</p>
                                 </div>
                             </div>
 

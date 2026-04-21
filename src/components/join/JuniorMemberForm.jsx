@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart } from 'lucide-react'; 
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart, MessageSquare} from 'lucide-react'; 
 import { cn } from '@/lib/utils';
+import { Textarea } from '@/components/ui/textarea';
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
@@ -67,6 +68,7 @@ export default function JuniorMemberForm({ onBack }) {
     if (!form.agreed_to_terms) return setError("You must agree to the terms to continue.");
     if (!form.dob) return setError("Please select the date of birth.");
     if (!form.region) return setError("Region is required.");
+    if (form.reason_for_joining.trim().length < 20) return setError("Please provide a more detailed reason for joining (min 20 characters).");
     if (!form.country) return setError("Country is required.");
     if (form.country === 'Australia' && !form.state) return setError("State is required for Australian residents.");
 
@@ -116,6 +118,7 @@ export default function JuniorMemberForm({ onBack }) {
     form.last_name.trim() !== '' &&
     form.email.trim() !== '' &&
     form.dob !== '' &&
+    form.reason_for_joining.trim().length >= 20 &&
     form.region !== '' &&
     form.country !== '' &&
     (form.country !== 'Australia' || form.state !== '') &&
@@ -168,6 +171,28 @@ export default function JuniorMemberForm({ onBack }) {
                 <div className="space-y-2"><Label>Email Address *</Label><Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} required /></div>
                 <div className="space-y-2"><Label>Phone (Optional)</Label><Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
                 <div className="space-y-2 md:col-span-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} required className="w-full" /></div>
+              </div>
+            </div>
+
+            {/* Recruitment Details - THE NEW FIELD */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 border-b pb-2 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                Recruitment Details
+              </h3>
+              <div className="space-y-2 mt-4">
+                <Label htmlFor="reason">Why would you like to join Full Send SimSport? *</Label>
+                <Textarea 
+                  id="reason"
+                  placeholder="Tell us a bit about yourself and why you're interested in our community..."
+                  value={form.reason_for_joining} 
+                  onChange={e => handleChange('reason_for_joining', e.target.value)}
+                  className="min-h-[120px] resize-none"
+                  required
+                />
+                <p className="text-[10px] text-muted-foreground italic">
+                  This helps our committee ensure we are recruiting members who align with our values.
+                </p>
               </div>
             </div>
 
