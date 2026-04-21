@@ -7,6 +7,28 @@
 
 if (!defined('ABSPATH')) exit;
 
+/**
+ * Helper: Returns the numerical weight of a user's roles for hierarchy checks.
+ * Admin (40) > Executive (30) > Committee (20) > Member (10)
+ */
+function fs_get_role_weight($roles) {
+    $weights = [
+        'administrator'       => 40,
+        'executive_committee' => 30,
+        'committee'           => 20,
+        'fs_member'           => 10,
+        'fs_junior_member'    => 10,
+        'subscriber'          => 5
+    ];
+    $max_weight = 0;
+    foreach ((array)$roles as $role) {
+        if (isset($weights[$role]) && $weights[$role] > $max_weight) {
+            $max_weight = $weights[$role];
+        }
+    }
+    return $max_weight;
+}
+
 add_filter('authenticate', function($user, $username, $password) {
     if ($user instanceof WP_User) {
         $is_disabled = get_user_meta($user->ID, 'fs_account_disabled', true);
@@ -95,10 +117,9 @@ add_action('rest_api_init', function () {
             }
 
             $user = wp_get_current_user();
-            
             $member_id = get_user_meta($user->ID, 'fs_member_id', true);
 
-            // --- START AUTO-LINK LOGIC ---
+            // --- START AUTO-LINK LOGIC (Preserved) ---
             if (!$member_id) {
                 $member_query = new WP_Query([
                     'post_type' => 'fs_member',
@@ -117,8 +138,14 @@ add_action('rest_api_init', function () {
             // --- END AUTO-LINK LOGIC ---
 
             $member_details = null;
+            $onboarding_complete = false; // Default for safety
 
             if ($member_id) {
+                // --- ADDED: Onboarding Check ---
+                $is_complete = get_post_meta($member_id, '_onboarding_complete', true);
+                $onboarding_complete = ($is_complete === 'yes');
+
+                // --- START PARENT/CHILD LOGIC (Preserved) ---
                 $parent_id = get_post_meta($member_id, '_parent_id', true);
                 $parent_name = get_post_meta($member_id, '_parent_name', true);
                 $parent_email = get_post_meta($member_id, '_parent_email', true);
@@ -149,8 +176,10 @@ add_action('rest_api_init', function () {
                 $raw_status = get_post_meta($member_id, '_status', true);
                 $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
 
+                // --- START MEMBER DETAILS (Preserved) ---
                 $member_details = [
                     'member_id'           => $member_id,
+                    'onboarding_complete' => $onboarding_complete, // Added inside details
                     'first_name'          => get_post_meta($member_id, '_first_name', true),
                     'last_name'           => get_post_meta($member_id, '_last_name', true),
                     'email'               => get_post_meta($member_id, '_email', true),
@@ -159,14 +188,14 @@ add_action('rest_api_init', function () {
                     'city'                => get_post_meta($member_id, '_city', true),
                     'state'               => get_post_meta($member_id, '_state', true),
                     'postcode'            => get_post_meta($member_id, '_postcode', true),
-                    'region'              => get_post_meta($member_id, '_region', true), // Added
-                    'country'             => get_post_meta($member_id, '_country', true), // Added
+                    'region'              => get_post_meta($member_id, '_region', true),
+                    'country'             => get_post_meta($member_id, '_country', true),
                     'dob'                 => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
                     'discord_username'    => get_post_meta($member_id, '_discord_username', true),
                     'comm_prefs'          => maybe_unserialize(get_post_meta($member_id, '_comm_prefs', true)) ?: ['Email'],
                     'sim_environment'     => get_post_meta($member_id, '_sim_environment', true),
                     'sim_platforms'       => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
-                    'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true), // Added
+                    'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true),
                     'racing_interests'    => maybe_unserialize(get_post_meta($member_id, '_racing_interests', true)) ?: [],
                     'membership_type'     => get_post_meta($member_id, '_membership_type', true),
                     'status'              => $display_status,
@@ -177,13 +206,14 @@ add_action('rest_api_init', function () {
             }
 
             return rest_ensure_response([
-                'authenticated'  => true,
-                'id'             => $user->ID,
-                'email'          => $user->user_email,
-                'display_name'   => $user->display_name,
-                'member_id'      => get_user_meta($user->ID, 'fs_member_id', true),
-                'roles'          => $user->roles,
-                'member_details' => $member_details
+                'authenticated'       => true,
+                'id'                  => $user->ID,
+                'email'               => $user->user_email,
+                'display_name'        => $user->display_name,
+                'member_id'           => $member_id,
+                'roles'               => $user->roles,
+                'onboarding_complete' => $onboarding_complete, // Added to top level for React Gate
+                'member_details'      => $member_details
             ]);
         },
         'permission_callback' => '__return_true'
@@ -324,133 +354,172 @@ add_action('rest_api_init', function () {
     ]);
     
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
-    'methods' => 'GET',
-    'permission_callback' => function() { return current_user_can('edit_posts'); },
-    'callback' => function($data) {
-        $post = get_post($data['id']);
-        if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
+        'methods' => 'GET',
+        'permission_callback' => 'fs_check_admin_permissions',
+        'callback' => function($data) {
+            $post = get_post($data['id']);
+            if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
 
-        // ... existing parent/children logic ...
-        $parent_id = get_post_meta($post->ID, '_parent_id', true);
-        $parent_name = get_post_meta($post->ID, '_parent_name', true);
-        $parent_email = get_post_meta($post->ID, '_parent_email', true);
+            // --- NEW: HIERARCHY CHECK ---
+            $current_user = wp_get_current_user();
+            $target_wp_user_id = get_post_meta($post->ID, '_wp_user_id', true);
+            
+            // If the record belongs to a WP User and it's NOT the person viewing it...
+            if ($target_wp_user_id && $current_user->ID != $target_wp_user_id) {
+                $target_user = get_userdata($target_wp_user_id);
+                // Check if the person we are looking at has a higher rank than us
+                if ($target_user && fs_get_role_weight($current_user->roles) < fs_get_role_weight($target_user->roles)) {
+                    return new WP_Error('forbidden', 'You do not have permission to view this account level.', ['status' => 403]);
+                }
+            }
+            // --- END HIERARCHY CHECK ---
 
-        if ($parent_id) {
-            $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
-            $parent_email = get_post_meta($parent_id, '_email', true);
-        }
+            // Existing parent/children logic (PRESERVED)
+            $parent_id = get_post_meta($post->ID, '_parent_id', true);
+            $parent_name = get_post_meta($post->ID, '_parent_name', true);
+            $parent_email = get_post_meta($post->ID, '_parent_email', true);
 
-        $children = [];
-        $child_query = new WP_Query([
-            'post_type' => 'fs_member',
-            'meta_query' => [['key' => '_parent_id', 'value' => $post->ID, 'compare' => '=']]
-        ]);
+            if ($parent_id) {
+                $p_first = get_post_meta($parent_id, '_first_name', true);
+                $p_last = get_post_meta($parent_id, '_last_name', true);
+                $parent_name = trim($p_first . ' ' . $p_last);
+                $parent_email = get_post_meta($parent_id, '_email', true);
+            }
 
-        foreach ($child_query->posts as $cp) {
-            $children[] = [
-                'id' => $cp->ID,
-                'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
-                'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
+            $children = [];
+            $child_query = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_query' => [['key' => '_parent_id', 'value' => $post->ID, 'compare' => '=']]
+            ]);
+
+            foreach ($child_query->posts as $cp) {
+                $children[] = [
+                    'id' => $cp->ID,
+                    'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
+                    'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
+                ];
+            }
+
+            // Construct the response
+            return [
+                'id'                  => $post->ID,
+                'wp_user_id'          => $target_wp_user_id, // Needed for React "Self" check
+                'onboarding_complete' => (get_post_meta($post->ID, '_onboarding_complete', true) === 'yes'),
+                'first_name'          => get_post_meta($post->ID, '_first_name', true),
+                'last_name'           => get_post_meta($post->ID, '_last_name', true),
+                'dob'                 => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
+                'email'               => get_post_meta($post->ID, '_email', true),
+                'phone'               => get_post_meta($post->ID, '_phone', true),
+                'street_address'      => get_post_meta($post->ID, '_street_address', true),
+                'city'                => get_post_meta($post->ID, '_city', true),
+                'state'               => get_post_meta($post->ID, '_state', true),
+                'postcode'            => get_post_meta($post->ID, '_postcode', true),
+                'region'              => get_post_meta($post->ID, '_region', true),
+                'country'             => get_post_meta($post->ID, '_country', true),
+                'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
+                'member_type'         => get_post_meta($post->ID, '_member_type', true),
+                'comm_prefs'          => maybe_unserialize(get_post_meta($post->ID, '_comm_prefs', true)) ?: [],
+                'sim_environment'     => get_post_meta($post->ID, '_sim_environment', true),
+                'racing_interests'    => maybe_unserialize(get_post_meta($post->ID, '_racing_interests', true)) ?: [],
+                'sim_platforms'       => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
+                'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true),
+                'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
+                'created_date'        => $post->post_date,
+                'parent_id'           => $parent_id,
+                'parent_name'         => $parent_name,
+                'parent_email'        => $parent_email,
+                'children'            => $children,
+                // Needed for React to calculate hierarchy weights
+                'roles'               => $target_wp_user_id ? get_userdata($target_wp_user_id)->roles : ['fs_member']
             ];
         }
-
-        return [
-            'id'                  => $post->ID,
-            // --- ADDED THIS LINE ---
-            'onboarding_complete' => (get_post_meta($post->ID, '_onboarding_complete', true) === 'yes'),
-            // -----------------------
-            'first_name'          => get_post_meta($post->ID, '_first_name', true),
-            'last_name'           => get_post_meta($post->ID, '_last_name', true),
-            'dob'                 => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
-            'email'               => get_post_meta($post->ID, '_email', true),
-            'phone'               => get_post_meta($post->ID, '_phone', true),
-            'street_address'      => get_post_meta($post->ID, '_street_address', true),
-            'city'                => get_post_meta($post->ID, '_city', true),
-            'state'               => get_post_meta($post->ID, '_state', true),
-            'postcode'            => get_post_meta($post->ID, '_postcode', true),
-            'region'              => get_post_meta($post->ID, '_region', true),
-            'country'             => get_post_meta($post->ID, '_country', true),
-            'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
-            'member_type'         => get_post_meta($post->ID, '_member_type', true),
-            'comm_prefs'          => maybe_unserialize(get_post_meta($post->ID, '_comm_prefs', true)) ?: [],
-            'sim_environment'     => get_post_meta($post->ID, '_sim_environment', true),
-            'racing_interests'    => maybe_unserialize(get_post_meta($post->ID, '_racing_interests', true)) ?: [],
-            'sim_platforms'       => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
-            'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true),
-            'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
-            'created_date'        => $post->post_date,
-            'parent_id'           => $parent_id,
-            'parent_name'         => $parent_name,
-            'parent_email'        => $parent_email,
-            'children'            => $children
-        ];
-      }
     ]);
 
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
-    'methods' => 'POST',
-    'permission_callback' => function() { return current_user_can('edit_posts'); },
-    'callback' => function($request) {
-        $id = $request['id']; 
-        $params = $request->get_json_params();
-        
-        $allowed_fields = [
-            'first_name', 'last_name', 'dob', 'email', 'phone', 
-            'street_address', 'city', 'state', 'postcode', 
-            'region', 'country', 'discord_username', 
-            'comm_prefs', 'sim_environment', 'racing_interests',
-            'sim_platforms', 'sim_platforms_other', 'status',
-            'onboarding_complete' // --- ADDED THIS ---
-        ];
-        
-        $old_status = get_post_meta($id, '_status', true);
-        $wp_user_id = get_post_meta($id, '_wp_user_id', true);
-        $updated = false;
+        'methods' => 'POST',
+        'permission_callback' => 'fs_check_admin_permissions',
+        'callback' => function($request) {
+            $id = $request['id']; 
+            $params = $request->get_json_params();
+            $current_user = wp_get_current_user();
+            $wp_user_id = get_post_meta($id, '_wp_user_id', true);
+            
+            // --- 1. NEW: HIERARCHY CHECK ---
+            // If editing someone else, verify the editor has a higher rank
+            if ($wp_user_id && $current_user->ID != $wp_user_id) {
+                $target_user = get_userdata($wp_user_id);
+                if ($target_user && fs_get_role_weight($current_user->roles) <= fs_get_role_weight($target_user->roles)) {
+                    return new WP_Error('forbidden', 'You cannot edit a user of equal or higher rank.', ['status' => 403]);
+                }
+            }
 
-        foreach ($params as $key => $value) {
-            if (in_array($key, $allowed_fields)) {
-                if ($key === 'email') {
-                    $new_email = sanitize_email($value);
-                    if (!empty($new_email)) {
-                        update_post_meta($id, '_email', $new_email);
-                        if ($wp_user_id) wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
-                    }
-                } elseif ($key === 'onboarding_complete') {
-                    // --- HANDLE THE ONBOARDING FLAG ---
-                    $val = ($value === true || $value === 'yes') ? 'yes' : 'no';
-                    update_post_meta($id, '_onboarding_complete', $val);
-                } else {
-                    $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
-                    update_post_meta($id, '_' . $key, $sanitized_value);
-                    
-                    if ($key === 'status') {
-                        $new_status = $sanitized_value;
-                        if ($new_status === 'active') {
-                            $member_id_code = fs_generate_member_id($id);
-                            if ($wp_user_id) {
-                                wp_update_user(['ID' => $wp_user_id, 'display_name' => $member_id_code]);
-                                delete_user_meta($wp_user_id, 'fs_account_disabled');
+            // --- 2. NEW: SELF-EDIT GUARDRAIL ---
+            // If editing yourself, remove status and onboarding flags from the request
+            // This prevents an Admin from accidentally deactivating themselves.
+            if ($current_user->ID == $wp_user_id) {
+                unset($params['status']);
+                unset($params['onboarding_complete']);
+            }
+
+            $allowed_fields = [
+                'first_name', 'last_name', 'dob', 'email', 'phone', 
+                'street_address', 'city', 'state', 'postcode', 
+                'region', 'country', 'discord_username', 
+                'comm_prefs', 'sim_environment', 'racing_interests',
+                'sim_platforms', 'sim_platforms_other', 'status',
+                'onboarding_complete'
+            ];
+            
+            $old_status = get_post_meta($id, '_status', true);
+            $updated = false;
+
+            foreach ($params as $key => $value) {
+                if (in_array($key, $allowed_fields)) {
+                    if ($key === 'email') {
+                        $new_email = sanitize_email($value);
+                        if (!empty($new_email)) {
+                            update_post_meta($id, '_email', $new_email);
+                            if ($wp_user_id) wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
+                        }
+                    } elseif ($key === 'onboarding_complete') {
+                        // Handle the boolean/string conversion for onboarding
+                        $val = ($value === true || $value === 'yes') ? 'yes' : 'no';
+                        update_post_meta($id, '_onboarding_complete', $val);
+                    } else {
+                        $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
+                        update_post_meta($id, '_' . $key, $sanitized_value);
+                        
+                        // Handle status-specific logic (Member ID generation & activation)
+                        if ($key === 'status') {
+                            $new_status = $sanitized_value;
+                            if ($new_status === 'active') {
+                                // Preserving your existing Member ID generation logic
+                                $member_id_code = fs_generate_member_id($id);
+                                if ($wp_user_id) {
+                                    wp_update_user(['ID' => $wp_user_id, 'display_name' => $member_id_code]);
+                                    delete_user_meta($wp_user_id, 'fs_account_disabled');
+                                }
+                            }
+                            if ($new_status === 'inactive' && $wp_user_id) {
+                                update_user_meta($wp_user_id, 'fs_account_disabled', '1');
                             }
                         }
-                        if ($new_status === 'inactive' && $wp_user_id) {
-                            update_user_meta($wp_user_id, 'fs_account_disabled', '1');
-                        }
                     }
+                    $updated = true;
                 }
-                $updated = true;
             }
-        }
 
-        if (isset($params['status']) && $params['status'] !== $old_status) {
-            fs_handle_status_change_emails($id, $params['status'], $old_status);
-        }
+            // Fire status change emails if status was modified
+            if (isset($params['status']) && $params['status'] !== $old_status) {
+                fs_handle_status_change_emails($id, $params['status'], $old_status);
+            }
 
-        if ($updated) {
-            return ['status' => 'success', 'message' => 'Member updated successfully'];
+            if ($updated) {
+                return ['status' => 'success', 'message' => 'Member updated successfully'];
+            }
+            return new WP_Error('invalid_data', 'No valid fields provided to update', ['status' => 400]);
         }
-        return new WP_Error('invalid_data', 'No valid fields provided to update', ['status' => 400]);
-    }
-]);
+    ]);
 
     register_rest_route($namespace, '/setup-account', [
     'methods' => 'POST',
@@ -543,10 +612,11 @@ add_action('rest_api_init', function () {
         return [
             'status' => 'success',
             'logged_in' => true,
+            'onboarding_complete' => false, // Explicitly tell React to trigger onboarding
             'message' => 'Account setup complete! Welcome, ' . ($first_name ?: $email)
         ];
-    }
-]);
+        }
+    ]);
 
     register_rest_route($namespace, '/update-me', [
         'methods' => 'POST',
@@ -686,25 +756,37 @@ add_action('wp_logout', function(){
 });
 
 function fs_initialize_custom_roles() {
-    if (!get_role('committee')) {
-        add_role('committee', 'Committee', [
-            'read' => true,
-            'view_portal_admin' => true,
-            'edit_posts' => true
-        ]);
-    }
-    if (!get_role('fs_member')) {
-        add_role('fs_member', 'FS Member', ['read' => true]);
-    }
-    if (!get_role('fs_junior_member')) {
-        add_role('fs_junior_member', 'FS Junior Member', ['read' => true]);
+    $roles = [
+        'executive_committee' => [
+            'display' => 'Executive Committee',
+            'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]
+        ],
+        'committee' => [
+            'display' => 'Committee',
+            'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]
+        ],
+        'fs_member' => [
+            'display' => 'FS Member', 'caps' => ['read' => true]
+        ],
+        'fs_junior_member' => [
+            'display' => 'FS Junior Member', 'caps' => ['read' => true]
+        ]
+    ];
+
+    foreach ($roles as $role_slug => $data) {
+        if (!get_role($role_slug)) {
+            add_role($role_slug, $data['display'], $data['caps']);
+        }
     }
 }
-add_action('init', 'fs_initialize_custom_roles');
 
 function fs_check_admin_permissions() {
     $user = wp_get_current_user();
-    return (in_array('administrator', (array)$user->roles) || in_array('committee', (array)$user->roles));
+    $admin_roles = ['administrator', 'executive_committee', 'committee'];
+    foreach ($admin_roles as $role) {
+        if (in_array($role, (array)$user->roles)) return true;
+    }
+    return false;
 }
 
 function fs_admin_get_users() {
