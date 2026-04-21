@@ -7,49 +7,68 @@
 @layer base {
   :root {
     --font-inter: 'Inter', sans-serif;
-    /* Primary: #3A0A59 | Secondary: #DD87FA | Tertiary: #FFFFFF | Quaternary: #2D082F */
-    --background: 300 10% 97%;
-    --foreground: 279 80% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 279 80% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 279 80% 10%;
-    --primary: 279 80% 19%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 288 91% 75%;
-    --secondary-foreground: 279 80% 10%;
-    --muted: 290 30% 95%;
-    --muted-foreground: 279 20% 45%;
-    --accent: 288 91% 75%;
-    --accent-foreground: 279 80% 10%;
+    /* Primary: #3A0A59 | Secondary: #FFFFFF | Tertiary: #ffe400 | Quaternary: #4169e1 | Quinary: #dd87fa */
+    --background: 0 0% 100%;        /* White (Secondary) */
+    --foreground: 277 80% 10%;      /* Dark Purple tint for text */
+
+    /* Cards & Popovers */
+    --card: 0 0% 100%;              /* White (Secondary) */
+    --card-foreground: 277 80% 10%;
+
+    /* Brand Colors */
+    --primary: 277 80% 20%;         /* Deep Purple (Primary) */
+    --primary-foreground: 0 0% 100%;/* White text on purple buttons */
+
+    --secondary: 284 91% 76%;       /* Light Lavender (Quinary) - Great for secondary buttons */
+    --secondary-foreground: 277 80% 10%;
+
+    --accent: 54 100% 50%;          /* Yellow (Tertiary) - Use for highlights/stars */
+    --accent-foreground: 277 80% 10%;
+
+    /* UI Elements */
+    --muted: 284 30% 96%;           /* Very pale lavender tint */
+    --muted-foreground: 277 20% 40%;
+    
+    --border: 277 20% 90%;          /* Subtle purple-tinted borders */
+    --input: 277 20% 90%;
+    --ring: 225 73% 57%;            /* Royal Blue (Quaternary) - Best for focus rings */
+
+    /* Status */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 288 30% 88%;
-    --input: 288 30% 88%;
-    --ring: 279 80% 19%;
     --radius: 0.75rem;
   }
 
   .dark {
-    --background: 298 71% 7%;
-    --foreground: 0 0% 96%;
-    --card: 298 71% 11%;
-    --card-foreground: 0 0% 96%;
-    --popover: 298 71% 11%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 288 91% 75%;
-    --primary-foreground: 279 80% 10%;
-    --secondary: 279 50% 22%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 279 50% 18%;
-    --muted-foreground: 288 30% 65%;
-    --accent: 279 80% 19%;
-    --accent-foreground: 0 0% 96%;
+    /* Main Background & Text */
+    --background: 277 80% 4%;       /* Deepest Purple-Black */
+    --foreground: 0 0% 100%;        /* White (Secondary) */
+
+    /* Cards & Popovers */
+    --card: 277 80% 6%;             /* Slightly lighter than background */
+    --card-foreground: 0 0% 100%;
+
+    /* Brand Colors */
+    --primary: 284 91% 76%;         /* Light Lavender (Quinary) - Pops better on dark */
+    --primary-foreground: 277 80% 10%; /* Dark text on light buttons */
+
+    --secondary: 277 80% 20%;       /* Deep Purple (Primary) - Subdued for secondary buttons */
+    --secondary-foreground: 0 0% 100%;
+
+    --accent: 54 100% 50%;          /* Yellow (Tertiary) - Remains for high-contrast alerts */
+    --accent-foreground: 277 80% 10%;
+
+    /* UI Elements */
+    --muted: 277 40% 15%;           /* Muted Deep Purple */
+    --muted-foreground: 277 20% 70%; 
+    
+    --border: 277 40% 18%;          /* Dark Purple borders */
+    --input: 277 40% 18%;
+    --ring: 225 73% 57%;            /* Royal Blue (Quaternary) */
+
+    /* Status */
     --destructive: 0 62% 30%;
     --destructive-foreground: 0 0% 98%;
-    --border: 279 40% 22%;
-    --input: 279 40% 22%;
-    --ring: 288 91% 75%;
   }
 }
 
