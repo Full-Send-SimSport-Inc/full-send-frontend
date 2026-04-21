@@ -356,55 +356,67 @@ add_action('rest_api_init', function () {
     ]);
 
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
-        'methods' => 'POST',
-        'permission_callback' => function() { return current_user_can('edit_posts'); },
-        'callback' => function($request) {
-            $id = $request['id'];
-            $params = $request->get_json_params();
-            
-            $allowed_fields = [
-                'first_name', 'last_name', 'dob', 'email', 'phone', 
-                'street_address', 'city', 'state', 'postcode', 
-                'region', 'country', 'discord_username', 
-                'comm_prefs', 'sim_environment', 'racing_interests',
-                'sim_platforms', 'sim_platforms_other', 'status'
-            ];
-            $updated = false;
+    'methods' => 'POST',
+    'permission_callback' => function() { return current_user_can('edit_posts'); },
+    'callback' => function($request) {
+        $id = $request['id']; // This is the FS_Member Post ID
+        $params = $request->get_json_params();
+        
+        $allowed_fields = [
+            'first_name', 'last_name', 'dob', 'email', 'phone', 
+            'street_address', 'city', 'state', 'postcode', 
+            'region', 'country', 'discord_username', 
+            'comm_prefs', 'sim_environment', 'racing_interests',
+            'sim_platforms', 'sim_platforms_other', 'status'
+        ];
+        
+        // 1. Capture the old status before any updates occur
+        $old_status = get_post_meta($id, '_status', true);
+        $wp_user_id = get_post_meta($id, '_wp_user_id', true);
+        
+        $updated = false;
 
-            foreach ($params as $key => $value) {
-                if (in_array($key, $allowed_fields)) {
-                    if ($key === 'email') {
-                        $new_email = sanitize_email($value);
-                        if (!empty($new_email)) {
-                            update_post_meta($id, '_email', $new_email);
-                            $wp_user_id = get_post_meta($id, '_wp_user_id', true);
-                            if ($wp_user_id) wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
-                        }
-                    } else {
-                        $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
-                        update_post_meta($id, '_' . $key, $sanitized_value);
-                        
-                        if ($key === 'status') {
-                            $wp_user_id = get_post_meta($id, '_wp_user_id', true);
-                            if ($wp_user_id) {
-                                if ($sanitized_value === 'inactive') {
-                                    update_user_meta($wp_user_id, 'fs_account_disabled', '1');
-                                } else {
-                                    delete_user_meta($wp_user_id, 'fs_account_disabled');
-                                }
+        foreach ($params as $key => $value) {
+            if (in_array($key, $allowed_fields)) {
+                if ($key === 'email') {
+                    $new_email = sanitize_email($value);
+                    if (!empty($new_email)) {
+                        update_post_meta($id, '_email', $new_email);
+                        if ($wp_user_id) wp_update_user(['ID' => $wp_user_id, 'user_email' => $new_email]);
+                    }
+                } else {
+                    $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
+                    update_post_meta($id, '_' . $key, $sanitized_value);
+                    
+                    if ($key === 'status') {
+                        if ($wp_user_id) {
+                            if ($sanitized_value === 'inactive') {
+                                update_user_meta($wp_user_id, 'fs_account_disabled', '1');
+                            } else {
+                                delete_user_meta($wp_user_id, 'fs_account_disabled');
                             }
                         }
                     }
-                    $updated = true;
                 }
+                $updated = true;
             }
-
-            if ($updated) {
-                return ['status' => 'success', 'message' => 'Member updated successfully'];
-            }
-            return new WP_Error('invalid_data', 'No valid fields provided to update', ['status' => 400]);
         }
-    ]);
+
+        // 2. TRIGGER THE EMAIL
+        // We check if 'status' was in the request and if it actually changed
+        if (isset($params['status']) && $params['status'] !== $old_status) {
+            if ($wp_user_id) {
+                // We pass the WP User ID to the email function so it can find the email address
+                fs_handle_status_change_emails($wp_user_id, $params['status'], $old_status);
+            }
+        }
+
+        if ($updated) {
+            return ['status' => 'success', 'message' => 'Member updated successfully'];
+        }
+        return new WP_Error('invalid_data', 'No valid fields provided to update', ['status' => 400]);
+    }
+]);
 
     register_rest_route($namespace, '/setup-account', [
         'methods' => 'POST',
@@ -649,6 +661,80 @@ function fs_admin_update_role($request) {
     if (in_array('administrator', $user->roles)) return new WP_Error('forbidden', 'Forbidden', array('status' => 403));
     $user->set_role($new_role);
     return rest_ensure_response(array('success' => true));
+}
+
+/**
+ * REUSABLE EMAIL HELPER
+ * Based on your existing fs_admin_send_email logic
+ */
+function fs_send_automated_email($to_email, $subject, $body_content) {
+    $from_name    = 'Full Send SimSport';
+    $system_email = get_option('admin_email');
+    $info_email   = 'info@fullsendsimsport.com.au';
+
+    // Wrap in the same styling as your ad-hoc emails
+    $html_message = '<div style="font-family: sans-serif; line-height: 1.6; color: #333;">';
+    $html_message .= $body_content;
+    $html_message .= '<br><br><p style="font-size: 12px; color: #777;">This is an automated message from the Full Send SimSport Member Portal.</p>';
+    $html_message .= '</div>';
+    
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from_name . ' <' . $system_email . '>',
+        'Reply-To: ' . $info_email
+    );
+
+    return wp_mail($to_email, $subject, $html_message, $headers);
+}
+
+/**
+ * TRIGGER 1: ON REGISTRATION (WELCOME/PENDING)
+ */
+add_action('user_register', 'fs_email_on_registration', 10, 1);
+function fs_email_on_registration($user_id) {
+    $user = get_userdata($user_id);
+    $first_name = get_user_meta($user_id, 'first_name', true) ?: $user->display_name;
+    
+    // Placeholder for Member ID logic we will define later
+    $member_id = get_user_meta($user_id, 'fs_member_id', true) ?: 'TBA';
+
+    $subject = "Welcome to Full Send SimSport - Application Received";
+    
+    // Construct HTML Body
+    $body = "<h2>Hi " . esc_html($first_name) . ",</h2>";
+    $body .= "<p>Thanks for registering with Full Send SimSport! We have received your application.</p>";
+    $body .= "<p><strong>Your Member ID:</strong> " . esc_html($member_id) . "</p>";
+    $body .= "<p>Your account is currently <strong>Pending</strong>. Our committee will review your registration shortly. You will receive another email once your account has been activated.</p>";
+
+    fs_send_automated_email($user->user_email, $subject, $body);
+}
+
+/**
+ * TRIGGER 2 & 3: ON STATUS CHANGE (ACTIVE / INACTIVE)
+ * This logic should be called inside your existing member update function
+ * where the status meta is updated.
+ */
+function fs_handle_status_change_emails($user_id, $new_status, $old_status) {
+    if ($new_status === $old_status) return;
+
+    $user = get_userdata($user_id);
+    $first_name = get_user_meta($user_id, 'first_name', true) ?: $user->display_name;
+
+    if ($new_status === 'active') {
+        $subject = "Account Activated - Full Send SimSport";
+        $body = "<h2>Great news, " . esc_html($first_name) . "!</h2>";
+        $body .= "<p>Your Full Send SimSport account has been <strong>Approved and Activated</strong>.</p>";
+        $body .= "<p>You can now log in to the Member Portal to view meetings and manage your profile.</p>";
+        fs_send_automated_email($user->user_email, $subject, $body);
+    } 
+    
+    elseif ($new_status === 'inactive') {
+        $subject = "Account Status Update - Full Send SimSport";
+        $body = "<h2>Hello " . esc_html($first_name) . ",</h2>";
+        $body .= "<p>This email is to advise that your account status has been changed to <strong>Inactive</strong>.</p>";
+        $body .= "<p>If you believe this is an error or wish to re-activate your account, please contact the committee at info@fullsendsimsport.com.au.</p>";
+        fs_send_automated_email($user->user_email, $subject, $body);
+    }
 }
 
 function fs_admin_send_email($request) {
