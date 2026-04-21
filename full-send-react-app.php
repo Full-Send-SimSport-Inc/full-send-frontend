@@ -189,91 +189,86 @@ add_action('rest_api_init', function () {
     ]);
 
     register_rest_route($namespace, '/join', [
-        'methods' => 'POST',
-        'permission_callback' => '__return_true',
-        'callback' => function($request) {
-            $params = $request->get_json_params();
-            
-            $email = sanitize_email($params['email']);
-            $first_name = sanitize_text_field($params['first_name']);
-            $last_name = sanitize_text_field($params['last_name']);
-            $dob = sanitize_text_field($params['dob']);
+    'methods' => 'POST',
+    'permission_callback' => '__return_true',
+    'callback' => function($request) {
+        $params = $request->get_json_params();
+        
+        $email = sanitize_email($params['email']);
+        $first_name = sanitize_text_field($params['first_name']);
+        $last_name = sanitize_text_field($params['last_name']);
+        $dob = sanitize_text_field($params['dob']);
 
-            // Mandatory Field Validation
-            if (empty($params['comm_prefs'])) return new WP_Error('missing_data', 'At least one communication preference is required.', ['status' => 400]);
-            if (empty($params['sim_environment'])) return new WP_Error('missing_data', 'Sim racing environment selection is required.', ['status' => 400]);
-            if (empty($params['racing_interests'])) return new WP_Error('missing_data', 'At least one racing interest is required.', ['status' => 400]);
-
-            // 1. Check if Email already exists as a WordPress User
-            if (email_exists($email)) {
-                return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your existing account.', ['status' => 409]);
-            }
-
-            // 2. Check if a Member record already exists with this Email
-            $email_check = new WP_Query([
-                'post_type' => 'fs_member',
-                'meta_key' => '_email',
-                'meta_value' => $email,
-                'post_status' => 'any',
-                'posts_per_page' => 1
-            ]);
-
-            if ($email_check->have_posts()) {
-                return new WP_Error('registration_conflict', 'A membership application for this email is already on file or being processed.', ['status' => 409]);
-            }
-
-            // 3. Check if Name + DOB already exists
-            $identity_query = new WP_Query([
-                'post_type' => 'fs_member',
-                'meta_query' => [
-                    'relation' => 'AND',
-                    ['key' => '_first_name', 'value' => $first_name],
-                    ['key' => '_last_name', 'value' => $last_name],
-                    ['key' => '_dob', 'value' => $dob]
-                ],
-                'post_status' => 'any',
-                'posts_per_page' => 1
-            ]);
-
-            if ($identity_query->have_posts()) {
-                return new WP_Error('registration_conflict', 'A member record with this name and date of birth already exists in our system.', ['status' => 409]);
-            }
-
-            // 4. Create new FS Member post
-            $post_id = wp_insert_post([
-                'post_title'   => $first_name . ' ' . $last_name,
-                'post_type'    => 'fs_member',
-                'post_status'  => 'publish',
-            ]);
-
-            if (is_wp_error($post_id) || !$post_id) {
-                return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
-            }
-            
-            // Save metadata with array handling
-            foreach ($params as $key => $value) {
-                $target_key = $key;
-                if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
-                if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
-
-                $meta_key = '_' . $target_key;
-                if (is_array($value)) {
-                    $sanitized_array = array_map('sanitize_text_field', $value);
-                    update_post_meta($post_id, $meta_key, $sanitized_array);
-                } else {
-                    update_post_meta($post_id, $meta_key, sanitize_text_field($value));
-                }
-            }
-            
-            update_post_meta($post_id, '_status', 'pending');
-            return [
-                'status' => 'success', 
-                'message' => 'Application Submitted!', 
-                'id' => $post_id, 
-                'email' => $email
-            ];
+        // 1. Check if Email already exists as a WordPress User
+        if (email_exists($email)) {
+            return new WP_Error('registration_conflict', 'An account with this email already exists. Please log in to your existing account.', ['status' => 409]);
         }
-    ]);
+
+        // 2. Check if a Member record already exists with this Email
+        $email_check = new WP_Query([
+            'post_type' => 'fs_member',
+            'meta_key' => '_email',
+            'meta_value' => $email,
+            'post_status' => 'any',
+            'posts_per_page' => 1
+        ]);
+
+        if ($email_check->have_posts()) {
+            return new WP_Error('registration_conflict', 'A membership application for this email is already on file or being processed.', ['status' => 409]);
+        }
+
+        // 3. Check if Name + DOB already exists
+        $identity_query = new WP_Query([
+            'post_type' => 'fs_member',
+            'meta_query' => [
+                'relation' => 'AND',
+                ['key' => '_first_name', 'value' => $first_name],
+                ['key' => '_last_name', 'value' => $last_name],
+                ['key' => '_dob', 'value' => $dob]
+            ],
+            'post_status' => 'any',
+            'posts_per_page' => 1
+        ]);
+
+        if ($identity_query->have_posts()) {
+            return new WP_Error('registration_conflict', 'A member record with this name and date of birth already exists in our system.', ['status' => 409]);
+        }
+
+        // 4. Create new FS Member post
+        $post_id = wp_insert_post([
+            'post_title'   => $first_name . ' ' . $last_name,
+            'post_type'    => 'fs_member',
+            'post_status'  => 'publish',
+        ]);
+
+        if (is_wp_error($post_id) || !$post_id) {
+            return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
+        }
+        
+        // Save metadata with array handling
+        foreach ($params as $key => $value) {
+            $target_key = $key;
+            if ($key === 'parent_guardian_email' || $key === 'guardian_email') $target_key = 'parent_email';
+            if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
+
+            $meta_key = '_' . $target_key;
+            if (is_array($value)) {
+                $sanitized_array = array_map('sanitize_text_field', $value);
+                update_post_meta($post_id, $meta_key, $sanitized_array);
+            } else {
+                update_post_meta($post_id, $meta_key, sanitize_text_field($value));
+            }
+        }
+        
+        update_post_meta($post_id, '_status', 'pending');
+        return [
+            'status' => 'success', 
+            'message' => 'Application Submitted!', 
+            'id' => $post_id, 
+            'email' => $email
+        ];
+    }
+]);
 
     register_rest_route($namespace, '/members', [
         'methods' => 'GET',
@@ -707,6 +702,42 @@ function fs_email_on_registration($user_id) {
     $body .= "<p>Your account is currently <strong>Pending</strong>. Our committee will review your registration shortly. You will receive another email once your account has been activated.</p>";
 
     fs_send_automated_email($user->user_email, $subject, $body);
+}
+
+function fs_generate_member_id($fs_member_post_id) {
+    // 1. Check if they already have an ID to prevent overwriting
+    $existing_id = get_post_meta($fs_member_post_id, '_fs_member_id', true);
+    if (!empty($existing_id)) {
+        return $existing_id;
+    }
+
+    // 2. Find the highest existing Member ID in the database
+    global $wpdb;
+    $highest_id_query = "
+        SELECT meta_value 
+        FROM {$wpdb->postmeta} 
+        WHERE meta_key = '_fs_member_id' 
+        AND meta_value LIKE 'FSS-%'
+        ORDER BY CAST(SUBSTRING(meta_value, 5) AS UNSIGNED) DESC 
+        LIMIT 1
+    ";
+    
+    $highest_id_result = $wpdb->get_var($highest_id_query);
+    
+    // 3. Increment the ID
+    if ($highest_id_result) {
+        $number_part = (int) str_replace('FSS-', '', $highest_id_result);
+        $new_number = $number_part + 1;
+    } else {
+        $new_number = 1000001; // The starting point you requested
+    }
+
+    $new_member_id = 'FSS-' . $new_number;
+    
+    // 4. Save it
+    update_post_meta($fs_member_post_id, '_fs_member_id', $new_member_id);
+    
+    return $new_member_id;
 }
 
 /**
