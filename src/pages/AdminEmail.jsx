@@ -10,9 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Mail, Send, Users, User, CheckCircle2, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from "sonner";
-import EmailSignatureEditor from '../components/admin/EmailSignatureEditor';
-
-const DEFAULT_SIGNATURE = `Kind regards,`;
+import { CLUB_SIGNATURE_HTML } from '@/constants/emailTemplates';
 
 export default function AdminEmail() {
   const [recipientMode, setRecipientMode] = useState('all'); // all | group | individual
@@ -22,9 +20,9 @@ export default function AdminEmail() {
   const [fromName, setFromName] = useState('Full Send SimSports');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [signature, setSignature] = useState(DEFAULT_SIGNATURE);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [signature, setSignature] = useState(CLUB_SIGNATURE_HTML);
   const [showSigEditor, setShowSigEditor] = useState(false);
 
   const { data: members = [] } = useQuery({
@@ -156,19 +154,28 @@ export default function AdminEmail() {
               </div>
 
               {/* Signature */}
-              <div className="border rounded-lg p-3 bg-muted/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">Email Signature</span>
-                  <Button variant="ghost" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
-                    {showSigEditor ? 'Done' : 'Edit Signature'}
-                  </Button>
-                </div>
-                {showSigEditor ? (
-                  <EmailSignatureEditor value={signature} onChange={setSignature} />
-                ) : (
-                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-sans">{signature || 'No signature set'}</pre>
-                )}
-              </div>
+				<div className="border rounded-lg p-4 bg-white space-y-3">
+				  <div className="flex items-center justify-between border-b pb-2">
+					<span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Signature</span>
+					<Button variant="ghost" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
+					  {showSigEditor ? 'Done' : 'Edit Signature Code'}
+					</Button>
+				  </div>
+				  
+				  {showSigEditor ? (
+					<div className="space-y-2">
+					  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">HTML Source Code</p>
+					  <EmailSignatureEditor value={signature} onChange={setSignature} />
+					</div>
+				  ) : (
+					<div className="p-4 border rounded bg-slate-50 overflow-x-auto">
+					  {/* This renders the HTML exactly as it appears in an email client */}
+					  <div 
+						dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }} 
+					  />
+					</div>
+				  )}
+				</div>
 
               <Button onClick={handleSend} disabled={sending || recipients.length === 0} className="w-full">
                 <Send className="w-4 h-4 mr-2" />

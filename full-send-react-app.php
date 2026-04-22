@@ -11,6 +11,85 @@ if (!defined('ABSPATH')) exit;
  * Helper: Returns the numerical weight of a user's roles for hierarchy checks.
  * Admin (40) > Executive (30) > Committee (20) > Member (10)
  */
+
+define('FS_MASTER_SIGNATURE', '
+<table style="font-size:11.0pt; font-family: \'Roboto\', sans-serif, system-ui; color: #000000; line-height: 1.4;" cellpadding="0" cellspacing="0">
+  <tbody>
+    <tr>
+      <td width="120" valign="top">
+        <img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/LOGO-b96312c3-d5ab-4250-a71c-9652d867139a.png" alt="Full Send SimSport" width="120" style="display: block;">
+      </td>
+      <td width="30"></td>
+      <td valign="top">
+        <table cellpadding="0" cellspacing="0">
+          <tbody>
+            <tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>
+            <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: \'Russo One\', sans-serif; color: #3a0a59; font-weight: bold;">Official Communication</span></td></tr>         
+            <tr><td style="font-size:12.0pt; font-family: \'Russo One\', sans-serif; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>
+            <tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>
+            <tr><td><a href="https://fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>
+            <tr><td height="14"></td></tr>
+            <tr>
+              <td>
+                <table cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td><a href="https://www.instagram.com/fullsendsimsport" target="_blank"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/instagram-40b6aa82-848f-40f1-a104-3ce6b6e06921.png" alt="Instagram" style="display: block;"></a></td>
+                    <td width="5"></td>
+                    <td><a href="https://www.facebook.com/fullsendsimsport" target="_blank"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/facebook-8d798943-3828-4b0e-bf31-5a1756e13c9f.png" alt="Facebook" style="display: block;"></a></td>
+                    <td width="5"></td>
+                    <td><a href="https://www.linkedin.com/company/fullsendsimsport" target="_blank"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/linkedin-b16f3da9-d125-4f88-8f61-6882ad2b1388.png" alt="LinkedIn" style="display: block;"></a></td>
+                    <td width="5"></td>
+                    <td><a href="https://twitter.com/fullsendsim" target="_blank"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/twitter-edd21df5-b82a-453a-8d80-d54d5759f99d.png" alt="Twitter" style="display: block;"></a></td>
+                    <td width="5"></td>
+                    <td><a href="https://www.youtube.com/c/fullsendsimsport" target="_blank"><img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/youtube-9279783f-9bc4-4b5e-9c3d-34ad91df8f7e.png" alt="YouTube" style="display: block;"></a></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  </tbody>
+</table>
+');
+
+/**
+ * REUSABLE EMAIL HELPER
+ * Integrated with FS_MASTER_SIGNATURE
+ */
+function fs_send_automated_email($to_email, $subject, $body_content) {
+    $from_name    = 'Full Send SimSport';
+    $system_email = get_option('admin_email');
+    $info_email   = 'info@fullsendsimsport.com.au';
+
+    // 1. Start the wrapper
+    $html_message = '<div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px;">';
+    
+    // 2. Add the main content
+    $html_message .= $body_content;
+
+    // 3. Append the Master Signature if it exists
+    if (defined('FS_MASTER_SIGNATURE')) {
+        $html_message .= '<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eeeeee;">';
+        $html_message .= FS_MASTER_SIGNATURE;
+        $html_message .= '</div>';
+    }
+
+    // 4. Add the automated footer
+    $html_message .= '<br><br><p style="font-size: 12px; color: #777; border-top: 1px dashed #eee; pt: 10px;">';
+    $html_message .= 'This is an automated message from the Full Send SimSport Member Portal.</p>';
+    $html_message .= '</div>';
+    
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from_name . ' <' . $system_email . '>',
+        'Reply-To: ' . $info_email
+    );
+
+    return wp_mail($to_email, $subject, $html_message, $headers);
+}
+
 function fs_get_role_weight($roles) {
     $weights = [
         'administrator'       => 40,
@@ -945,30 +1024,6 @@ function fs_admin_update_role($request) {
 }
 
 /**
- * REUSABLE EMAIL HELPER
- * Based on your existing fs_admin_send_email logic
- */
-function fs_send_automated_email($to_email, $subject, $body_content) {
-    $from_name    = 'Full Send SimSport';
-    $system_email = get_option('admin_email');
-    $info_email   = 'info@fullsendsimsport.com.au';
-
-    // Wrap in the same styling as your ad-hoc emails
-    $html_message = '<div style="font-family: sans-serif; line-height: 1.6; color: #333;">';
-    $html_message .= $body_content;
-    $html_message .= '<br><br><p style="font-size: 12px; color: #777;">This is an automated message from the Full Send SimSport Member Portal.</p>';
-    $html_message .= '</div>';
-    
-    $headers = array(
-        'Content-Type: text/html; charset=UTF-8',
-        'From: ' . $from_name . ' <' . $system_email . '>',
-        'Reply-To: ' . $info_email
-    );
-
-    return wp_mail($to_email, $subject, $html_message, $headers);
-}
-
-/**
  * TRIGGER 1: ON REGISTRATION (WELCOME/PENDING)
  */
 function fs_email_on_initial_application($post_id, $params, $skip_parent_email = false) {
@@ -1015,9 +1070,9 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
         if (!$is_parent_registered) {
             // SCENARIO: Junior registers first, Parent not in system
             $p_body .= "<p>As they are under 18, we require your formal consent before we can process their application.</p>";
-            $p_body .= "<div style='background-color: #fff3cd; color: #856404; padding: 15px; border-left: 5px solid #ffeeba; margin: 20px 0;'>";
+            $p_body .= "<div style='background-color: #3a0a59; color: #FFFFFF; padding: 15px; border-left: 5px solid #dd87fa; margin: 20px 0;'>";
             $p_body .= "<strong>Notice:</strong> We see that you do not currently have a Full Send account.<br><br>";
-            $p_body .= "To fully activate your child's membership, you must also <a href='" . home_url('/portal/#/join') . "' style='color: #856404; font-weight: bold;'>register as an Adult Member here</a>.";
+            $p_body .= "To fully activate your child's membership, you must also <a href='" . home_url('/portal/#/join') . "' style='color: #ffe400; font-weight: bold;'>register as an Adult Member here</a>.";
             $p_body .= "<br><br>By registering your own account, you are automatically providing parental consent for this application.";
             $p_body .= "</div>";
             $p_body .= "<p>If you do <strong>not</strong> wish to register but want to decline the junior membership request, please use the link below:</p>";
@@ -1027,7 +1082,7 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
         }
 
         $p_body .= "<div style='margin: 30px 0;'>";
-        $p_body .= "<a href='" . esc_url($consent_url) . "' style='background: #e11d48; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Review Request / Deny Application</a>";
+        $p_body .= "<a href='" . esc_url($consent_url) . "' style='background: #4169e1; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;'>Review Request / Deny Application</a>";
         $p_body .= "</div>";
         $p_body .= "<p>Member Reference: " . esc_html($member_id_display) . "</p>";
 
@@ -1115,7 +1170,7 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         $body = "<h2>Congratulations {$first_name}!</h2>";
         $body .= "<p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p>";
         $body .= "<p>Please click below to set your password and complete your profile:</p>";
-        $body .= "<div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #e11d48; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
+        $body .= "<div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #3a0a59; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
 
         fs_send_automated_email($email, $subject, $body);
     }
@@ -1134,16 +1189,25 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
 }
 
 function fs_admin_send_email($request) {
+    // 1. Get Parameters
     $to_emails_raw = $request->get_param('to_emails');
     $subject       = sanitize_text_field($request->get_param('subject'));
     $body          = wp_kses_post($request->get_param('body')); 
-    $from_name    = 'Full Send SimSport';
+    
+    // Check if React sent a custom signature, otherwise use the Constant
+    $custom_sig    = $request->get_param('signature');
+    $signature_html = !empty($custom_sig) ? $custom_sig : FS_MASTER_SIGNATURE;
+
+    $from_name    = 'Full Send SimSport Inc.';
     $system_email = get_option('admin_email');
     $info_email   = 'info@fullsendsimsport.com.au';
 
+    // 2. Email Flattening and Validation
     $flat_emails = [];
     if (is_array($to_emails_raw)) {
-        array_walk_recursive($to_emails_raw, function($v) use (&$flat_emails) { if(is_string($v)) $flat_emails[] = $v; });
+        array_walk_recursive($to_emails_raw, function($v) use (&$flat_emails) { 
+            if(is_string($v)) $flat_emails[] = $v; 
+        });
     }
 
     $valid_emails = [];
@@ -1153,16 +1217,44 @@ function fs_admin_send_email($request) {
     }
     $to_emails = array_values(array_unique($valid_emails));
 
-    if (empty($to_emails) || empty($subject) || empty($body)) return new WP_Error('fail', 'Missing data', ['status' => 400]);
+    // 3. Validation Check
+    if (empty($to_emails) || empty($subject) || empty($body)) {
+        return new WP_Error('fail', 'Missing data', ['status' => 400]);
+    }
 
+    // 4. Formatting the Message
+    // nl2br handles line breaks from the textarea; 
+    // we wrap it in a div for standard font rendering.
     $formatted_body = nl2br($body);
-    $html_message = '<div style="font-family: sans-serif;">' . $formatted_body . '</div>';
+    $html_message = '
+    <div style="font-family: sans-serif; color: #000000; line-height: 1.5; font-size: 14px;">
+        ' . $formatted_body . '
+        <br><br>
+        <div class="signature-section">
+            ' . $signature_html . '
+        </div>
+    </div>';
     
-    $headers = array('Content-Type: text/html; charset=UTF-8', 'From: ' . $from_name . ' <' . $system_email . '>', 'Reply-To: ' . $info_email);
-    $to = 'info@fullsendsimsport.com.au';
-    if (count($to_emails) === 1) { $to = $to_emails[0]; } else { foreach ($to_emails as $email) { $headers[] = 'Bcc: ' . $email; } }
+    // 5. Headers Setup
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8', 
+        'From: ' . $from_name . ' <' . $system_email . '>', 
+        'Reply-To: ' . $info_email
+    );
+    
+    // 6. Recipient Logic (To vs BCC)
+    $to = 'info@fullsendsimsport.com.au'; // Default fallback
+    if (count($to_emails) === 1) { 
+        $to = $to_emails[0]; 
+    } else { 
+        foreach ($to_emails as $email) { 
+            $headers[] = 'Bcc: ' . $email; 
+        } 
+    }
 
+    // 7. Send
     $sent = wp_mail($to, $subject, $html_message, $headers);
+    
     return rest_ensure_response(array('success' => $sent));
 }
 
