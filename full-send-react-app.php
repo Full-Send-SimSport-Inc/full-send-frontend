@@ -24,7 +24,7 @@ define('FS_MASTER_SIGNATURE', '
         <table cellpadding="0" cellspacing="0">
           <tbody>
             <tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>
-            <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: \'Russo One\', sans-serif; color: #3a0a59; font-weight: bold;">Official Communication</span></td></tr>         
+            <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: \'Russo One\', sans-serif; color: #3a0a59; font-weight: bold;">Official Communication</span></td></tr>
             <tr><td style="font-size:12.0pt; font-family: \'Russo One\', sans-serif; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>
             <tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>
             <tr><td><a href="https://fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>
@@ -65,7 +65,7 @@ function fs_send_automated_email($to_email, $subject, $body_content) {
 
     // 1. Start the wrapper
     $html_message = '<div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px;">';
-    
+
     // 2. Add the main content
     $html_message .= $body_content;
 
@@ -80,7 +80,7 @@ function fs_send_automated_email($to_email, $subject, $body_content) {
     $html_message .= '<br><br><p style="font-size: 12px; color: #777; border-top: 1px dashed #eee; pt: 10px;">';
     $html_message .= 'This is an automated message from the Full Send SimSport Member Portal.</p>';
     $html_message .= '</div>';
-    
+
     $headers = array(
         'Content-Type: text/html; charset=UTF-8',
         'From: ' . $from_name . ' <' . $system_email . '>',
@@ -143,7 +143,7 @@ add_action('wp_enqueue_scripts', function() {
     if (is_page('portal')) {
         // This is the common handle for Ecwid's frontend scripts
         wp_dequeue_script('ecwid-frontend-js');
-        wp_dequeue_script('ecwid-scripts'); 
+        wp_dequeue_script('ecwid-scripts');
     }
 }, 999);
 
@@ -159,12 +159,12 @@ add_action('wp_enqueue_scripts', function() {
 add_action('wp_enqueue_scripts', function() {
     // Only target the portal page
     if (is_page('portal') || (defined('REST_REQUEST') && REST_REQUEST)) {
-        
+
         // Dequeue the specific scripts that look for 'storefrontUrls'
         wp_dequeue_script('storefront-header-cart');
         wp_dequeue_script('storefront-functions');
         wp_dequeue_script('storefront-sticky-payment');
-        
+
         // Sometimes themes use different handles, let's catch the main one
         wp_deregister_script('storefront-functions');
     }
@@ -304,7 +304,7 @@ add_action('rest_api_init', function () {
     'permission_callback' => '__return_true',
     'callback' => function($request) {
         $params = $request->get_json_params();
-        
+
         $email = sanitize_email($params['email']);
         $first_name = sanitize_text_field($params['first_name']);
         $last_name = sanitize_text_field($params['last_name']);
@@ -356,7 +356,7 @@ add_action('rest_api_init', function () {
         if (is_wp_error($post_id) || !$post_id) {
             return new WP_Error('db_error', 'Failed to save application', ['status' => 500]);
         }
-        
+
         // 5. Save metadata with parent/guardian key mapping
         foreach ($params as $key => $value) {
             $target_key = $key;
@@ -372,7 +372,7 @@ add_action('rest_api_init', function () {
                 update_post_meta($post_id, $meta_key, sanitize_text_field($value));
             }
         }
-        
+
         // 6. Set initial status
         update_post_meta($post_id, '_status', 'pending');
 
@@ -392,7 +392,7 @@ add_action('rest_api_init', function () {
             ]);
 
             if ($orphaned_juniors->have_posts()) {
-                $auto_consented_children = true; 
+                $auto_consented_children = true;
                 foreach ($orphaned_juniors->posts as $junior_post) {
                     update_post_meta($junior_post->ID, '_parental_consent_given', 'yes');
                     update_post_meta($junior_post->ID, '_parental_consent_date', current_time('mysql'));
@@ -406,9 +406,9 @@ add_action('rest_api_init', function () {
         fs_email_on_initial_application($post_id, $params, $auto_consented_children);
 
         return [
-            'status' => 'success', 
-            'message' => 'Application Submitted!', 
-            'id' => $post_id, 
+            'status' => 'success',
+            'message' => 'Application Submitted!',
+            'id' => $post_id,
             'email' => $email
         ];
     }
@@ -464,7 +464,7 @@ register_rest_route($namespace, '/parental-consent', [
             wp_update_post([
                 'ID'          => $post_id,
                 'post_status' => 'denied',
-            ]);            
+            ]);
 
             // Notify the Junior
             $subject = "Update regarding your Full Send SimSport Application";
@@ -496,7 +496,7 @@ register_rest_route($namespace, '/parental-consent', [
         'callback' => function() {
             $user_id = get_current_user_id();
             $member_id = get_user_meta($user_id, 'fs_member_id', true);
-            
+
             if (!$member_id) {
                 return new WP_Error('no_record', 'No member record found for this user.', ['status' => 404]);
             }
@@ -515,7 +515,7 @@ register_rest_route($namespace, '/parental-consent', [
             ];
         }
     ]);
-    
+
     register_rest_route($namespace, '/members/(?P<id>\d+)', [
         'methods' => 'GET',
         'permission_callback' => 'fs_check_admin_permissions',
@@ -526,7 +526,7 @@ register_rest_route($namespace, '/parental-consent', [
             // --- NEW: HIERARCHY CHECK ---
             $current_user = wp_get_current_user();
             $target_wp_user_id = get_post_meta($post->ID, '_wp_user_id', true);
-            
+
             // If the record belongs to a WP User and it's NOT the person viewing it...
             if ($target_wp_user_id && $current_user->ID != $target_wp_user_id) {
                 $target_user = get_userdata($target_wp_user_id);
@@ -603,11 +603,11 @@ register_rest_route($namespace, '/parental-consent', [
         'methods' => 'POST',
         'permission_callback' => 'fs_check_admin_permissions',
         'callback' => function($request) {
-            $id = $request['id']; 
+            $id = $request['id'];
             $params = $request->get_json_params();
             $current_user = wp_get_current_user();
             $wp_user_id = get_post_meta($id, '_wp_user_id', true);
-            
+
             // --- 1. NEW: HIERARCHY CHECK ---
             // If editing someone else, verify the editor has a higher rank
             if ($wp_user_id && $current_user->ID != $wp_user_id) {
@@ -626,14 +626,14 @@ register_rest_route($namespace, '/parental-consent', [
             }
 
             $allowed_fields = [
-                'first_name', 'last_name', 'dob', 'email', 'phone', 
-                'street_address', 'city', 'state', 'postcode', 
-                'region', 'country', 'discord_username', 
+                'first_name', 'last_name', 'dob', 'email', 'phone',
+                'street_address', 'city', 'state', 'postcode',
+                'region', 'country', 'discord_username',
                 'comm_prefs', 'sim_environment', 'racing_interests',
                 'sim_platforms', 'sim_platforms_other', 'status',
                 'onboarding_complete'
             ];
-            
+
             $old_status = get_post_meta($id, '_status', true);
             $updated = false;
 
@@ -652,7 +652,7 @@ register_rest_route($namespace, '/parental-consent', [
                     } else {
                         $sanitized_value = is_array($value) ? $value : sanitize_text_field($value);
                         update_post_meta($id, '_' . $key, $sanitized_value);
-                        
+
                         // Handle status-specific logic (Member ID generation & activation)
                         if ($key === 'status') {
                             $new_status = $sanitized_value;
@@ -687,7 +687,7 @@ register_rest_route($namespace, '/parental-consent', [
 
     register_rest_route($namespace, '/setup-account', [
     'methods' => 'POST',
-    'permission_callback' => '__return_true', 
+    'permission_callback' => '__return_true',
     'callback' => function($request) {
         $params = $request->get_json_params();
         if (empty($params)) {
@@ -736,7 +736,7 @@ register_rest_route($namespace, '/parental-consent', [
         $first_name = get_post_meta($member_id, '_first_name', true);
         $last_name  = get_post_meta($member_id, '_last_name', true);
         $member_id_code = get_post_meta($member_id, '_fs_member_id', true); // FSS-1000...
-        
+
         // Ensure the display name is the Member ID (or full name)
         $display_name = $member_id_code ? $member_id_code : (trim("$first_name $last_name") ?: $email);
 
@@ -761,10 +761,10 @@ register_rest_route($namespace, '/parental-consent', [
         } else {
             $user->set_role('fs_member');
         }
-        
+
         update_user_meta($user_id, 'fs_member_id', $member_id);
         update_post_meta($member_id, '_wp_user_id', $user_id);
-        
+
         // Ensure account is not disabled if it was flagged during pending status
         delete_user_meta($user_id, 'fs_account_disabled');
 
@@ -788,14 +788,14 @@ register_rest_route($namespace, '/parental-consent', [
         'callback' => function($request) {
             $user_id = get_current_user_id();
             $member_id = get_user_meta($user_id, 'fs_member_id', true);
-            
+
             if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
             $params = $request->get_json_params();
             $allowed_fields = [
-                'first_name', 'last_name', 'dob', 'email', 'phone', 
-                'street_address', 'city', 'state', 'postcode', 
-                'region', 'country', 'discord_username', 
+                'first_name', 'last_name', 'dob', 'email', 'phone',
+                'street_address', 'city', 'state', 'postcode',
+                'region', 'country', 'discord_username',
                 'comm_prefs', 'sim_environment', 'racing_interests',
                 'sim_platforms', 'sim_platforms_other'
             ];
@@ -833,12 +833,12 @@ register_rest_route($namespace, '/parental-consent', [
     'callback' => function($request) {
         $user_id = get_current_user_id();
         $member_id = get_user_meta($user_id, 'fs_member_id', true);
-        
+
         if (!$member_id) return new WP_Error('no_record', 'No record found.', ['status' => 404]);
 
         $params = $request->get_json_params();
         $onboarding_fields = [
-            'discord_username', 'comm_prefs', 'sim_environment', 
+            'discord_username', 'comm_prefs', 'sim_environment',
             'racing_interests', 'sim_platforms', 'sim_platforms_other'
         ];
 
@@ -860,7 +860,7 @@ register_rest_route($namespace, '/parental-consent', [
 add_shortcode('full_send_app', function() {
     wp_enqueue_script('fs-react-js', plugin_dir_url(__FILE__) . 'dist/assets/index.js', array(), time(), true);
     wp_enqueue_style('fs-react-css', plugin_dir_url(__FILE__) . 'dist/assets/index.css', array(), time());
-    
+
     // 1. Your existing App Params
     wp_localize_script('fs-react-js', 'appParams', [
         'restUrl'   => esc_url_raw(rest_url('full-send/v1')),
@@ -892,14 +892,14 @@ add_action('admin_init', function() {
     if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
         wp_safe_redirect(home_url('/portal/#/admin'));
         exit;
-    } 
+    }
     wp_safe_redirect(home_url('/portal/#/my-profile'));
     exit;
 });
 
 add_action('template_redirect', function() {
     if (isset($_GET['login_success']) || isset($_GET['setup_done'])) {
-        header('X-FS-Debug: Redirect-Triggered'); 
+        header('X-FS-Debug: Redirect-Triggered');
         if (!is_user_logged_in()) return;
 
         $user = wp_get_current_user();
@@ -980,7 +980,7 @@ function fs_admin_update_role($request) {
     $params = $request->get_json_params();
     $target_user_id = intval($params['user_id']);
     $new_role = sanitize_text_field($params['new_role']);
-    
+
     $current_user = wp_get_current_user();
     $target_user = get_userdata($target_user_id);
 
@@ -995,7 +995,7 @@ function fs_admin_update_role($request) {
 
     // If you aren't a full WordPress Administrator, we check the weights
     if (!in_array('administrator', (array)$current_user->roles)) {
-        
+
         // 1. You cannot demote or promote someone who is already higher than or equal to you
         if ($target_current_weight >= $my_weight) {
             return new WP_Error('denied', 'Permission Denied: You cannot modify a user of equal or higher rank.', ['status' => 403]);
@@ -1015,9 +1015,9 @@ function fs_admin_update_role($request) {
 
     // Set the role
     $target_user->set_role($new_role);
-    
+
     return [
-        'success' => true, 
+        'success' => true,
         'message' => 'Role updated to ' . $new_role,
         'new_role' => $new_role
     ];
@@ -1040,7 +1040,7 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
     $subject_applicant = "Welcome to Full Send SimSport - Application Received";
     $body_applicant = "<h2>Hi " . esc_html($applicant_first_name) . ",</h2>";
     $body_applicant .= "<p>Thanks for applying to Full Send SimSport! We have received your details.</p>";
-    
+
     if ($member_type === 'junior') {
         $body_applicant .= "<p><strong>Note:</strong> Since you applied as a Junior Member, we have sent a consent request to your parent/guardian (" . esc_html($parent_email) . "). Your application will be processed once they respond.</p>";
     } else {
@@ -1055,18 +1055,18 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
     // --- EMAIL 2: TO THE PARENT ---
     // Only send if it's a junior application AND we aren't skipping it (Scenario B)
     if ($member_type === 'junior' && !empty($parent_email) && !$skip_parent_email) {
-        
+
         $consent_token = wp_hash($post_id . '|' . $parent_email . '|' . time());
         update_post_meta($post_id, '_parental_consent_token', $consent_token);
         $consent_url = home_url('/portal/#/consent/' . $post_id . '/' . $consent_token);
 
         $is_parent_registered = email_exists($parent_email);
         $subject_parent = "ACTION REQUIRED: Parental Consent for " . esc_html($applicant_first_name);
-        
+
         $p_body = "<h2>Parental Consent Required</h2>";
         $p_body .= "<p>Hi " . esc_html($parent_name) . ",</p>";
         $p_body .= "<p>" . esc_html($applicant_first_name) . " " . esc_html($applicant_last_name) . " has applied to join Full Send SimSport as a Junior Member.</p>";
-        
+
         if (!$is_parent_registered) {
             // SCENARIO: Junior registers first, Parent not in system
             $p_body .= "<p>As they are under 18, we require your formal consent before we can process their application.</p>";
@@ -1100,16 +1100,16 @@ function fs_generate_member_id($fs_member_post_id) {
     // 2. Find the highest existing Member ID in the database
     global $wpdb;
     $highest_id_query = "
-        SELECT meta_value 
-        FROM {$wpdb->postmeta} 
-        WHERE meta_key = '_fs_member_id' 
+        SELECT meta_value
+        FROM {$wpdb->postmeta}
+        WHERE meta_key = '_fs_member_id'
         AND meta_value LIKE 'FSS-%'
-        ORDER BY CAST(SUBSTRING(meta_value, 5) AS UNSIGNED) DESC 
+        ORDER BY CAST(SUBSTRING(meta_value, 5) AS UNSIGNED) DESC
         LIMIT 1
     ";
-    
+
     $highest_id_result = $wpdb->get_var($highest_id_query);
-    
+
     // 3. Increment the ID
     if ($highest_id_result) {
         $number_part = (int) str_replace('FSS-', '', $highest_id_result);
@@ -1119,10 +1119,10 @@ function fs_generate_member_id($fs_member_post_id) {
     }
 
     $new_member_id = 'FSS-' . $new_number;
-    
+
     // 4. Save it
     update_post_meta($fs_member_post_id, '_fs_member_id', $new_member_id);
-    
+
     return $new_member_id;
 }
 
@@ -1152,14 +1152,14 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         if (!$user_id) {
             $tmp_pass = wp_generate_password(24, true);
             $user_id = wp_create_user($member_id_code, $tmp_pass, $email);
-            
+
             wp_update_user([
                 'ID' => $user_id,
                 'first_name' => $first_name,
                 'last_name'  => get_post_meta($post_id, '_last_name', true),
                 'display_name' => $member_id_code
             ]);
-            
+
             update_user_meta($user_id, 'fs_member_id', $post_id);
             update_post_meta($post_id, '_wp_user_id', $user_id);
         }
@@ -1192,11 +1192,11 @@ function fs_admin_send_email($request) {
     // 1. Get Parameters
     $to_emails_raw = $request->get_param('to_emails');
     $subject       = sanitize_text_field($request->get_param('subject'));
-    $body          = wp_kses_post($request->get_param('body')); 
-    
-    // Check if React sent a custom signature, otherwise use the Constant
+    $body          = wp_kses_post($request->get_param('body'));
+
+    // Get the custom signature from React; if empty, fallback to the Constant
     $custom_sig    = $request->get_param('signature');
-    $signature_html = !empty($custom_sig) ? $custom_sig : FS_MASTER_SIGNATURE;
+    $signature_html = !empty($custom_sig) ? wp_kses_post($custom_sig) : FS_MASTER_SIGNATURE;
 
     $from_name    = 'Full Send SimSport Inc.';
     $system_email = get_option('admin_email');
@@ -1205,8 +1205,10 @@ function fs_admin_send_email($request) {
     // 2. Email Flattening and Validation
     $flat_emails = [];
     if (is_array($to_emails_raw)) {
-        array_walk_recursive($to_emails_raw, function($v) use (&$flat_emails) { 
-            if(is_string($v)) $flat_emails[] = $v; 
+        array_walk_recursive($to_emails_raw, function($v) use (&$flat_emails) {
+            if(is_string($v)) $flat_emails[] = $v;
+            // Handle objects if the full member object was sent
+            if(is_array($v) && isset($v['email'])) $flat_emails[] = $v['email'];
         });
     }
 
@@ -1223,43 +1225,45 @@ function fs_admin_send_email($request) {
     }
 
     // 4. Formatting the Message
-    // nl2br handles line breaks from the textarea; 
-    // we wrap it in a div for standard font rendering.
+    // nl2br converts the React Textarea newlines into HTML breaks
     $formatted_body = nl2br($body);
+
     $html_message = '
     <div style="font-family: sans-serif; color: #000000; line-height: 1.5; font-size: 14px;">
-        ' . $formatted_body . '
+        <div class="message-content">
+            ' . $formatted_body . '
+        </div>
         <br><br>
         <div class="signature-section">
             ' . $signature_html . '
         </div>
     </div>';
-    
+
     // 5. Headers Setup
     $headers = array(
-        'Content-Type: text/html; charset=UTF-8', 
-        'From: ' . $from_name . ' <' . $system_email . '>', 
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $from_name . ' <' . $system_email . '>',
         'Reply-To: ' . $info_email
     );
-    
-    // 6. Recipient Logic (To vs BCC)
-    $to = 'info@fullsendsimsport.com.au'; // Default fallback
-    if (count($to_emails) === 1) { 
-        $to = $to_emails[0]; 
-    } else { 
-        foreach ($to_emails as $email) { 
-            $headers[] = 'Bcc: ' . $email; 
-        } 
+
+    // 6. Recipient Logic
+    $to = $info_email;
+    if (count($to_emails) === 1) {
+        $to = $to_emails[0];
+    } else {
+        foreach ($to_emails as $email) {
+            $headers[] = 'Bcc: ' . $email;
+        }
     }
 
     // 7. Send
     $sent = wp_mail($to, $subject, $html_message, $headers);
-    
+
     return rest_ensure_response(array('success' => $sent));
 }
 
 /**
- * This hook catches the meta update and passes the 
+ * This hook catches the meta update and passes the
  * Old Status and New Status to our handler function.
  */
 add_action('updated_post_meta', function($meta_id, $post_id, $meta_key, $new_status) {

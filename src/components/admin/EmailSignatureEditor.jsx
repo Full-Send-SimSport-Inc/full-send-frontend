@@ -1,13 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 
-/**
- * A Visual HTML Editor for email signatures.
- * This version treats "Enter" as a simple line break (<br>).
- */
 export default function EmailSignatureEditor({ value, onChange }) {
   const editorRef = useRef(null);
 
-  // Sync internal content with the value prop only if it's different
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
       editorRef.current.innerHTML = value;
@@ -16,16 +11,34 @@ export default function EmailSignatureEditor({ value, onChange }) {
 
   const handleInput = () => {
     if (editorRef.current) {
-      const newHtml = editorRef.current.innerHTML;
-      onChange(newHtml);
+      onChange(editorRef.current.innerHTML);
     }
   };
 
-  // Intercept the Enter key to insert a <br> instead of a new <div>
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      document.execCommand('insertLineBreak');
+
+      // 1. Get the current selection/cursor position
+      const selection = window.getSelection();
+      const range = selection.getRangeAt(0);
+
+      // 2. Create a <br> element and a dummy text node to force visibility
+      const br = document.createElement('br');
+      const extraBr = document.createElement('br'); // Browsers often need a trailing BR to show the line
+
+      range.deleteContents();
+      range.insertNode(br);
+
+      // 3. Move cursor after the new break
+      range.setStartAfter(br);
+      range.setEndAfter(br);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      // 4. Force React to recognize the change immediately
+      handleInput();
     }
   };
 

@@ -67,33 +67,30 @@ export default function AdminEmail() {
 
   const fullBody = body + (signature ? `\n\n---\n${signature}` : '');
 
-  const handleSend = async () => {
-    if (!subject.trim() || !body.trim() || recipients.length === 0) {
-      toast.error('Please fill in subject, body and select at least one recipient.');
-      return;
-    }
-    setSending(true);
-    try {
-      // Create an array of email addresses
-      const emailList = recipients.map(m => m.email);
+	const handleSend = async () => {
+	  if (!subject.trim() || !body.trim() || recipients.length === 0) {
+		toast.error('Please fill in subject, body and select at least one recipient.');
+		return;
+	  }
+	  setSending(true);
+	  try {
+		// Send body and signature separately to prevent duplication
+		await base44.post('/admin/send-email', {
+		  to_emails: recipients,
+		  from_name: fromName,
+		  subject: subject,
+		  body: body,      // Send just the message text
+		  signature: signature // Send the HTML signature separately
+		});
 
-      // Send ONE request to PHP, let PHP handle the loop and wp_mail
-      await base44.post('/admin/send-email', {
-        to_emails: recipients, // This will be a large array, triggering the PHP BCC logic
-        from_name: 'Full Send SimSport',
-        subject: subject,
-        body: fullBody,
-      });
-
-      setSent(true);
-      toast.success(`Emails successfully queued for sending!`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to send emails. Check server logs.');
-    } finally {
-      setSending(false);
-    }
-  };
+		setSent(true);
+		toast.success(`Emails successfully queued!`);
+	  } catch (error) {
+		toast.error('Failed to send emails.');
+	  } finally {
+		setSending(false);
+	  }
+	};
 
   const resetForm = () => {
     setSubject('');
@@ -158,17 +155,27 @@ export default function AdminEmail() {
 				<div className="border rounded-lg p-4 bg-white space-y-3">
 				  <div className="flex items-center justify-between border-b pb-2">
 					<span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Signature</span>
-					<Button variant="outline" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
+					<Button
+					  variant="outline"
+					  size="sm"
+					  onClick={() => setShowSigEditor(!showSigEditor)}
+					>
 					  {showSigEditor ? 'Save & Close' : 'Edit Signature'}
 					</Button>
 				  </div>
-				  
+
 				  {showSigEditor ? (
 					<EmailSignatureEditor value={signature} onChange={setSignature} />
 				  ) : (
 					<div className="p-4 border rounded bg-slate-50 overflow-x-auto">
-					  {/* Static Preview for when not editing */}
-					  <div dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }} />
+					  {/* FIX: Added leading-normal and ensuring the signature
+						  is rendered into a clean block.
+					  */}
+					  <div
+						className="signature-preview-output"
+						style={{ lineHeight: '1.4', minHeight: '1em' }}
+						dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }}
+					  />
 					</div>
 				  )}
 				</div>

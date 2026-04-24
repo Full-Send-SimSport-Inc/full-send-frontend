@@ -2,6 +2,11 @@ export const CLUB_SIGNATURE_HTML = `
 <table style="font-size:11.0pt; font-family: 'Roboto', sans-serif, system-ui; color: #000000; line-height: 1.4;" cellpadding="0" cellspacing="0">
   <tbody>
     <tr>
+      <td colspan="3" style="padding-bottom: 20px;">
+        <span style="font-size: 11pt;">Kind regards,</span>
+      </td>
+    </tr>
+    <tr>
       <td width="120" valign="top">
         <img src="https://storage.googleapis.com/revolgy-signatures-prod/icons/fullsendsimsport.com.au/LOGO-b96312c3-d5ab-4250-a71c-9652d867139a.png" alt="Full Send SimSport" width="120" style="display: block;">
       </td>
@@ -10,7 +15,7 @@ export const CLUB_SIGNATURE_HTML = `
         <table cellpadding="0" cellspacing="0">
           <tbody>
             <tr><td style="padding-bottom: 2px;"><span>Executive Committee</span></td></tr>
-            <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: 'Russo One', sans-serif; color: #3a0a59; font-weight: bold;">Official Communication</span></td></tr>         
+            <tr><td style="padding-bottom: 2px;"><span style="font-size:12.0pt; font-family: 'Russo One', sans-serif; color: #3a0a59; font-weight: bold;">Official Communication</span></td></tr>
             <tr><td style="font-size:12.0pt; font-family: 'Russo One', sans-serif; color: #3a0a59; font-weight: bold; padding-bottom: 2px;">Full Send SimSport Inc.</td></tr>
             <tr><td><a href="mailto:info@fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">info@fullsendsimsport.com.au</a></td></tr>
             <tr><td><a href="https://fullsendsimsport.com.au" style="font-size:10.5pt; color: #4169e1; text-decoration: none;">www.fullsendsimsport.com.au</a></td></tr>
