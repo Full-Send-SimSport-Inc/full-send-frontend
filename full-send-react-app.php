@@ -54,6 +54,22 @@ define('FS_MASTER_SIGNATURE', '
 </table>
 ');
 
+function fs_check_admin_permissions() {
+    // This checks if the user has the specific 'view_portal_admin' cap
+    // OR if they are a full WP Administrator (who has manage_options)
+    return current_user_can('view_portal_admin') || current_user_can('manage_options');
+}
+
+add_filter('rest_prepare_user', function($response, $user, $request) {
+    $data = $response->get_data();
+
+    // Inject the isAdmin flag using our Single Source of Truth function
+    $data['isAdmin'] = fs_check_admin_permissions();
+
+    $response->set_data($data);
+    return $response;
+}, 10, 3);
+
 /**
  * REUSABLE EMAIL HELPER
  * Integrated with FS_MASTER_SIGNATURE
@@ -297,6 +313,7 @@ add_action('rest_api_init', function () {
             'display_name'        => $user->display_name,
             'member_id'           => $official_member_id, // "FS-1001"
             'roles'               => $user->roles,
+			'isAdmin'             => fs_check_admin_permissions(),
             'onboarding_complete' => $onboarding_complete,
             'member_details'      => $member_details
         ]);
@@ -892,13 +909,17 @@ add_shortcode('full_send_app', function() {
 add_action('admin_init', function() {
     if (defined('DOING_AJAX') && DOING_AJAX) return;
     if (!is_user_logged_in()) return;
+
+    // If they can manage options (WP Admin) let them stay in the WP dashboard
     if (current_user_can('manage_options')) return;
 
-    $user = wp_get_current_user();
-    if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
+    // If they have our custom admin capability, send them to the React Admin Portal
+    if (current_user_can('view_portal_admin')) {
         wp_safe_redirect(home_url('/portal/#/admin'));
         exit;
     }
+
+    // Everyone else goes to their profile
     wp_safe_redirect(home_url('/portal/#/my-profile'));
     exit;
 });
@@ -908,10 +929,8 @@ add_action('template_redirect', function() {
         header('X-FS-Debug: Redirect-Triggered');
         if (!is_user_logged_in()) return;
 
-        $user = wp_get_current_user();
-        $is_admin = in_array('administrator', (array)$user->roles) || in_array('committee', (array)$user->roles);
-
-        if ($is_admin) {
+        // Use the Single Source of Truth
+        if (fs_check_admin_permissions()) {
             wp_safe_redirect(home_url('/portal/#/admin'));
         } else {
             wp_safe_redirect(home_url('/portal/#/my-profile'));
@@ -944,21 +963,24 @@ function fs_initialize_custom_roles() {
     ];
 
     foreach ($roles as $role_slug => $data) {
-        if (!get_role($role_slug)) {
+        $role_object = get_role($role_slug);
+
+        if (!$role_object) {
+            // Create the role if it doesn't exist
             add_role($role_slug, $data['display'], $data['caps']);
+        } else {
+            // IMPORTANT: Update capabilities for existing roles
+            foreach ($data['caps'] as $cap => $grant) {
+                if ($grant) {
+                    $role_object->add_cap($cap);
+                } else {
+                    $role_object->remove_cap($cap);
+                }
+            }
         }
     }
 }
 add_action('init', 'fs_initialize_custom_roles');
-
-function fs_check_admin_permissions() {
-    $user = wp_get_current_user();
-    $admin_roles = ['administrator', 'executive_committee', 'committee'];
-    foreach ($admin_roles as $role) {
-        if (in_array($role, (array)$user->roles)) return true;
-    }
-    return false;
-}
 
 function fs_admin_get_users() {
     $users = get_users();

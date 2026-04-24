@@ -23,7 +23,10 @@ export default function MainLayout() {
     window.location.href = logoutUrl;
   };
 
-  const isAdmin = user?.roles?.some(role => ['administrator', 'executive_committee', 'committee',].includes(role));
+  // This checks the new boolean, but falls back to the role check if the boolean is missing
+  const isActuallyAdmin = user?.isAdmin === true ||
+                          user?.roles?.some(role => ['administrator', 'executive_committee', 'committee'].includes(role));
+
   const isWPAdmin = user?.roles?.includes('administrator');
 
   if (isLoadingAuth) {
@@ -33,6 +36,12 @@ export default function MainLayout() {
       </div>
     );
   }
+
+  console.log("MainLayout State:", {
+    hasUser: !!user,
+    isAdmin: user?.isAdmin,
+    roles: user?.roles
+  });
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
@@ -81,7 +90,7 @@ export default function MainLayout() {
                 </Link>
               )}
 
-              {isAdmin && (
+              {isActuallyAdmin && (
                 <>
                     <div className="w-px h-6 bg-slate-200 mx-2" />
 

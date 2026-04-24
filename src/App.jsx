@@ -10,13 +10,13 @@ import { Loader2 } from 'lucide-react';
 import MainLayout from '@/layouts/MainLayout';
 
 // Pages
-import Join from '@/pages/Join'; 
+import Join from '@/pages/Join';
 import Meetings from '@/pages/Meetings';
 import AdminDashboard from '@/pages/AdminDashboard';
 import AdminMemberManager from '@/pages/AdminMemberManager';
 import AdminAGM from '@/pages/AdminAGM';
 import AGMDetail from '@/pages/AGMDetail';
-import AdminEmail from '@/pages/AdminEmail'; 
+import AdminEmail from '@/pages/AdminEmail';
 import Login from '@/pages/Login';
 import ProfileView from '@/pages/ProfileView';
 import PageNotFound from '@/lib/PageNotFound';
@@ -55,13 +55,14 @@ function AppRoutes() {
   }
 
   // 2. We calculate admin status EXACTLY like AdminLayout did
-  const isActuallyAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
+  // This checks the new boolean, but falls back to the role check if the boolean is missing
+  const isActuallyAdmin = user?.isAdmin === true
 
   return (
     <Routes>
         <Route element={<MainLayout />}>
         <Route path="/setup-account/:id/:email" element={<SetupAccount />} />
-        <Route path="/consent/:id/:token" element={<ConsentView />} />      
+        <Route path="/consent/:id/:token" element={<ConsentView />} />
 
         {/* ROOT REDIRECTS */}
         <Route path="/" element={
@@ -70,7 +71,7 @@ function AppRoutes() {
             isActuallyAdmin ? <Navigate to="/admin/members" replace /> : <Navigate to="/my-profile" replace />
         ) : (
             // If NOT logged in, show the Login/Register choice page
-            <Portal /> 
+            <Portal />
         )
         } />
 
@@ -79,11 +80,11 @@ function AppRoutes() {
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
          <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
-        
+
 
         {/* ADMIN NESTED ROUTES */}
-        <Route 
-          path="/admin" 
+        <Route
+          path="/admin"
           element={isActuallyAdmin ? <Outlet /> : <Navigate to="/my-profile" replace />}
         >
           <Route index element={<AdminDashboard />} />
