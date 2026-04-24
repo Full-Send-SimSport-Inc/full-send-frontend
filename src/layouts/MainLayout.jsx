@@ -1,16 +1,16 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { 
-  CalendarDays, 
-  LogOut, 
-  User, 
-  ShieldCheck, 
-  Loader2, 
-  Users, 
-  Mail, 
+import {
+  CalendarDays,
+  LogOut,
+  User,
+  ShieldCheck,
+  Loader2,
+  Users,
+  Mail,
   LayoutDashboard,
-  LogIn 
+  LogIn
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ export default function MainLayout() {
     window.location.href = logoutUrl;
   };
 
-  const isAdmin = user?.roles?.some(role => ['administrator', 'committee'].includes(role));
+  const isAdmin = user?.roles?.some(role => ['administrator', 'executive_committee', 'committee',].includes(role));
   const isWPAdmin = user?.roles?.includes('administrator');
 
   if (isLoadingAuth) {
@@ -42,7 +42,7 @@ export default function MainLayout() {
             <Link to="/" className="font-bold text-xl text-primary shrink-0 hover:opacity-80 transition-opacity">
               Member Portal
             </Link>
-            
+
             <nav className="hidden lg:flex items-center gap-1">
               {!user && (
                 <Link
@@ -84,7 +84,7 @@ export default function MainLayout() {
               {isAdmin && (
                 <>
                     <div className="w-px h-6 bg-slate-200 mx-2" />
-                    
+
                   <Link
                     to="/admin"
                     className={cn(
@@ -136,8 +136,8 @@ export default function MainLayout() {
 
           <div className="flex items-center gap-3">
             {isWPAdmin && (
-              <a 
-                href="/wp-admin" 
+              <a
+                href="/wp-admin"
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
               >
                 <LayoutDashboard className="w-4 h-4" />
@@ -154,8 +154,8 @@ export default function MainLayout() {
                 <span className="hidden sm:inline">Sign Out</span>
               </button>
             ) : (
-              <Link 
-                to="/" 
+              <Link
+                to="/"
                 className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-full transition-all shadow-sm"
               >
                 <LogIn className="w-4 h-4" />
