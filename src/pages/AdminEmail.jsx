@@ -14,7 +14,7 @@ import { CLUB_SIGNATURE_HTML } from '@/constants/emailTemplates';
 import EmailSignatureEditor from '@/components/admin/EmailSignatureEditor';
 
 export default function AdminEmail() {
-  const [recipientMode, setRecipientMode] = useState('all'); // all | group | individual
+  const [recipientMode, setRecipientMode] = useState('all'); // all | select
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [memberSearch, setMemberSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState({ active: true, pending: false, inactive: false });
@@ -27,9 +27,17 @@ export default function AdminEmail() {
   const [showSigEditor, setShowSigEditor] = useState(false);
 
   const { data: members = [] } = useQuery({
-    queryKey: ['admin-users'], // Reusing the same query key to save bandwidth!
+    queryKey: ['admin-users'],
     queryFn: () => base44.get('/admin/users'),
   });
+
+  /**
+   * Helper to resolve the Member's Real Name.
+   * Updated to correctly map to the WordPress JSON response payload.
+   */
+  const getMemberName = (m) => {
+    return m.display_name || m.email || 'Unknown Member';
+  };
 
   const grouped = {
     active: members.filter(m => m.status === 'active'),
@@ -54,43 +62,31 @@ export default function AdminEmail() {
     }
   };
 
-  const searchResults = memberSearch.length > 1
-    ? members.filter(m =>
-        `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(memberSearch.toLowerCase()) &&
-        !selectedMembers.find(s => s.id === m.id)
-      ).slice(0, 6)
-    : [];
+  const recipients = recipientMode === 'all' ? members : selectedMembers;
 
-  const recipients = recipientMode === 'all'
-    ? members
-    : selectedMembers;
+  const handleSend = async () => {
+    if (!subject.trim() || !body.trim() || recipients.length === 0) {
+      toast.error('Please fill in subject, body and select at least one recipient.');
+      return;
+    }
+    setSending(true);
+    try {
+      await base44.post('/admin/send-email', {
+        to_emails: recipients,
+        from_name: fromName,
+        subject: subject,
+        body: body,
+        signature: signature
+      });
 
-  const fullBody = body + (signature ? `\n\n---\n${signature}` : '');
-
-	const handleSend = async () => {
-	  if (!subject.trim() || !body.trim() || recipients.length === 0) {
-		toast.error('Please fill in subject, body and select at least one recipient.');
-		return;
-	  }
-	  setSending(true);
-	  try {
-		// Send body and signature separately to prevent duplication
-		await base44.post('/admin/send-email', {
-		  to_emails: recipients,
-		  from_name: fromName,
-		  subject: subject,
-		  body: body,      // Send just the message text
-		  signature: signature // Send the HTML signature separately
-		});
-
-		setSent(true);
-		toast.success(`Emails successfully queued!`);
-	  } catch (error) {
-		toast.error('Failed to send emails.');
-	  } finally {
-		setSending(false);
-	  }
-	};
+      setSent(true);
+      toast.success(`Emails successfully queued!`);
+    } catch (error) {
+      toast.error('Failed to send emails.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   const resetForm = () => {
     setSubject('');
@@ -119,7 +115,6 @@ export default function AdminEmail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Compose */}
         <div className="lg:col-span-2 space-y-4">
           <Card className="border-0 shadow-md shadow-primary/5">
             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Mail className="w-5 h-5" /> Compose</CardTitle></CardHeader>
@@ -151,34 +146,25 @@ export default function AdminEmail() {
                 />
               </div>
 
-				{/* Signature Section in AdminEmail.jsx */}
-				<div className="border rounded-lg p-4 bg-white space-y-3">
-				  <div className="flex items-center justify-between border-b pb-2">
-					<span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Signature</span>
-					<Button
-					  variant="outline"
-					  size="sm"
-					  onClick={() => setShowSigEditor(!showSigEditor)}
-					>
-					  {showSigEditor ? 'Save & Close' : 'Edit Signature'}
-					</Button>
-				  </div>
-
-				  {showSigEditor ? (
-					<EmailSignatureEditor value={signature} onChange={setSignature} />
-				  ) : (
-					<div className="p-4 border rounded bg-slate-50 overflow-x-auto">
-					  {/* FIX: Added leading-normal and ensuring the signature
-						  is rendered into a clean block.
-					  */}
-					  <div
-						className="signature-preview-output"
-						style={{ lineHeight: '1.4', minHeight: '1em' }}
-						dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }}
-					  />
-					</div>
-				  )}
-				</div>
+              <div className="border rounded-lg p-4 bg-white space-y-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Signature</span>
+                  <Button variant="outline" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
+                    {showSigEditor ? 'Save & Close' : 'Edit Signature'}
+                  </Button>
+                </div>
+                {showSigEditor ? (
+                  <EmailSignatureEditor value={signature} onChange={setSignature} />
+                ) : (
+                  <div className="p-4 border rounded bg-slate-50 overflow-x-auto">
+                    <div
+                      className="signature-preview-output"
+                      style={{ lineHeight: '1.4', minHeight: '1em' }}
+                      dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }}
+                    />
+                  </div>
+                )}
+              </div>
 
               <Button onClick={handleSend} disabled={sending || recipients.length === 0} className="w-full">
                 <Send className="w-4 h-4 mr-2" />
@@ -188,7 +174,6 @@ export default function AdminEmail() {
           </Card>
         </div>
 
-        {/* Recipients */}
         <div className="space-y-4">
           <Card className="border-0 shadow-md shadow-primary/5">
             <CardHeader><CardTitle className="text-lg flex items-center gap-2"><Users className="w-5 h-5" /> Recipients</CardTitle></CardHeader>
@@ -213,9 +198,13 @@ export default function AdminEmail() {
                   />
                   <div className="border rounded-lg overflow-hidden max-h-72 overflow-y-auto text-sm">
                     {(memberSearch
-                      ? [{ label: 'Results', status: 'search', members: members.filter(m =>
-                          `${m.display_name} ${m.email}`.toLowerCase().includes(memberSearch.toLowerCase())
-                        )}]
+                      ? [{
+                          label: 'Results',
+                          status: 'search',
+                          members: members.filter(m =>
+                            `${getMemberName(m)} ${m.email}`.toLowerCase().includes(memberSearch.toLowerCase())
+                          )
+                        }]
                       : [
                           { label: 'Active', status: 'active', members: grouped.active, color: 'text-green-600' },
                           { label: 'Pending', status: 'pending', members: grouped.pending, color: 'text-amber-600' },
@@ -254,7 +243,7 @@ export default function AdminEmail() {
                               onCheckedChange={() => toggleMember(m)}
                             />
                             <div className="min-w-0">
-                              <p className="font-medium truncate">{m.display_name}</p>
+                              <p className="font-medium truncate">{getMemberName(m)}</p>
                               <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                             </div>
                           </label>
@@ -262,11 +251,6 @@ export default function AdminEmail() {
                       </div>
                     ))}
                   </div>
-                  {selectedMembers.length > 0 && (
-                    <button onClick={() => setSelectedMembers([])} className="text-xs text-muted-foreground hover:text-destructive transition-colors">
-                      Clear all ({selectedMembers.length} selected)
-                    </button>
-                  )}
                 </div>
               )}
 

@@ -10,12 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle 
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
-import { 
-  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, AlertTriangle, MessageSquare, Monitor
+import {
+  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, MessageSquare, Monitor, Hash
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -51,19 +51,21 @@ const RACING_INTERESTS = [
 ];
 
 export default function ProfileView() {
-    const { id } = useParams(); 
+    const { id } = useParams();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { user, checkLoginStatus, isLoadingAuth, refreshUser } = useAuth();
-    
+
     const getWeight = (roles) => {
         const roleArray = Array.isArray(roles) ? roles : [roles];
         return Math.max(...roleArray.map(r => ROLE_WEIGHTS[r] || 0));
     };
 
     const currentUserWeight = useMemo(() => getWeight(user?.roles || []), [user]);
-    const isAdmin = currentUserWeight >= 20; 
-    const isEditingSelf = !id || parseInt(id) === user?.member_details?.member_id;
+    const isAdmin = currentUserWeight >= 20;
+
+    // Check if editing self by comparing Member ID (Username)
+    const isEditingSelf = !id || id === user?.member_details?.member_id;
 
     const [isLocked, setIsLocked] = useState(true);
     const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -72,17 +74,18 @@ export default function ProfileView() {
 
     const [form, setForm] = useState({
         first_name: '', last_name: '', dob: '', status: '',
-        email: '', phone: '', street_address: '', city: '', state: '', postcode: '', 
-        discord_username: '', 
+        email: '', phone: '', street_address: '', city: '', state: '', postcode: '',
+        discord_username: '',
         comm_prefs: [],
         sim_environment: '',
         racing_interests: [],
         sim_platforms: [],
-        sim_platforms_other: '', 
+        sim_platforms_other: '',
         parent_name: '', parent_email: '',
         region: '', country: '', member_type: '',
         reason_for_joining: '',
-        onboarding_complete: false
+        onboarding_complete: false,
+        member_id: '' // For visual reference (e.g. OlorinFiresky)
     });
 
     const [saveStatus, setSaveStatus] = useState('idle');
@@ -114,13 +117,13 @@ export default function ProfileView() {
         }
         return '';
     };
-    
+
     useEffect(() => {
         if (profileData) {
             setForm({
                 first_name: profileData.first_name || '',
                 last_name: profileData.last_name || '',
-                dob: formatToInputDate(profileData.dob || profileData.date_of_birth),
+                dob: formatToInputDate(profileData.dob),
                 status: profileData.status || 'pending',
                 email: profileData.email || '',
                 phone: profileData.phone || '',
@@ -134,13 +137,14 @@ export default function ProfileView() {
                 racing_interests: Array.isArray(profileData.racing_interests) ? profileData.racing_interests : [],
                 sim_platforms: Array.isArray(profileData.sim_platforms) ? profileData.sim_platforms : [],
                 sim_platforms_other: profileData.sim_platforms_other || '',
-                parent_name: profileData.parent_name || '', 
+                parent_name: profileData.parent_name || '',
                 parent_email: profileData.parent_email || '',
                 region: profileData.region || '',
                 country: profileData.country || '',
                 member_type: profileData.member_type || '',
                 reason_for_joining: profileData.reason_for_joining || '',
-                onboarding_complete: !!profileData.onboarding_complete
+                onboarding_complete: !!profileData.onboarding_complete,
+                member_id: profileData.member_id || ''
             });
             setHasChanges(false);
         }
@@ -157,7 +161,7 @@ export default function ProfileView() {
         try {
             if (isEditingSelf) {
                 await base44.post('/update-me', form);
-                await checkLoginStatus(); 
+                await checkLoginStatus();
             } else {
                 await base44.post(`/members/${id}`, form);
                 queryClient.invalidateQueries(['member', id]);
@@ -192,7 +196,7 @@ export default function ProfileView() {
 
     const isFormValid = form.first_name.trim() !== '' && form.last_name.trim() !== '' && form.email.trim() !== '';
 
-    // --- SECTIONS DEFINITION (ORDERED) ---
+    // --- SECTIONS DEFINITION ---
 
     const IdentitySection = (
         <div key="sec-identity" className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
@@ -322,7 +326,6 @@ export default function ProfileView() {
         </div>
     );
 
-    // This array controls the exact order on screen
     const orderedSections = [
         IdentitySection,
         JuniorSection,
@@ -335,7 +338,7 @@ export default function ProfileView() {
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
-            
+
             <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Confirm Update</AlertDialogTitle><AlertDialogDescription>Are you sure you want to save these changes?</AlertDialogDescription></AlertDialogHeader>
@@ -363,33 +366,41 @@ export default function ProfileView() {
             </div>
 
             <main className="flex-1 max-w-3xl w-full mx-auto space-y-6">
-                <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm border">
-                    <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center"><UserCircle className="w-10 h-10" /></div>
-                    <div>
-                        <h1 className="text-2xl font-bold">{form.first_name} {form.last_name}</h1>
-                        <p className="text-muted-foreground flex items-center gap-2">
-                            <span className="capitalize">{form.member_type || 'Member'}</span>
-                            <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", form.status === 'active' ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700")}>
-                                {form.status || 'pending'}
-                            </span>
-                        </p>
+                <div className="flex items-center justify-between p-6 bg-white rounded-xl shadow-sm border">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center"><UserCircle className="w-10 h-10" /></div>
+                        <div>
+                            <h1 className="text-2xl font-bold leading-none mb-1">{form.first_name} {form.last_name}</h1>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <span className="capitalize">{form.member_type || 'Member'}</span>
+                                <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-bold border", form.status === 'active' ? "bg-green-100 text-green-700 border-green-200" : "bg-orange-100 text-orange-700 border-orange-200")}>
+                                    {form.status || 'pending'}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div className="text-right">
+                        <span className="block text-[10px] uppercase font-bold text-slate-400 mb-1">Member Reference</span>
+                        <div className="flex items-center gap-1 px-3 py-1 bg-slate-100 rounded-lg border border-slate-200 text-slate-700 font-mono text-sm font-bold">
+                            <Hash className="w-3 h-3 text-slate-400" />
+                            {form.member_id}
+                        </div>
                     </div>
                 </div>
 
-                <Card className={cn("transition-all", isLocked ? "opacity-95" : "ring-2 ring-primary/20 shadow-lg")}>
+                <Card className={cn("transition-all", isLocked ? "opacity-95 shadow-sm" : "ring-2 ring-primary/20 shadow-lg")}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle>Member Information</CardTitle>
                         {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Record Locked</span>}
                     </CardHeader>
                     <CardContent>
-                        {/* THE ORDERED CONTAINER */}
                         <div className="flex flex-col space-y-8">
-                            
+
                             {orderedSections}
 
-                            <Button 
-                                onClick={() => setShowSaveConfirm(true)} 
-                                disabled={saveStatus === 'saving' || !isFormValid || isLocked} 
+                            <Button
+                                onClick={() => setShowSaveConfirm(true)}
+                                disabled={saveStatus === 'saving' || !isFormValid || isLocked}
                                 className="w-full h-12 text-lg"
                             >
                                 {saveStatus === 'saving' ? 'Saving...' : 'Save Profile Changes'}

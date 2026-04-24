@@ -186,118 +186,123 @@ add_action('rest_api_init', function () {
     $namespace = 'full-send/v1';
 
     register_rest_route($namespace, '/me', [
-        'methods' => 'GET',
-        'callback' => function() {
-            if (!is_user_logged_in()) {
-                return rest_ensure_response([
-                    'authenticated' => false,
-                    'user' => null
-                ]);
+    'methods' => 'GET',
+    'callback' => function() {
+        if (!is_user_logged_in()) {
+            return rest_ensure_response([
+                'authenticated' => false,
+                'user' => null
+            ]);
+        }
+
+        $user = wp_get_current_user();
+
+        // 1. Get the actual "Member ID" from the User Record (Username)
+        $official_member_id = $user->user_login;
+
+        // 2. Locate the linked Custom Post Type record ID
+        $post_record_id = get_user_meta($user->ID, 'fs_member_id', true);
+
+        // --- START AUTO-LINK LOGIC (Preserved) ---
+        if (!$post_record_id) {
+            $member_query = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_key' => '_email',
+                'meta_value' => $user->user_email,
+                'posts_per_page' => 1,
+                'post_status' => 'any'
+            ]);
+
+            if ($member_query->have_posts()) {
+                $post_record_id = $member_query->posts[0]->ID;
+                update_user_meta($user->ID, 'fs_member_id', $post_record_id);
+                update_post_meta($post_record_id, '_wp_user_id', $user->ID);
+            }
+        }
+        // --- END AUTO-LINK LOGIC ---
+
+        $member_details = null;
+        $onboarding_complete = false;
+
+        if ($post_record_id) {
+            $is_complete = get_post_meta($post_record_id, '_onboarding_complete', true);
+            $onboarding_complete = ($is_complete === 'yes');
+
+            // --- PARENT/CHILD LOGIC ---
+            $parent_id = get_post_meta($post_record_id, '_parent_id', true);
+            $parent_name = get_post_meta($post_record_id, '_parent_name', true);
+            $parent_email = get_post_meta($post_record_id, '_parent_email', true);
+
+            if ($parent_id) {
+                $parent_post = get_post($parent_id);
+                if ($parent_post) {
+                    $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
+                    $parent_email = get_post_meta($parent_id, '_email', true);
+                }
             }
 
-            $user = wp_get_current_user();
-            $member_id = get_user_meta($user->ID, 'fs_member_id', true);
+            $children = [];
+            $child_query = new WP_Query([
+                'post_type' => 'fs_member',
+                'meta_query' => [['key' => '_parent_id', 'value' => $post_record_id, 'compare' => '=']],
+                'post_status' => 'any'
+            ]);
 
-            // --- START AUTO-LINK LOGIC (Preserved) ---
-            if (!$member_id) {
-                $member_query = new WP_Query([
-                    'post_type' => 'fs_member',
-                    'meta_key' => '_email',
-                    'meta_value' => $user->user_email,
-                    'posts_per_page' => 1,
-                    'post_status' => 'any'
-                ]);
-
-                if ($member_query->have_posts()) {
-                    $member_id = $member_query->posts[0]->ID;
-                    update_user_meta($user->ID, 'fs_member_id', $member_id);
-                    update_post_meta($member_id, '_wp_user_id', $user->ID);
-                }
-            }
-            // --- END AUTO-LINK LOGIC ---
-
-            $member_details = null;
-            $onboarding_complete = false; // Default for safety
-
-            if ($member_id) {
-                // --- ADDED: Onboarding Check ---
-                $is_complete = get_post_meta($member_id, '_onboarding_complete', true);
-                $onboarding_complete = ($is_complete === 'yes');
-
-                // --- START PARENT/CHILD LOGIC (Preserved) ---
-                $parent_id = get_post_meta($member_id, '_parent_id', true);
-                $parent_name = get_post_meta($member_id, '_parent_name', true);
-                $parent_email = get_post_meta($member_id, '_parent_email', true);
-
-                if ($parent_id) {
-                    $parent_post = get_post($parent_id);
-                    if ($parent_post) {
-                        $parent_name = trim(get_post_meta($parent_id, '_first_name', true) . ' ' . get_post_meta($parent_id, '_last_name', true));
-                        $parent_email = get_post_meta($parent_id, '_email', true);
-                    }
-                }
-
-                $children = [];
-                $child_query = new WP_Query([
-                    'post_type' => 'fs_member',
-                    'meta_query' => [['key' => '_parent_id', 'value' => $member_id, 'compare' => '=']],
-                    'post_status' => 'any'
-                ]);
-
-                foreach ($child_query->posts as $cp) {
-                    $children[] = [
-                        'id' => $cp->ID,
-                        'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
-                        'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
-                    ];
-                }
-
-                $raw_status = get_post_meta($member_id, '_status', true);
-                $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
-
-                // --- START MEMBER DETAILS (Preserved) ---
-                $member_details = [
-                    'member_id'           => $member_id,
-                    'onboarding_complete' => $onboarding_complete, // Added inside details
-                    'first_name'          => get_post_meta($member_id, '_first_name', true),
-                    'last_name'           => get_post_meta($member_id, '_last_name', true),
-                    'email'               => get_post_meta($member_id, '_email', true),
-                    'phone'               => get_post_meta($member_id, '_phone', true),
-                    'street_address'      => get_post_meta($member_id, '_street_address', true),
-                    'city'                => get_post_meta($member_id, '_city', true),
-                    'state'               => get_post_meta($member_id, '_state', true),
-                    'postcode'            => get_post_meta($member_id, '_postcode', true),
-                    'region'              => get_post_meta($member_id, '_region', true),
-                    'country'             => get_post_meta($member_id, '_country', true),
-                    'reason_for_joining'  => get_post_meta($member_id, '_reason_for_joining', true),
-                    'dob'                 => get_post_meta($member_id, '_dob', true) ?: get_post_meta($member_id, '_date_of_birth', true),
-                    'discord_username'    => get_post_meta($member_id, '_discord_username', true),
-                    'comm_prefs'          => maybe_unserialize(get_post_meta($member_id, '_comm_prefs', true)) ?: ['Email'],
-                    'sim_environment'     => get_post_meta($member_id, '_sim_environment', true),
-                    'sim_platforms'       => maybe_unserialize(get_post_meta($member_id, '_sim_platforms', true)) ?: [],
-                    'sim_platforms_other' => get_post_meta($member_id, '_sim_platforms_other', true),
-                    'racing_interests'    => maybe_unserialize(get_post_meta($member_id, '_racing_interests', true)) ?: [],
-                    'member_type'     => get_post_meta($member_id, '_member_type', true),
-                    'status'              => $display_status,
-                    'parent_name'         => $parent_name,
-                    'parent_email'        => $parent_email,
-                    'children'            => $children
+            foreach ($child_query->posts as $cp) {
+                $children[] = [
+                    'id' => $cp->ID,
+                    'name' => get_post_meta($cp->ID, '_first_name', true) . ' ' . get_post_meta($cp->ID, '_last_name', true),
+                    'status' => get_post_meta($cp->ID, '_status', true) ?: 'pending'
                 ];
             }
 
-            return rest_ensure_response([
-                'authenticated'       => true,
-                'id'                  => $user->ID,
+            $raw_status = get_post_meta($post_record_id, '_status', true);
+            $display_status = (!empty($raw_status)) ? $raw_status : 'pending';
+
+            // 3. Construct Member Details using Names from User Meta primarily
+            $member_details = [
+                'member_id'           => $official_member_id, // Return "FS-1001"
+                'internal_post_id'    => $post_record_id,    // Return "437" for background logic
+                'onboarding_complete' => $onboarding_complete,
+                'first_name'          => get_user_meta($user->ID, 'first_name', true) ?: get_post_meta($post_record_id, '_first_name', true),
+                'last_name'           => get_user_meta($user->ID, 'last_name', true) ?: get_post_meta($post_record_id, '_last_name', true),
                 'email'               => $user->user_email,
-                'display_name'        => $user->display_name,
-                'member_id'           => $member_id,
-                'roles'               => $user->roles,
-                'onboarding_complete' => $onboarding_complete, // Added to top level for React Gate
-                'member_details'      => $member_details
-            ]);
-        },
-        'permission_callback' => '__return_true'
-    ]);
+                'phone'               => get_post_meta($post_record_id, '_phone', true),
+                'street_address'      => get_post_meta($post_record_id, '_street_address', true),
+                'city'                => get_post_meta($post_record_id, '_city', true),
+                'state'               => get_post_meta($post_record_id, '_state', true),
+                'postcode'            => get_post_meta($post_record_id, '_postcode', true),
+                'region'              => get_post_meta($post_record_id, '_region', true),
+                'country'             => get_post_meta($post_record_id, '_country', true),
+                'reason_for_joining'  => get_post_meta($post_record_id, '_reason_for_joining', true),
+                'dob'                 => get_post_meta($post_record_id, '_dob', true) ?: get_post_meta($post_record_id, '_date_of_birth', true),
+                'discord_username'    => get_post_meta($post_record_id, '_discord_username', true),
+                'comm_prefs'          => maybe_unserialize(get_post_meta($post_record_id, '_comm_prefs', true)) ?: ['Email'],
+                'sim_environment'     => get_post_meta($post_record_id, '_sim_environment', true),
+                'sim_platforms'       => maybe_unserialize(get_post_meta($post_record_id, '_sim_platforms', true)) ?: [],
+                'sim_platforms_other' => get_post_meta($post_record_id, '_sim_platforms_other', true),
+                'racing_interests'    => maybe_unserialize(get_post_meta($post_record_id, '_racing_interests', true)) ?: [],
+                'member_type'         => get_post_meta($post_record_id, '_member_type', true),
+                'status'              => $display_status,
+                'parent_name'         => $parent_name,
+                'parent_email'        => $parent_email,
+                'children'            => $children
+            ];
+        }
+
+        return rest_ensure_response([
+            'authenticated'       => true,
+            'id'                  => $user->ID,
+            'email'               => $user->user_email,
+            'display_name'        => $user->display_name,
+            'member_id'           => $official_member_id, // "FS-1001"
+            'roles'               => $user->roles,
+            'onboarding_complete' => $onboarding_complete,
+            'member_details'      => $member_details
+        ]);
+    },
+    'permission_callback' => '__return_true'
+]);
 
     register_rest_route($namespace, '/join', [
     'methods' => 'POST',
@@ -737,8 +742,9 @@ register_rest_route($namespace, '/parental-consent', [
         $last_name  = get_post_meta($member_id, '_last_name', true);
         $member_id_code = get_post_meta($member_id, '_fs_member_id', true); // FSS-1000...
 
-        // Ensure the display name is the Member ID (or full name)
-        $display_name = $member_id_code ? $member_id_code : (trim("$first_name $last_name") ?: $email);
+        // Ensure the display name is First Name + Last Name, falling back to email if empty
+        $full_name = trim("$first_name $last_name");
+        $display_name = !empty($full_name) ? $full_name : $email;
 
         wp_update_user([
             'ID'           => $user_id,
@@ -779,8 +785,8 @@ register_rest_route($namespace, '/parental-consent', [
             'onboarding_complete' => false, // Explicitly tell React to trigger onboarding
             'message' => 'Account setup complete! Welcome, ' . ($first_name ?: $email)
         ];
-        }
-    ]);
+    }
+]);
 
     register_rest_route($namespace, '/update-me', [
         'methods' => 'POST',
