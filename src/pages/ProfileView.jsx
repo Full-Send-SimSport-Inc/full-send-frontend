@@ -286,6 +286,82 @@ export default function ProfileView() {
                                 <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
                             </div>
 
+                            {/* LOCATION SECTION */}
+                            <div className="space-y-4 pt-4 border-t">
+                                <h3 className="font-semibold text-lg text-primary">Location</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Region</Label>
+                                        <Input 
+                                            value={form.region} 
+                                            onChange={e => handleChange('region', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Country</Label>
+                                        <Input 
+                                            value={form.country} 
+                                            onChange={e => handleChange('country', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <Label>Street Address</Label>
+                                        <Input 
+                                            value={form.street_address} 
+                                            onChange={e => handleChange('street_address', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>City / Suburb</Label>
+                                        <Input 
+                                            value={form.city} 
+                                            onChange={e => handleChange('city', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>State</Label>
+                                        <Input 
+                                            value={form.state} 
+                                            onChange={e => handleChange('state', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Postcode</Label>
+                                        <Input 
+                                            value={form.postcode} 
+                                            onChange={e => handleChange('postcode', e.target.value)} 
+                                            disabled={isLocked} 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* RECRUITMENT & MISSION ALIGNMENT */}
+                            <div className="space-y-4 pt-4 border-t">
+                                <div className="flex items-center gap-2 text-primary">
+                                    <Shield className="w-5 h-5" />
+                                    <h3 className="font-semibold text-lg">Recruitment & Mission Alignment</h3>
+                                </div>
+                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+                                    <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                                        {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
+                                    </div>
+                                    <Label>Why did you join Full Send SimSport?</Label>
+                                    <Textarea 
+                                        value={form.reason_for_joining} 
+                                        onChange={e => handleChange('reason_for_joining', e.target.value)} 
+                                        disabled={isLocked || isEditingSelf} 
+                                        className="min-h-[100px] bg-white resize-none"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground italic">Note: This is provided during application for committee review.</p>
+                                </div>
+                            </div>
+
                             {/* COMM PREFS */}
                             <div className="space-y-4 pt-4 border-t">
                                 <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
@@ -340,82 +416,6 @@ export default function ProfileView() {
                                     {form.sim_platforms.includes("Other") && (
                                         <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
                                     )}
-                                </div>
-                            </div>
-
-                            {/* RECRUITMENT & MISSION ALIGNMENT */}
-                            <div className="space-y-4 pt-4 border-t">
-                                <div className="flex items-center gap-2 text-primary">
-                                    <Shield className="w-5 h-5" />
-                                    <h3 className="font-semibold text-lg">Recruitment & Mission Alignment</h3>
-                                </div>
-                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                                    <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                                        {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
-                                    </div>
-                                    <Label>Why did you join Full Send SimSport?</Label>
-                                    <Textarea 
-                                        value={form.reason_for_joining} 
-                                        onChange={e => handleChange('reason_for_joining', e.target.value)} 
-                                        disabled={isLocked || isEditingSelf} 
-                                        className="min-h-[100px] bg-white resize-none"
-                                    />
-                                    <p className="text-[10px] text-muted-foreground italic">Note: This is provided during application for committee review.</p>
-                                </div>
-                            </div>
-
-                            {/* LOCATION SECTION */}
-                            <div className="space-y-4 pt-4 border-t">
-                                <h3 className="font-semibold text-lg text-primary">Location</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Region</Label>
-                                        <Input 
-                                            value={form.region} 
-                                            onChange={e => handleChange('region', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Country</Label>
-                                        <Input 
-                                            value={form.country} 
-                                            onChange={e => handleChange('country', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <Label>Street Address</Label>
-                                        <Input 
-                                            value={form.street_address} 
-                                            onChange={e => handleChange('street_address', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>City / Suburb</Label>
-                                        <Input 
-                                            value={form.city} 
-                                            onChange={e => handleChange('city', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>State</Label>
-                                        <Input 
-                                            value={form.state} 
-                                            onChange={e => handleChange('state', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Postcode</Label>
-                                        <Input 
-                                            value={form.postcode} 
-                                            onChange={e => handleChange('postcode', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
                                 </div>
                             </div>
 
