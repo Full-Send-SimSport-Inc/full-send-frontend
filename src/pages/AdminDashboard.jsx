@@ -7,10 +7,15 @@ import StatsCard from '../components/admin/StatsCard';
 import MemberTable from '../components/admin/MemberTable';
 
 export default function AdminDashboard() {
-  const { data: members = [], isLoading } = useQuery({
+  const { data: rawMembers = [], isLoading } = useQuery({
     queryKey: ['members'],
     queryFn: () => base44.get('/members'),
   });
+
+  // --- FILTER LOGIC ---
+  // We exclude 'awaiting_consent' from the entire dashboard view.
+  // These members only "exist" for the committee once they move to 'pending' or 'active'.
+  const members = rawMembers.filter(m => m.status !== 'awaiting_consent');
 
   const active = members.filter(m => m.status === 'active').length;
   const pending = members.filter(m => m.status === 'pending').length;
@@ -24,8 +29,10 @@ export default function AdminDashboard() {
     );
   }
 
-  // Grab the 5 most recent signups
-  const recentMembers = [...members].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 5);
+  // Grab the 5 most recent signups from the already-filtered list
+  const recentMembers = [...members]
+    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+    .slice(0, 5);
 
   return (
     <div className="space-y-8">
@@ -35,6 +42,7 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Members now only counts Active/Pending/Denied, not Awaiting Consent */}
         <StatsCard title="Total Members" value={members.length} icon={Users} />
         <StatsCard title="Active Members" value={active} icon={UserCheck} accent="bg-green-100 text-green-700" />
         <StatsCard title="Pending Approval" value={pending} icon={Clock} accent="bg-amber-100 text-amber-700" />

@@ -70,7 +70,7 @@ class FS_REST_API_Manager {
 
         // --- SPECIAL LOGIC ---
         register_rest_route($this->namespace, '/parental-consent', [
-            'methods'  => 'POST',
+            'methods'  => ['GET', 'POST'], // Allow both
             'callback' => ['FS_REST_Handlers', 'handle_parental_consent'],
             'permission_callback' => '__return_true'
         ]);

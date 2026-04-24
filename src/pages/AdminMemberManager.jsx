@@ -69,27 +69,29 @@ export default function AdminMemberManager() {
   const isSystemAdmin = me?.roles?.includes('administrator');
 
   const unifiedData = useMemo(() => {
-    return members.map(member => {
-      const linkedUser = users.find(u => u.email.toLowerCase() === member.email?.toLowerCase());
-      const targetRoles = linkedUser?.roles || ['fs_member'];
-      const targetWeight = getWeight(targetRoles);
+    return members
+      .filter(member => (localStatusOverrides[member.id] || member.status) !== 'awaiting_consent')
+      .map(member => {
+        const linkedUser = users.find(u => u.email.toLowerCase() === member.email?.toLowerCase());
+        const targetRoles = linkedUser?.roles || ['fs_member'];
+        const targetWeight = getWeight(targetRoles);
 
-      // Prioritize local state over server data to stop the UI from jumping back
-      const currentStatus = localStatusOverrides[member.id] || member.status;
+        // Prioritize local state over server data to stop the UI from jumping back
+        const currentStatus = localStatusOverrides[member.id] || member.status;
 
-      return {
-        ...member,
-        status: currentStatus,
-        wpUser: linkedUser || null,
-        currentRole: linkedUser ? getBestRole(linkedUser.roles) : 'fs_member',
-        isDisabled: currentStatus === 'inactive',
-        canEdit: isSystemAdmin || (myWeight > targetWeight)
-      };
-    }).filter(m => {
-      const matchesSearch = !search || `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(search.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
+        return {
+          ...member,
+          status: currentStatus,
+          wpUser: linkedUser || null,
+          currentRole: linkedUser ? getBestRole(linkedUser.roles) : 'fs_member',
+          isDisabled: currentStatus === 'inactive',
+          canEdit: isSystemAdmin || (myWeight > targetWeight)
+        };
+      }).filter(m => {
+        const matchesSearch = !search || `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(search.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      });
   }, [members, users, search, statusFilter, myWeight, isSystemAdmin, localStatusOverrides]);
 
   // Status Mutation

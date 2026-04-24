@@ -120,7 +120,19 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         if (!$user_id) {
             $tmp_pass = wp_generate_password(24, true);
             $user_id = wp_create_user($member_id_code, $tmp_pass, $email);
-            wp_update_user(['ID' => $user_id, 'first_name' => $first_name, 'last_name' => get_post_meta($post_id, '_last_name', true), 'display_name' => $member_id_code]);
+
+            // Determine the correct role based on the member type
+            $member_type = get_post_meta($post_id, '_member_type', true);
+            $target_role = ($member_type === 'junior') ? 'fs_junior_member' : 'fs_member';
+
+            wp_update_user([
+                'ID'           => $user_id,
+                'first_name'   => $first_name,
+                'last_name'    => get_post_meta($post_id, '_last_name', true),
+                'display_name' => $member_id_code,
+                'role'         => $target_role // Explicitly set custom role to avoid 'Subscriber' default
+            ]);
+
             update_user_meta($user_id, 'fs_member_id', $post_id);
             update_post_meta($post_id, '_wp_user_id', $user_id);
         }
@@ -129,6 +141,30 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         $subject = "Account Approved - Welcome to Full Send SimSport";
         $body = "<h2>Congratulations {$first_name}!</h2><p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p><p>Please click below to set your password and complete your profile:</p><div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #3a0a59; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
         fs_send_automated_email($email, $subject, $body);
+
+        /**
+         * RELEASE GATEKEEPER:
+         * If this active user is a parent, find any Juniors waiting in 'awaiting_consent'
+         * who have already had consent recorded, and move them to 'pending'.
+         */
+        $waiting_juniors = new WP_Query([
+            'post_type'  => 'fs_member',
+            'meta_query' => [
+                'relation' => 'AND',
+                ['key' => '_member_type', 'value' => 'junior'],
+                ['key' => '_parent_email', 'value' => $email],
+                ['key' => '_status', 'value' => 'awaiting_consent'],
+                ['key' => '_parental_consent_given', 'value' => 'yes']
+            ],
+            'posts_per_page' => -1,
+            'post_status'    => 'publish'
+        ]);
+
+        if ($waiting_juniors->have_posts()) {
+            foreach ($waiting_juniors->posts as $junior) {
+                update_post_meta($junior->ID, '_status', 'pending');
+            }
+        }
 
     } elseif ($new_status === 'inactive' || $new_status === 'denied') {
         $subject = "Update regarding your Full Send SimSport Application";

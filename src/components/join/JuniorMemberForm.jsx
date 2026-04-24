@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart, MessageSquare} from 'lucide-react'; 
+import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, Gauge, Heart, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Textarea } from '@/components/ui/textarea';
 
@@ -20,13 +20,23 @@ export default function JuniorMemberForm({ onBack }) {
   const [loadingCountries, setLoadingCountries] = useState(false);
 
   const [form, setForm] = useState({
-    parent_name: '', parent_email: '',
-    first_name: '', last_name: '', email: '', phone: '',
-    region: '', country: '', street_address: '', city: '', state: '', postcode: '', 
-    agreed_to_terms: false, 
+    parent_name: '',
+    parent_email: '',
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    region: '',
+    country: '',
+    street_address: '',
+    city: '',
+    state: '',
+    postcode: '',
+    reason_for_joining: '', // Added initialization to prevent controlled/uncontrolled warning
+    agreed_to_terms: false,
     dob: '',
   });
-  
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submittedData, setSubmittedData] = useState(null);
@@ -51,7 +61,7 @@ export default function JuniorMemberForm({ onBack }) {
       let countryNames = data.map(c => c.name.common).sort();
       if (selectedRegion === 'Oceania') {
         countryNames = countryNames.filter(c => c !== 'Australia' && c !== 'New Zealand');
-        countryNames.unshift('New Zealand'); 
+        countryNames.unshift('New Zealand');
         countryNames.unshift('Australia');
       }
       setCountries(countryNames);
@@ -64,7 +74,7 @@ export default function JuniorMemberForm({ onBack }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!form.agreed_to_terms) return setError("You must agree to the terms to continue.");
     if (!form.dob) return setError("Please select the date of birth.");
     if (!form.region) return setError("Region is required.");
@@ -98,7 +108,7 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
               <h2 className="text-3xl font-black mb-4">Application Received!</h2>
               <p className="text-muted-foreground mb-8 text-lg">
-                Thank you for applying. A confirmation email has been sent to <strong>{form.parent_email}</strong>. 
+                Thank you for applying. A confirmation email has been sent to <strong>{form.parent_email}</strong>.
                 The committee will review the application once parental consent is confirmed.
               </p>
               <div className="space-y-3 max-w-sm mx-auto">
@@ -111,7 +121,7 @@ export default function JuniorMemberForm({ onBack }) {
     );
   }
 
-  const isFormValid = 
+  const isFormValid =
     form.parent_name.trim() !== '' &&
     form.parent_email.trim() !== '' &&
     form.first_name.trim() !== '' &&
@@ -133,7 +143,7 @@ export default function JuniorMemberForm({ onBack }) {
       <Card className="border-0 shadow-xl shadow-primary/5">
         <CardContent className="p-6 md:p-8">
           <form onSubmit={handleSubmit} className="space-y-8">
-            
+
             {/* Membership Toggle */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button type="button" onClick={() => setMemberType('junior_racing')}
@@ -174,7 +184,7 @@ export default function JuniorMemberForm({ onBack }) {
               </div>
             </div>
 
-            {/* Recruitment Details - THE NEW FIELD */}
+            {/* Recruitment Details */}
             <div>
               <h3 className="text-lg font-semibold mb-4 border-b pb-2 flex items-center gap-2">
                 <MessageSquare className="w-5 h-5 text-primary" />
@@ -182,10 +192,10 @@ export default function JuniorMemberForm({ onBack }) {
               </h3>
               <div className="space-y-2 mt-4">
                 <Label htmlFor="reason">Why would you like to join Full Send SimSport? *</Label>
-                <Textarea 
+                <Textarea
                   id="reason"
                   placeholder="Tell us a bit about yourself and why you're interested in our community..."
-                  value={form.reason_for_joining} 
+                  value={form.reason_for_joining}
                   onChange={e => handleChange('reason_for_joining', e.target.value)}
                   className="min-h-[120px] resize-none"
                   required
@@ -239,7 +249,7 @@ export default function JuniorMemberForm({ onBack }) {
             <div className="flex items-start gap-3 p-4 bg-muted rounded-lg border">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-0.5" />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                I agree to apply for junior membership of Full Send SimSport Inc. I understand that my parent or guardian must confirm consent for my details to be sorted for memberships management purposes before my application is processed. *
+                I agree to apply for junior membership of Full Send SimSport Inc. I understand that my parent or guardian must confirm consent for my details to be stored for membership management purposes before my application is processed. *
               </Label>
             </div>
 

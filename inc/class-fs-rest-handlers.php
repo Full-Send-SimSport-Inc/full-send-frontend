@@ -108,7 +108,7 @@ class FS_REST_Handlers {
         ]);
     }
 
-    /**
+	/**
      * POST /join
      */
     public static function handle_join($request) {
@@ -158,7 +158,13 @@ class FS_REST_Handlers {
             }
         }
 
-        update_post_meta($post_id, '_status', 'pending');
+        if ($member_type === 'junior') {
+            $consent_token = wp_generate_password(32, false);
+            update_post_meta($post_id, '_parental_consent_token', $consent_token);
+            update_post_meta($post_id, '_status', 'awaiting_consent');
+        } else {
+            update_post_meta($post_id, '_status', 'pending');
+        }
 
         $auto_consented_children = false;
         if ($member_type !== 'junior') {
@@ -168,7 +174,7 @@ class FS_REST_Handlers {
                     'relation' => 'AND',
                     ['key' => '_member_type', 'value' => 'junior'],
                     ['key' => '_parent_email', 'value' => $email],
-                    ['key' => '_status', 'value' => 'pending']
+                    ['key' => '_status', 'value' => 'awaiting_consent']
                 ],
                 'posts_per_page' => -1
             ]);
@@ -178,7 +184,10 @@ class FS_REST_Handlers {
                     update_post_meta($junior_post->ID, '_parental_consent_given', 'yes');
                     update_post_meta($junior_post->ID, '_parental_consent_date', current_time('mysql'));
                     update_post_meta($junior_post->ID, '_parental_consent_method', 'auto_on_parent_registration');
-                    update_post_meta($junior_post->ID, '_status', 'awaiting_committee');
+
+                    // Logic: We DO NOT move to 'pending' yet.
+                    // We leave them in 'awaiting_consent'.
+                    // They will be "released" to pending only when this parent is approved.
                 }
             }
         }
@@ -206,41 +215,96 @@ class FS_REST_Handlers {
         return $members;
     }
 
-    /**
+	/**
      * POST /parental-consent
+     * Handles the decision made by a parent in the React ConsentView
      */
     public static function handle_parental_consent($request) {
-        $params = $request->get_json_params();
-        $post_id = intval($params['id']);
-        $token   = sanitize_text_field($params['token']);
+        $params = ($request->get_method() === 'POST') ? $request->get_json_params() : $request->get_params();
+
+        $post_id = intval($params['id'] ?? 0);
+        $token   = sanitize_text_field($params['token'] ?? '');
         $action  = sanitize_text_field($params['action'] ?? 'approve');
+
+        if (!$post_id) {
+            return new WP_Error('missing_id', 'Invalid application ID.', ['status' => 400]);
+        }
 
         $stored_token = get_post_meta($post_id, '_parental_consent_token', true);
         if (!$token || $token !== $stored_token) {
-            return new WP_Error('invalid_token', 'Invalid consent link.', ['status' => 403]);
+            return new WP_Error('invalid_token', 'Invalid or expired consent link.', ['status' => 403]);
         }
 
         $junior_email = get_post_meta($post_id, '_email', true);
         $junior_name  = get_post_meta($post_id, '_first_name', true);
+        $parent_email = get_post_meta($post_id, '_parent_email', true);
 
         if ($action === 'decline') {
             update_post_meta($post_id, '_parental_consent_given', 'no');
             update_post_meta($post_id, '_status', 'denied');
-            wp_update_post(['ID' => $post_id, 'post_status' => 'denied']);
 
             $subject = "Update regarding your Full Send SimSport Application";
-            $body = "<h2>Hi " . esc_html($junior_name) . ",</h2><p>Consent declined.</p>";
+            $body = "<h2>Hi " . esc_html($junior_name) . ",</h2><p>Your application was not able to proceed as parental consent was declined.</p>";
             fs_send_automated_email($junior_email, $subject, $body);
 
-            return rest_ensure_response(['success' => true, 'message' => 'Consent declined.']);
+            return rest_ensure_response([
+                'success' => true,
+                'message' => 'Consent declined. The application has been cancelled.'
+            ]);
         }
 
+        // 3. Handle 'Approve' Choice
         update_post_meta($post_id, '_parental_consent_given', 'yes');
         update_post_meta($post_id, '_parental_consent_date', current_time('mysql'));
-        update_post_meta($post_id, '_status', 'awaiting_committee');
 
-        return rest_ensure_response(['success' => true, 'message' => 'Consent recorded.']);
+        // GATEKEEPER: Check if the parent is already an ACTIVE member
+        $parent_query = new WP_Query([
+            'post_type'  => 'fs_member',
+            'meta_key'   => '_email',
+            'meta_value' => $parent_email,
+            'posts_per_page' => 1,
+            'post_status' => 'publish'
+        ]);
+
+        $parent_is_active = false;
+        if ($parent_query->have_posts()) {
+            $parent_status = get_post_meta($parent_query->posts[0]->ID, '_status', true);
+            if ($parent_status === 'active') {
+                $parent_is_active = true;
+            }
+        }
+
+        if ($parent_is_active) {
+            // Parent is already active, so we can send the Junior to the committee immediately
+            update_post_meta($post_id, '_status', 'pending');
+            $message = 'Thank you! Consent for ' . esc_html($junior_name) . ' has been recorded. The committee will now review the application.';
+        } else {
+            // Parent is NOT active (likely pending review), so Junior stays in holding pen
+            // but is now marked as "consented" so they release once the parent is approved.
+            $message = 'Thank you! Consent for ' . esc_html($junior_name) . ' has been recorded. The application will be forwarded to the committee once the Parent/Guardian account is approved.';
+        }
+
+        return rest_ensure_response([
+            'success' => true,
+            'message' => $message
+        ]);
     }
+
+	/**
+	 * Helper to return HTML for browser clicks, or JSON for API calls
+	 */
+	private static function render_consent_response($title, $message) {
+		if (strpos($_SERVER['HTTP_ACCEPT'], 'text/html') !== false || $_SERVER['REQUEST_METHOD'] === 'GET') {
+			header('Content-Type: text/html');
+			echo "<html><body style='font-family:sans-serif; text-align:center; padding:50px; background:#f9f9f9;'>";
+			echo "<div style='max-width:500px; margin:0 auto; background:white; padding:30px; border-radius:10px; shadow:0 2px 10px rgba(0,0,0,0.1);'>";
+			echo "<h1 style='color:#3a0a59;'>$title</h1>";
+			echo "<p style='font-size:1.1em; color:#444;'>$message</p>";
+			echo "</div></body></html>";
+			exit;
+		}
+		return rest_ensure_response(['success' => true, 'message' => $message]);
+	}
 
     /**
      * GET /members/self
