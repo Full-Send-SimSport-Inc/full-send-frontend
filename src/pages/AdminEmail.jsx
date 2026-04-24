@@ -11,6 +11,7 @@ import { Mail, Send, Users, User, CheckCircle2, X, ChevronDown, ChevronUp } from
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from "sonner";
 import { CLUB_SIGNATURE_HTML } from '@/constants/emailTemplates';
+import EmailSignatureEditor from '@/components/admin/EmailSignatureEditor';
 
 export default function AdminEmail() {
   const [recipientMode, setRecipientMode] = useState('all'); // all | group | individual
@@ -153,26 +154,21 @@ export default function AdminEmail() {
                 />
               </div>
 
-              {/* Signature */}
+				{/* Signature Section in AdminEmail.jsx */}
 				<div className="border rounded-lg p-4 bg-white space-y-3">
 				  <div className="flex items-center justify-between border-b pb-2">
 					<span className="text-sm font-bold text-slate-700 uppercase tracking-wider">Email Signature</span>
-					<Button variant="ghost" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
-					  {showSigEditor ? 'Done' : 'Edit Signature Code'}
+					<Button variant="outline" size="sm" onClick={() => setShowSigEditor(!showSigEditor)}>
+					  {showSigEditor ? 'Save & Close' : 'Edit Signature'}
 					</Button>
 				  </div>
 				  
 				  {showSigEditor ? (
-					<div className="space-y-2">
-					  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">HTML Source Code</p>
-					  <EmailSignatureEditor value={signature} onChange={setSignature} />
-					</div>
+					<EmailSignatureEditor value={signature} onChange={setSignature} />
 				  ) : (
 					<div className="p-4 border rounded bg-slate-50 overflow-x-auto">
-					  {/* This renders the HTML exactly as it appears in an email client */}
-					  <div 
-						dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }} 
-					  />
+					  {/* Static Preview for when not editing */}
+					  <div dangerouslySetInnerHTML={{ __html: signature || 'No signature set' }} />
 					</div>
 				  )}
 				</div>
