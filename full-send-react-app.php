@@ -895,7 +895,7 @@ add_action('admin_init', function() {
     if (current_user_can('manage_options')) return;
 
     $user = wp_get_current_user();
-    if (in_array('committee', 'executive_committee', (array)$user->roles) || current_user_can('edit_pages')) {
+    if (in_array('committee', (array)$user->roles) || current_user_can('edit_pages')) {
         wp_safe_redirect(home_url('/portal/#/admin'));
         exit;
     }
@@ -944,24 +944,9 @@ function fs_initialize_custom_roles() {
     ];
 
     foreach ($roles as $role_slug => $data) {
-        $role_object = get_role($role_slug);
-
-        if (!$role_object) {
+        if (!get_role($role_slug)) {
             add_role($role_slug, $data['display'], $data['caps']);
-        } else {
-            // IMPORTANT: Update capabilities for existing roles in case they changed
-            foreach ($data['caps'] as $cap => $grant) {
-                if ($grant) {
-                    $role_object->add_cap($cap);
-                }
-            }
         }
-    }
-
-    // Also give the primary Administrator the custom capability
-    $admin = get_role('administrator');
-    if ($admin) {
-        $admin->add_cap('view_portal_admin');
     }
 }
 add_action('init', 'fs_initialize_custom_roles');
@@ -1009,25 +994,22 @@ function fs_admin_update_role($request) {
         return new WP_Error('not_found', 'User not found', ['status' => 404]);
     }
 
-    // 1. Full Administrators bypass all weight checks
-    if (in_array('administrator', (array)$current_user->roles)) {
-        // Admins can do anything
-    } else {
-        // 2. Non-admins cannot promote anyone TO administrator
-        if ($new_role === 'administrator') {
-             return new WP_Error('denied', 'Only site admins can promote others to Administrator.', ['status' => 403]);
-        }
+    // --- HIERARCHY SECURITY ---
+    $my_weight = fs_get_role_weight($current_user->roles);
+    $target_current_weight = fs_get_role_weight($target_user->roles);
+    $new_role_weight = fs_get_role_weight([$new_role]);
 
-        $my_weight = fs_get_role_weight($current_user->roles);
-        $target_current_weight = fs_get_role_weight($target_user->roles);
-        $new_role_weight = fs_get_role_weight([$new_role]);
+    // If you aren't a full WordPress Administrator, we check the weights
+    if (!in_array('administrator', (array)$current_user->roles)) {
 
+        // 1. You cannot demote or promote someone who is already higher than or equal to you
         if ($target_current_weight >= $my_weight) {
-            return new WP_Error('denied', 'You cannot modify a user of equal or higher rank.', ['status' => 403]);
+            return new WP_Error('denied', 'Permission Denied: You cannot modify a user of equal or higher rank.', ['status' => 403]);
         }
 
+        // 2. You cannot promote someone TO your own rank or higher
         if ($new_role_weight >= $my_weight) {
-            return new WP_Error('denied', 'You cannot promote a user to your own rank or higher.', ['status' => 403]);
+            return new WP_Error('denied', 'Permission Denied: You cannot promote a user to your own rank or higher.', ['status' => 403]);
         }
     }
 
