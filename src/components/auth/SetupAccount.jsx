@@ -11,7 +11,7 @@ import { useParams } from 'react-router-dom';
 export default function SetupAccount() {
   // Grab params from URL. We destructure 'email' directly so it's defined for the JSX below.
   const { id, memberId, email } = useParams();
-  
+
   // Create a fallback for the ID in case the route uses different naming
   const finalId = id || memberId;
 
@@ -24,7 +24,7 @@ export default function SetupAccount() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage("Passwords do not match.");
       return;
@@ -47,7 +47,7 @@ export default function SetupAccount() {
       });
 
       setStatus('success');
-      
+
       // NEW: Redirect to our custom login page after a short delay
       setTimeout(() => {
         // This triggers the PHP logic to check roles and steer to #/admin or #/my-profile
@@ -72,8 +72,6 @@ export default function SetupAccount() {
         <p className="text-muted-foreground mb-8">
           Your login has been created and you have been automatically signed in as <strong>{email}</strong>.
         </p>
-        <Button className="w-full" onClick={() => window.location.href = '/portal/?setup_done=1'}>
-        </Button>
       </motion.div>
     );
   }
@@ -125,9 +123,9 @@ export default function SetupAccount() {
               </div>
             )}
 
-            <Button 
-              type="submit" 
-              className="w-full py-6 text-lg" 
+            <Button
+              type="submit"
+              className="w-full py-6 text-lg"
               disabled={status === 'loading'}
             >
               {status === 'loading' ? (
