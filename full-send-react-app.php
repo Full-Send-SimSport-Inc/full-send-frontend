@@ -78,7 +78,7 @@ function fs_send_automated_email($to_email, $subject, $body_content) {
 
     // 4. Add the automated footer
     $html_message .= '<br><br><p style="font-size: 12px; color: #777; border-top: 1px dashed #eee; pt: 10px;">';
-    $html_message .= 'This is an automated message from the Full Send SimSport Member Portal.</p>';
+    $html_message .= 'This is an automated message from the Full Send SimSport Inc. Member Portal.</p>';
     $html_message .= '</div>';
 
     $headers = array(

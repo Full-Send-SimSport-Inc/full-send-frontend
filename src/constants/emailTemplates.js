@@ -41,6 +41,13 @@ export const CLUB_SIGNATURE_HTML = `
         </table>
       </td>
     </tr>
+	<tr>
+      <td colspan="3" style="padding-top: 24px;">
+        <p style="margin: 0; font-size: 9pt; color: #888888; font-style: italic;">
+          This is a user generated message from the Full Send SimSport Inc. Member Portal.
+        </p>
+      </td>
+    </tr>
   </tbody>
 </table>
 `;
