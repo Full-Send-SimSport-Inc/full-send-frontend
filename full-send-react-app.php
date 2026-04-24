@@ -185,10 +185,12 @@ class FullSend_React_App {
         return $response;
     }
 
-    public function catch_member_status_change($meta_id, $post_id, $meta_key, $new_status) {
+	public function catch_member_status_change($meta_id, $post_id, $meta_key, $new_status) {
         if ($meta_key !== '_status' || get_post_type($post_id) !== 'fs_member') return;
-        $old_status = get_post_meta($post_id, '_status', true);
-        fs_handle_status_change_emails($post_id, $new_status, $old_status);
+
+        // We get the previous status if we need to check if it was 'pending'
+        // But the helper you provided handles current vs old fine.
+        fs_handle_status_change_emails($post_id, $new_status, '');
     }
 
     // --- DEV TOOLS ---

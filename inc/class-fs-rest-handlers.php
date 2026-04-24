@@ -288,53 +288,99 @@ class FS_REST_Handlers {
         return ['id' => $post->ID];
     }
 
-    /**
+	 /**
      * POST /members/(?P<id>\d+)
+     * Triggered when Admin changes status to "Active"
      */
     public static function update_single_member($request) {
-        $id = $request['id'];
+        $id = intval($request['id']);
         $params = $request->get_json_params();
-        $current_user = wp_get_current_user();
-        $wp_user_id = get_post_meta($id, '_wp_user_id', true);
 
-        if ($wp_user_id && $current_user->ID != $wp_user_id) {
-            $target_user = get_userdata($wp_user_id);
-            if ($target_user && fs_get_role_weight($current_user->roles) <= fs_get_role_weight($target_user->roles)) {
-                return new WP_Error('forbidden', 'Cannot edit higher rank.', ['status' => 403]);
-            }
+        $old_status = get_post_meta($id, '_status', true);
+
+        // 1. Update the status (This triggers the catch_member_status_change hook)
+        if (isset($params['status'])) {
+            $new_status = sanitize_text_field($params['status']);
+            update_post_meta($id, '_status', $new_status);
+
+            // Explicitly call the email/user-creation handler to ensure zero delay
+            fs_handle_status_change_emails($id, $new_status, $old_status);
         }
 
-        if ($current_user->ID == $wp_user_id) {
-            unset($params['status']);
-            unset($params['onboarding_complete']);
+        // 2. Update other meta fields
+        foreach ($params as $key => $value) {
+            if ($key === 'status' || $key === 'id') continue;
+            update_post_meta($id, '_' . sanitize_key($key), sanitize_text_field($value));
         }
 
-        // Processing loop
-        return ['status' => 'success'];
+        return rest_ensure_response(['status' => 'success']);
     }
 
-    /**
+	 /**
      * POST /setup-account
+     * Triggered when the User finishes their onboarding
      */
     public static function setup_account($request) {
         $params = $request->get_json_params();
-        $member_id = $params['member_id'] ?? $params['id'] ?? null;
-        $email = $params['email'] ?? null;
-        $password = $params['password'] ?? null;
+        if (empty($params)) {
+            $params = json_decode($request->get_body(), true);
+        }
+
+        $member_id = $params['member_id'] ?? $params['id'] ?? $params['memberId'] ?? null;
+        $email     = $params['email'] ?? null;
+        $password  = $params['password'] ?? null;
 
         if (!$member_id || !$password || !$email) {
             return new WP_Error('missing_data', 'Missing details.', ['status' => 400]);
         }
 
+        $stored_email = get_post_meta($member_id, '_email', true);
+        if (strtolower(trim($stored_email)) !== strtolower(trim($email))) {
+            return new WP_Error('verification_failed', 'Email mismatch.', ['status' => 403]);
+        }
+
+        // Check if user shell exists (created by Admin activation)
         $user_id = email_exists($email);
+
         if ($user_id) {
             wp_set_password($password, $user_id);
         } else {
             $user_id = wp_create_user($email, $password, $email);
+            if (is_wp_error($user_id)) return $user_id;
         }
 
-        // Roles and login
-        return ['status' => 'success', 'logged_in' => true];
+        // Sync details to WP User
+        $first_name = get_post_meta($member_id, '_first_name', true);
+        $last_name  = get_post_meta($member_id, '_last_name', true);
+        $member_id_code = get_post_meta($member_id, '_fs_member_id', true);
+
+        wp_update_user([
+            'ID'           => $user_id,
+            'first_name'   => $first_name,
+            'last_name'    => $last_name,
+            'display_name' => $member_id_code ?: $email,
+            'nickname'     => $first_name ?: $email,
+        ]);
+
+        // Assign Role
+        $user = new WP_User($user_id);
+        $member_type = get_post_meta($member_id, '_member_type', true);
+        $user->set_role($member_type === 'junior' ? 'fs_junior_member' : 'fs_member');
+
+        // Link and Login
+        update_user_meta($user_id, 'fs_member_id', $member_id);
+        update_post_meta($member_id, '_wp_user_id', $user_id);
+        delete_user_meta($user_id, 'fs_account_disabled');
+
+        wp_clear_auth_cookie();
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id, true);
+
+        return rest_ensure_response([
+            'status' => 'success',
+            'logged_in' => true,
+            'onboarding_complete' => false
+        ]);
     }
 
     /**
