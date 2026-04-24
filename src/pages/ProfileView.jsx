@@ -56,7 +56,6 @@ export default function ProfileView() {
     const queryClient = useQueryClient();
     const { user, checkLoginStatus, isLoadingAuth, refreshUser } = useAuth();
     
-    // 1. Hierarchy Logic
     const getWeight = (roles) => {
         const roleArray = Array.isArray(roles) ? roles : [roles];
         return Math.max(...roleArray.map(r => ROLE_WEIGHTS[r] || 0));
@@ -82,13 +81,12 @@ export default function ProfileView() {
         sim_platforms_other: '', 
         parent_name: '', parent_email: '',
         region: '', country: '', member_type: '',
-        reason_for_joining: '', // Added field
+        reason_for_joining: '',
         onboarding_complete: false
     });
 
     const [saveStatus, setSaveStatus] = useState('idle');
 
-    // 2. Data Fetching
     const { data: fetchedMember, isLoading: isFetching, error: fetchError } = useQuery({
         queryKey: ['member', id],
         queryFn: () => base44.get(`/members/${id}`),
@@ -99,7 +97,6 @@ export default function ProfileView() {
     const profileData = isEditingSelf ? user?.member_details : fetchedMember;
     const isLoading = isLoadingAuth || (!!id && !isEditingSelf && isFetching);
 
-    // 3. Permissions Check
     const canManageThisRecord = useMemo(() => {
         if (isEditingSelf) return true;
         if (!isAdmin) return false;
@@ -142,29 +139,12 @@ export default function ProfileView() {
                 region: profileData.region || '',
                 country: profileData.country || '',
                 member_type: profileData.member_type || '',
-                reason_for_joining: profileData.reason_for_joining || '', // Added field
+                reason_for_joining: profileData.reason_for_joining || '',
                 onboarding_complete: !!profileData.onboarding_complete
             });
             setHasChanges(false);
         }
     }, [profileData, isEditingSelf]);
-
-    if (fetchError?.response?.status === 403) {
-        return (
-            <div className="max-w-md mx-auto mt-20 p-8 text-center bg-white rounded-xl shadow-lg border">
-                <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
-                <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-                <p className="text-muted-foreground mb-6">You do not have the required rank to edit this profile.</p>
-                <Button onClick={() => navigate('/admin/members')}>Return to Directory</Button>
-            </div>
-        );
-    }
-
-    if (user && user.onboarding_complete === false && isEditingSelf) {
-        return <OnboardingView user={user} onComplete={refreshUser} />;
-    }
-
-    const isFormValid = form.first_name.trim() !== '' && form.last_name.trim() !== '' && form.email.trim() !== '';
 
     const handleChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -193,7 +173,165 @@ export default function ProfileView() {
         }
     };
 
+    if (fetchError?.response?.status === 403) {
+        return (
+            <div className="max-w-md mx-auto mt-20 p-8 text-center bg-white rounded-xl shadow-lg border">
+                <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+                <p className="text-muted-foreground mb-6">You do not have the required rank to edit this profile.</p>
+                <Button onClick={() => navigate('/admin/members')}>Return to Directory</Button>
+            </div>
+        );
+    }
+
+    if (user && user.onboarding_complete === false && isEditingSelf) {
+        return <OnboardingView user={user} onComplete={refreshUser} />;
+    }
+
     if (isLoading) return <div className="flex justify-center p-20"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
+
+    const isFormValid = form.first_name.trim() !== '' && form.last_name.trim() !== '' && form.email.trim() !== '';
+
+    // --- SECTIONS DEFINITION (ORDERED) ---
+
+    const IdentitySection = (
+        <div key="sec-identity" className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+            <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Identity Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Identity Editable</>}
+            </div>
+            <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+            <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+            <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+            {isAdmin && !isEditingSelf && (
+                <div className="space-y-2">
+                    <Label>Account Status</Label>
+                    <Select value={form.status} onValueChange={val => handleChange('status', val)} disabled={isLocked}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="inactive">Inactive</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            )}
+        </div>
+    );
+
+    const JuniorSection = form.member_type === 'junior' ? (
+        <div key="sec-junior" className="space-y-4 pt-4 border-t">
+            <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Parent Details</h3></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
+                <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+                <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
+            </div>
+        </div>
+    ) : null;
+
+    const ContactSection = (
+        <div key="sec-contact" className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+            <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
+            <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
+        </div>
+    );
+
+    const LocationSection = (
+        <div key="sec-location" className="space-y-4 pt-4 border-t">
+            <h3 className="font-semibold text-lg text-primary">Location</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2"><Label>Region</Label><Input value={form.region} onChange={e => handleChange('region', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2"><Label>Country</Label><Input value={form.country} onChange={e => handleChange('country', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Street Address</Label><Input value={form.street_address} onChange={e => handleChange('street_address', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2"><Label>City / Suburb</Label><Input value={form.city} onChange={e => handleChange('city', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2"><Label>State</Label><Input value={form.state} onChange={e => handleChange('state', e.target.value)} disabled={isLocked} /></div>
+                <div className="space-y-2"><Label>Postcode</Label><Input value={form.postcode} onChange={e => handleChange('postcode', e.target.value)} disabled={isLocked} /></div>
+            </div>
+        </div>
+    );
+
+    const RecruitmentSection = (
+        <div key="sec-recruitment" className="space-y-4 pt-4 border-t">
+            <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Recruitment & Mission Alignment</h3></div>
+            <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                    {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
+                </div>
+                <Label>Why did you join Full Send SimSport?</Label>
+                <Textarea value={form.reason_for_joining} onChange={e => handleChange('reason_for_joining', e.target.value)} disabled={isLocked || isEditingSelf} className="min-h-[100px] bg-white resize-none" />
+                <p className="text-[10px] text-muted-foreground italic">Note: This is provided during application for committee review.</p>
+            </div>
+        </div>
+    );
+
+    const CommPrefsSection = (
+        <div key="sec-comm" className="space-y-4 pt-4 border-t">
+            <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
+                {COMM_PREFS.map(pref => (
+                    <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
+                        <Checkbox disabled={isLocked} checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
+                            const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
+                            handleChange('comm_prefs', next);
+                        }}/>
+                        <span className="text-sm group-hover:text-primary">{pref}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
+    );
+
+    const SimRacingSection = (
+        <div key="sec-sim" className="space-y-6 pt-4 border-t">
+            <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
+            <div className="space-y-2">
+                <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
+                <Input disabled={isLocked} placeholder="e.g. PC with wheel and pedals" value={form.sim_environment} onChange={e => handleChange('sim_environment', e.target.value)} />
+            </div>
+            <div className="space-y-3">
+                <Label>Racing Interests *</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {RACING_INTERESTS.map(interest => (
+                        <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
+                            <Checkbox disabled={isLocked} checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
+                                const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                                handleChange('racing_interests', next);
+                            }}/>
+                            <span className="text-[11px] leading-tight">{interest}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+            <div className="space-y-3">
+                <Label>Platforms & Software</Label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {SIM_PLATFORMS.map(p => (
+                        <label key={p} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
+                            <Checkbox disabled={isLocked} checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
+                                const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                                handleChange('sim_platforms', next);
+                                if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                            }} />
+                            <span className="text-sm group-hover:text-primary">{p}</span>
+                        </label>
+                    ))}
+                </div>
+                {form.sim_platforms.includes("Other") && (
+                    <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
+                )}
+            </div>
+        </div>
+    );
+
+    // This array controls the exact order on screen
+    const orderedSections = [
+        IdentitySection,
+        JuniorSection,
+        ContactSection,
+        LocationSection,
+        RecruitmentSection,
+        CommPrefsSection,
+        SimRacingSection
+    ].filter(Boolean);
 
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
@@ -244,180 +382,10 @@ export default function ProfileView() {
                         {isLocked && <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1"><Lock className="w-3 h-3" /> Record Locked</span>}
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-8">
+                        {/* THE ORDERED CONTAINER */}
+                        <div className="flex flex-col space-y-8">
                             
-                            {/* IDENTITY SECTION */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                                <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                                    {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Identity Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Identity Editable</>}
-                                </div>
-                                <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
-                                <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
-                                <div className="space-y-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
-                                {isAdmin && !isEditingSelf && (
-                                    <div className="space-y-2">
-                                        <Label>Account Status</Label>
-                                        <Select value={form.status} onValueChange={val => handleChange('status', val)} disabled={isLocked}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="active">Active</SelectItem>
-                                                <SelectItem value="pending">Pending</SelectItem>
-                                                <SelectItem value="inactive">Inactive</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* JUNIOR / PARENT SECTION */}
-                            {form.member_type === 'junior' && (
-                                <div className="space-y-4 pt-4 border-t">
-                                    <div className="flex items-center gap-2 text-primary"><Shield className="w-5 h-5" /><h3 className="font-semibold text-lg">Parent Details</h3></div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
-                                        <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
-                                        <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* CONTACT INFO */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-                                <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
-                                <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
-                            </div>
-
-                            {/* LOCATION SECTION */}
-                            <div className="space-y-4 pt-4 border-t">
-                                <h3 className="font-semibold text-lg text-primary">Location</h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Region</Label>
-                                        <Input 
-                                            value={form.region} 
-                                            onChange={e => handleChange('region', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Country</Label>
-                                        <Input 
-                                            value={form.country} 
-                                            onChange={e => handleChange('country', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2 md:col-span-2">
-                                        <Label>Street Address</Label>
-                                        <Input 
-                                            value={form.street_address} 
-                                            onChange={e => handleChange('street_address', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>City / Suburb</Label>
-                                        <Input 
-                                            value={form.city} 
-                                            onChange={e => handleChange('city', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>State</Label>
-                                        <Input 
-                                            value={form.state} 
-                                            onChange={e => handleChange('state', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Postcode</Label>
-                                        <Input 
-                                            value={form.postcode} 
-                                            onChange={e => handleChange('postcode', e.target.value)} 
-                                            disabled={isLocked} 
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* RECRUITMENT & MISSION ALIGNMENT */}
-                            <div className="space-y-4 pt-4 border-t">
-                                <div className="flex items-center gap-2 text-primary">
-                                    <Shield className="w-5 h-5" />
-                                    <h3 className="font-semibold text-lg">Recruitment & Mission Alignment</h3>
-                                </div>
-                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                                    <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                                        {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
-                                    </div>
-                                    <Label>Why did you join Full Send SimSport?</Label>
-                                    <Textarea 
-                                        value={form.reason_for_joining} 
-                                        onChange={e => handleChange('reason_for_joining', e.target.value)} 
-                                        disabled={isLocked || isEditingSelf} 
-                                        className="min-h-[100px] bg-white resize-none"
-                                    />
-                                    <p className="text-[10px] text-muted-foreground italic">Note: This is provided during application for committee review.</p>
-                                </div>
-                            </div>
-
-                            {/* COMM PREFS */}
-                            <div className="space-y-4 pt-4 border-t">
-                                <div className="flex items-center gap-2 text-primary"><MessageSquare className="w-5 h-5" /><h3 className="font-semibold text-lg">Communication Preferences *</h3></div>
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
-                                    {COMM_PREFS.map(pref => (
-                                        <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
-                                            <Checkbox disabled={isLocked} checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
-                                                const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
-                                                handleChange('comm_prefs', next);
-                                            }}/>
-                                            <span className="text-sm group-hover:text-primary">{pref}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {/* SIM RACING PROFILE */}
-                            <div className="space-y-6 pt-4 border-t">
-                                <h3 className="font-semibold text-lg text-primary">Sim Racing Profile</h3>
-                                <div className="space-y-2">
-                                    <Label className="flex items-center gap-2"><Monitor className="w-4 h-4" /> Sim Environment *</Label>
-                                    <Input disabled={isLocked} placeholder="e.g. PC with wheel and pedals" value={form.sim_environment} onChange={e => handleChange('sim_environment', e.target.value)} />
-                                </div>
-                                <div className="space-y-3">
-                                    <Label>Racing Interests *</Label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {RACING_INTERESTS.map(interest => (
-                                            <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-2 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
-                                                <Checkbox disabled={isLocked} checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
-                                                    const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
-                                                    handleChange('racing_interests', next);
-                                                }}/>
-                                                <span className="text-[11px] leading-tight">{interest}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="space-y-3">
-                                    <Label>Platforms & Software</Label>
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                        {SIM_PLATFORMS.map(p => (
-                                            <label key={p} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
-                                                <Checkbox disabled={isLocked} checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
-                                                    const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
-                                                    handleChange('sim_platforms', next);
-                                                    if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
-                                                }} />
-                                                <span className="text-sm group-hover:text-primary">{p}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                    {form.sim_platforms.includes("Other") && (
-                                        <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
-                                    )}
-                                </div>
-                            </div>
+                            {orderedSections}
 
                             <Button 
                                 onClick={() => setShowSaveConfirm(true)} 
