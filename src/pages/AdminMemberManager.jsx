@@ -36,6 +36,10 @@ export default function AdminMemberManager() {
 
   const formatRole = (roleStr) => {
     if (!roleStr) return 'No Access';
+    // Custom mapping for the base roles to match your preferred terminology
+    if (roleStr === 'fs_member') return 'Adult Member';
+    if (roleStr === 'fs_junior_member') return 'Junior Member';
+
     return roleStr
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -43,9 +47,11 @@ export default function AdminMemberManager() {
   };
 
   const getBestRole = (roles = []) => {
-    if (roles.includes('administrator')) return 'administrator';
-    if (roles.includes('executive_committee')) return 'executive_committee';
-    if (roles.includes('committee')) return 'committee';
+    const roleArray = Array.isArray(roles) ? roles : [roles];
+    if (roleArray.includes('administrator')) return 'administrator';
+    if (roleArray.includes('executive_committee')) return 'executive_committee';
+    if (roleArray.includes('committee')) return 'committee';
+    if (roleArray.includes('fs_junior_member')) return 'fs_junior_member';
     return 'fs_member';
   };
 
@@ -73,8 +79,13 @@ export default function AdminMemberManager() {
       .filter(member => (localStatusOverrides[member.id] || member.status) !== 'awaiting_consent')
       .map(member => {
         const linkedUser = users.find(u => u.email.toLowerCase() === member.email?.toLowerCase());
-        const targetRoles = linkedUser?.roles || ['fs_member'];
-        const targetWeight = getWeight(targetRoles);
+
+        // If user exists, find their best role. If not, default based on member type meta.
+        const currentRole = linkedUser
+          ? getBestRole(linkedUser.roles)
+          : (member.member_type === 'junior' ? 'fs_junior_member' : 'fs_member');
+
+        const targetWeight = ROLE_WEIGHTS[currentRole] || 0;
 
         // Prioritize local state over server data to stop the UI from jumping back
         const currentStatus = localStatusOverrides[member.id] || member.status;
@@ -83,7 +94,7 @@ export default function AdminMemberManager() {
           ...member,
           status: currentStatus,
           wpUser: linkedUser || null,
-          currentRole: linkedUser ? getBestRole(linkedUser.roles) : 'fs_member',
+          currentRole: currentRole,
           isDisabled: currentStatus === 'inactive',
           canEdit: isSystemAdmin || (myWeight > targetWeight)
         };
@@ -163,10 +174,10 @@ export default function AdminMemberManager() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/50">
-                <TableHead className="w-[35%] px-6 h-12">Member</TableHead>
-                <TableHead className="w-[20%] px-4 h-12">Access Level</TableHead>
+                <TableHead className="w-[35%] px-6 h-12">Member Name</TableHead>
+                <TableHead className="w-[20%] px-4 h-12">Member Type</TableHead>
                 <TableHead className="w-[20%] px-4 h-12">Account Status</TableHead>
-                <TableHead className="w-[25%] px-6 h-12 text-right">Manage Role</TableHead>
+                <TableHead className="w-[25%] px-6 h-12 text-right">Manage Access Role</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -247,7 +258,8 @@ export default function AdminMemberManager() {
                             )}
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="fs_member">Standard Member</SelectItem>
+                            <SelectItem value="fs_member">Adult Member</SelectItem>
+                            <SelectItem value="fs_junior_member">Junior Member</SelectItem>
                             {myWeight > ROLE_WEIGHTS.committee && (
                               <SelectItem value="committee">Committee</SelectItem>
                             )}
