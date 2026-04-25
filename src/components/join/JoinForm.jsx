@@ -37,13 +37,6 @@ export default function JoinForm() {
       transition={{ delay: 0.2 }}
       className="max-w-2xl mx-auto py-8 sm:py-12 px-4 sm:px-6"
     >
-      <div className="text-center mb-8">
-        <h2 className="text-2xl sm:text-3xl font-bold mb-2 tracking-tight">Select Membership Type</h2>
-        <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-          Choose the membership that applies to you to get started.
-        </p>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
         {options.map(opt => {
           const Icon = opt.icon;
