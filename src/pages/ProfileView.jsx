@@ -64,8 +64,13 @@ export default function ProfileView() {
     const currentUserWeight = useMemo(() => getWeight(user?.roles || []), [user]);
     const isAdmin = currentUserWeight >= 20;
 
-    // Check if editing self by comparing Member ID (Username)
-    const isEditingSelf = !id || id === user?.member_details?.member_id;
+    // Check against both the numeric ID and the string member_id
+    const isEditingSelf = useMemo(() => {
+        if (!id) return true;
+        if (id === user?.member_details?.member_id) return true;
+        if (id === String(user?.member_details?.id)) return true;
+        return false;
+    }, [id, user]);
 
     const [isLocked, setIsLocked] = useState(true);
     const [showSaveConfirm, setShowSaveConfirm] = useState(false);
@@ -85,7 +90,7 @@ export default function ProfileView() {
         region: '', country: '', member_type: '',
         reason_for_joining: '',
         onboarding_complete: false,
-        member_id: '' // For visual reference (e.g. OlorinFiresky)
+        member_id: ''
     });
 
     const [saveStatus, setSaveStatus] = useState('idle');
@@ -148,7 +153,7 @@ export default function ProfileView() {
             });
             setHasChanges(false);
         }
-    }, [profileData, isEditingSelf]);
+    }, [profileData]);
 
     const handleChange = (field, value) => {
         setForm(prev => ({ ...prev, [field]: value }));
@@ -183,7 +188,7 @@ export default function ProfileView() {
                 <Shield className="w-16 h-16 text-destructive mx-auto mb-4" />
                 <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
                 <p className="text-muted-foreground mb-6">You do not have the required rank to edit this profile.</p>
-                <Button onClick={() => navigate('/admin/members')}>Return to Directory</Button>
+                <Button onClick={() => navigate(-1)}>Go Back</Button>
             </div>
         );
     }
@@ -196,8 +201,7 @@ export default function ProfileView() {
 
     const isFormValid = form.first_name.trim() !== '' && form.last_name.trim() !== '' && form.email.trim() !== '';
 
-    // --- SECTIONS DEFINITION ---
-
+    // --- SECTIONS ---
     const IdentitySection = (
         <div key="sec-identity" className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
             <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
@@ -355,7 +359,15 @@ export default function ProfileView() {
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    {!isEditingSelf && <Button variant="ghost" onClick={() => navigate('/admin/members')} className="pl-0"><ArrowLeft className="w-4 h-4 mr-2" /> Back</Button>}
+                    {!isEditingSelf && (
+                        <Button
+                            variant="ghost"
+                            onClick={() => navigate(-1)}
+                            className="pl-0"
+                        >
+                            <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                        </Button>
+                    )}
                     <h2 className="text-2xl font-bold tracking-tight">{isEditingSelf ? 'My Profile' : 'Edit Member'}</h2>
                 </div>
                 {canManageThisRecord && (
@@ -395,9 +407,7 @@ export default function ProfileView() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col space-y-8">
-
                             {orderedSections}
-
                             <Button
                                 onClick={() => setShowSaveConfirm(true)}
                                 disabled={saveStatus === 'saving' || !isFormValid || isLocked}

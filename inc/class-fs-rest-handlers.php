@@ -337,16 +337,19 @@ class FS_REST_Handlers {
         ];
     }
 
-    /**
+/**
      * GET /members/(?P<id>\d+)
      */
     public static function get_single_member($data) {
         $post = get_post($data['id']);
-        if (!$post) return new WP_Error('not_found', 'Member not found', ['status' => 404]);
+        if (!$post || $post->post_type !== 'fs_member') {
+            return new WP_Error('not_found', 'Member not found', ['status' => 404]);
+        }
 
         $current_user = wp_get_current_user();
         $target_wp_user_id = get_post_meta($post->ID, '_wp_user_id', true);
 
+        // Permissions Check
         if ($target_wp_user_id && $current_user->ID != $target_wp_user_id) {
             $target_user = get_userdata($target_wp_user_id);
             if ($target_user && fs_get_role_weight($current_user->roles) < fs_get_role_weight($target_user->roles)) {
@@ -354,8 +357,35 @@ class FS_REST_Handlers {
             }
         }
 
-        // Logic for returning full member array (similar to /me logic) goes here...
-        return ['id' => $post->ID];
+        // Return the full data set for the Profile View
+        return [
+            'id'                  => $post->ID,
+            'member_id'           => get_post_meta($post->ID, '_member_id', true), // The username reference
+            'first_name'          => get_post_meta($post->ID, '_first_name', true),
+            'last_name'           => get_post_meta($post->ID, '_last_name', true),
+            'email'               => get_post_meta($post->ID, '_email', true),
+            'dob'                 => get_post_meta($post->ID, '_dob', true),
+            'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
+            'phone'               => get_post_meta($post->ID, '_phone', true),
+            'street_address'      => get_post_meta($post->ID, '_street_address', true),
+            'city'                => get_post_meta($post->ID, '_city', true),
+            'state'               => get_post_meta($post->ID, '_state', true),
+            'postcode'            => get_post_meta($post->ID, '_postcode', true),
+            'region'              => get_post_meta($post->ID, '_region', true),
+            'country'             => get_post_meta($post->ID, '_country', true),
+            'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
+            'comm_prefs'          => get_post_meta($post->ID, '_comm_prefs', true) ?: [],
+            'sim_environment'     => get_post_meta($post->ID, '_sim_environment', true),
+            'racing_interests'    => get_post_meta($post->ID, '_racing_interests', true) ?: [],
+            'sim_platforms'       => get_post_meta($post->ID, '_sim_platforms', true) ?: [],
+            'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true),
+            'member_type'         => get_post_meta($post->ID, '_member_type', true),
+            'parent_name'         => get_post_meta($post->ID, '_parent_name', true),
+            'parent_email'        => get_post_meta($post->ID, '_parent_email', true),
+            'reason_for_joining'  => get_post_meta($post->ID, '_reason_for_joining', true),
+            'onboarding_complete' => get_post_meta($post->ID, '_onboarding_complete', true) === '1',
+            'roles'               => $target_wp_user_id ? get_userdata($target_wp_user_id)->roles : ['fs_member']
+        ];
     }
 
 	 /**
