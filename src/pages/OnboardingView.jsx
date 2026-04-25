@@ -37,6 +37,46 @@ const RACING_INTERESTS = [
   "Solo Sprint Racing"
 ];
 
+/**
+ * AccordionSection moved outside the main component to prevent
+ * re-creation on every render, which preserves input focus.
+ */
+const AccordionSection = ({ id, title, icon: Icon, children, badge, expandedSection, toggleSection }) => (
+  <div className="border-b border-border last:border-0">
+    <button
+      type="button"
+      onClick={() => toggleSection(id)}
+      className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="text-left">
+          <span className="font-bold text-base sm:text-lg block leading-none">{title}</span>
+          {badge && <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{badge}</span>}
+        </div>
+      </div>
+      <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
+    </button>
+    <AnimatePresence>
+      {expandedSection === id && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+          <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
+            {children}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
 export default function OnboardingView({ user, onComplete }) {
   const [form, setForm] = useState({
     discord_username: '',
@@ -83,42 +123,6 @@ export default function OnboardingView({ user, onComplete }) {
     }
   };
 
-  const AccordionSection = ({ id, title, icon: Icon, children, badge }) => (
-    <div className="border-b border-border last:border-0">
-      <button
-        type="button"
-        onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Icon className="w-4 h-4" />
-          </div>
-          <div className="text-left">
-            <span className="font-bold text-base sm:text-lg block leading-none">{title}</span>
-            {badge && <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{badge}</span>}
-          </div>
-        </div>
-        <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
-      </button>
-      <AnimatePresence>
-        {expandedSection === id && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
   return (
     <div className="max-w-3xl mx-auto py-8 sm:py-12 px-4 w-full animate-in fade-in zoom-in-95 duration-300">
       <Card className="shadow-2xl border-primary/20 overflow-hidden">
@@ -133,7 +137,14 @@ export default function OnboardingView({ user, onComplete }) {
 
         <form onSubmit={handleSubmit}>
           {/* Section: Discord & Comm Prefs */}
-          <AccordionSection id="discord" title="Identity & Contact" icon={MessageSquare} badge="Mandatory">
+          <AccordionSection
+            id="discord"
+            title="Identity & Contact"
+            icon={MessageSquare}
+            badge="Mandatory"
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="space-y-6">
               <div className="p-5 bg-slate-900 text-white rounded-xl shadow-inner">
                 <Label className="text-sm font-bold mb-3 block text-slate-300 uppercase tracking-wide">Discord Username *</Label>
@@ -170,7 +181,13 @@ export default function OnboardingView({ user, onComplete }) {
           </AccordionSection>
 
           {/* Section: Sim Equipment */}
-          <AccordionSection id="equipment" title="Sim Environment" icon={Monitor}>
+          <AccordionSection
+            id="equipment"
+            title="Sim Environment"
+            icon={Monitor}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="space-y-4">
               <Label className="font-bold block">What equipment do you operate with? *</Label>
               <Select value={form.sim_environment} onValueChange={v => setForm({...form, sim_environment: v})} required>
@@ -185,7 +202,13 @@ export default function OnboardingView({ user, onComplete }) {
           </AccordionSection>
 
           {/* Section: Racing Interests */}
-          <AccordionSection id="interests" title="Racing Interests" icon={Trophy}>
+          <AccordionSection
+            id="interests"
+            title="Racing Interests"
+            icon={Trophy}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {RACING_INTERESTS.map(interest => (
                 <label key={interest} className={cn(
@@ -206,7 +229,13 @@ export default function OnboardingView({ user, onComplete }) {
           </AccordionSection>
 
           {/* Section: Platforms */}
-          <AccordionSection id="platforms" title="Active Platforms" icon={Globe}>
+          <AccordionSection
+            id="platforms"
+            title="Active Platforms"
+            icon={Globe}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {SIM_PLATFORMS.map(p => (
