@@ -50,6 +50,29 @@ const RACING_INTERESTS = [
   "Solo Sprint Racing"
 ];
 
+// --- REUSABLE COLLAPSIBLE WRAPPER (Moved outside to prevent focus loss) ---
+const AccordionSection = ({ id, title, icon: Icon, children, isLast, activeSection, setActiveSection }) => {
+    const isOpen = activeSection === id;
+    return (
+        <div className={cn("border-b", isLast && "border-b-0")}>
+            <button
+                type="button"
+                onClick={() => setActiveSection(isOpen ? null : id)}
+                className="w-full flex items-center justify-between py-4 text-left group"
+            >
+                <div className="flex items-center gap-3">
+                    {Icon && <Icon className={cn("w-5 h-5 transition-colors", isOpen ? "text-primary" : "text-slate-400")} />}
+                    <span className={cn("font-bold transition-colors", isOpen ? "text-primary" : "text-slate-700")}>{title}</span>
+                </div>
+                {isOpen ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
+            </button>
+            <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-[2000px] opacity-100 pb-6" : "max-h-0 opacity-0")}>
+                {children}
+            </div>
+        </div>
+    );
+};
+
 export default function ProfileView() {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -202,28 +225,6 @@ export default function ProfileView() {
 
     const isFormValid = form.first_name.trim() !== '' && form.last_name.trim() !== '' && form.email.trim() !== '';
 
-    // --- REUSABLE COLLAPSIBLE WRAPPER ---
-    const AccordionSection = ({ id, title, icon: Icon, children, isLast }) => {
-        const isOpen = activeSection === id;
-        return (
-            <div className={cn("border-b", isLast && "border-b-0")}>
-                <button
-                    onClick={() => setActiveSection(isOpen ? null : id)}
-                    className="w-full flex items-center justify-between py-4 text-left group"
-                >
-                    <div className="flex items-center gap-3">
-                        {Icon && <Icon className={cn("w-5 h-5 transition-colors", isOpen ? "text-primary" : "text-slate-400")} />}
-                        <span className={cn("font-bold transition-colors", isOpen ? "text-primary" : "text-slate-700")}>{title}</span>
-                    </div>
-                    {isOpen ? <ChevronDown className="w-5 h-5 text-slate-400" /> : <ChevronRight className="w-5 h-5 text-slate-400" />}
-                </button>
-                <div className={cn("overflow-hidden transition-all duration-200", isOpen ? "max-h-[2000px] opacity-100 pb-6" : "max-h-0 opacity-0")}>
-                    {children}
-                </div>
-            </div>
-        );
-    };
-
     return (
         <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-6">
 
@@ -305,7 +306,13 @@ export default function ProfileView() {
                     <CardContent className="px-4 sm:px-6 pb-6">
                         <div className="flex flex-col">
 
-                            <AccordionSection id="identity" title="Identity" icon={UserCircle}>
+                            <AccordionSection
+                                id="identity"
+                                title="Identity"
+                                icon={UserCircle}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-dashed relative">
                                     <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                                         {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Identity Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Identity Editable</>}
@@ -330,7 +337,13 @@ export default function ProfileView() {
                             </AccordionSection>
 
                             {form.member_type === 'junior' && (
-                                <AccordionSection id="junior" title="Parent Details" icon={Shield}>
+                                <AccordionSection
+                                    id="junior"
+                                    title="Parent Details"
+                                    icon={Shield}
+                                    activeSection={activeSection}
+                                    setActiveSection={setActiveSection}
+                                >
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-primary/5 p-4 rounded-lg">
                                         <div className="space-y-2"><Label>Parent Name *</Label><Input value={form.parent_name} onChange={e => handleChange('parent_name', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
                                         <div className="space-y-2"><Label>Parent Email *</Label><Input value={form.parent_email} onChange={e => handleChange('parent_email', e.target.value)} disabled={isLocked || isEditingSelf} /></div>
@@ -338,14 +351,26 @@ export default function ProfileView() {
                                 </AccordionSection>
                             )}
 
-                            <AccordionSection id="contact" title="Contact & Social" icon={MessageSquare}>
+                            <AccordionSection
+                                id="contact"
+                                title="Contact & Social"
+                                icon={MessageSquare}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
                                     <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
                                 </div>
                             </AccordionSection>
 
-                            <AccordionSection id="location" title="Location" icon={Monitor}>
+                            <AccordionSection
+                                id="location"
+                                title="Location"
+                                icon={Monitor}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2"><Label>Region</Label><Input value={form.region} onChange={e => handleChange('region', e.target.value)} disabled={isLocked} /></div>
                                     <div className="space-y-2"><Label>Country</Label><Input value={form.country} onChange={e => handleChange('country', e.target.value)} disabled={isLocked} /></div>
@@ -356,7 +381,13 @@ export default function ProfileView() {
                                 </div>
                             </AccordionSection>
 
-                            <AccordionSection id="recruitment" title="Mission Alignment" icon={Shield}>
+                            <AccordionSection
+                                id="recruitment"
+                                title="Mission Alignment"
+                                icon={Shield}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
                                     <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                                         {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
@@ -367,7 +398,13 @@ export default function ProfileView() {
                                 </div>
                             </AccordionSection>
 
-                            <AccordionSection id="comm" title="Communication Prefs" icon={MessageSquare}>
+                            <AccordionSection
+                                id="comm"
+                                title="Communication Prefs"
+                                icon={MessageSquare}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
                                     {COMM_PREFS.map(pref => (
                                         <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
@@ -381,7 +418,14 @@ export default function ProfileView() {
                                 </div>
                             </AccordionSection>
 
-                            <AccordionSection id="sim" title="Sim Racing Profile" icon={Monitor} isLast={true}>
+                            <AccordionSection
+                                id="sim"
+                                title="Sim Racing Profile"
+                                icon={Monitor}
+                                isLast={true}
+                                activeSection={activeSection}
+                                setActiveSection={setActiveSection}
+                            >
                                 <div className="space-y-6">
                                     <div className="space-y-2">
                                         <Label className="flex items-center gap-2">Sim Environment *</Label>
