@@ -73,13 +73,22 @@ export default function AdminDashboard() {
 
       {/* CLICKABLE MICRO STATS GRID */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
-        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members')}>
+        <div
+          className="cursor-pointer active:scale-95 transition-transform"
+          onClick={() => navigate('/admin/members', { state: { fromDashboard: true } })}
+        >
           <StatsCard title="Total Members" value={members.length} icon={Users} />
         </div>
-        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members', { state: { status: 'active' } })}>
+        <div
+          className="cursor-pointer active:scale-95 transition-transform"
+          onClick={() => navigate('/admin/members', { state: { status: 'active', fromDashboard: true } })}
+        >
           <StatsCard title="Active Members" value={active} icon={UserCheck} accent="bg-green-100 text-green-700" />
         </div>
-        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members', { state: { status: 'pending' } })}>
+        <div
+          className="cursor-pointer active:scale-95 transition-transform"
+          onClick={() => navigate('/admin/members', { state: { status: 'pending', fromDashboard: true } })}
+        >
           <StatsCard title="Pending Approval" value={pending} icon={Clock} accent="bg-amber-100 text-amber-700" />
         </div>
         <div className="cursor-default">
@@ -87,7 +96,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* RECENT APPLICATIONS: Hidden on mobile to keep everything "above the fold" */}
+      {/* RECENT APPLICATIONS */}
       <Card className="hidden md:block border-0 sm:border">
         <CardHeader className="px-4 py-3 md:px-6 md:py-6">
           <CardTitle className="text-sm md:text-lg">Recent Applications</CardTitle>
@@ -160,7 +169,6 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      {/* MOBILE INSTRUCTION - Optional: helps users know cards are clickable */}
       <p className="block md:hidden text-center text-[10px] text-muted-foreground pt-2 italic">
         Tap a card to view filtered members
       </p>
