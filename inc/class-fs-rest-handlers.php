@@ -196,12 +196,13 @@ class FS_REST_Handlers {
         return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $email];
     }
 
-    /**
+/**
      * GET /members
      */
     public static function get_all_members() {
         $query = new WP_Query(['post_type' => 'fs_member', 'posts_per_page' => -1]);
         $members = [];
+
         foreach ($query->posts as $post) {
             $members[] = [
                 'id'           => $post->ID,
@@ -210,8 +211,13 @@ class FS_REST_Handlers {
                 'email'        => get_post_meta($post->ID, '_email', true),
                 'member_type'  => get_post_meta($post->ID, '_member_type', true),
                 'status'       => get_post_meta($post->ID, '_status', true) ?: 'pending',
+                'created_date' => $post->post_date,
+                'region'       => get_post_meta($post->ID, '_region', true),
+                'country'      => get_post_meta($post->ID, '_country', true),
+                'state'        => get_post_meta($post->ID, '_state', true),
             ];
         }
+
         return $members;
     }
 
