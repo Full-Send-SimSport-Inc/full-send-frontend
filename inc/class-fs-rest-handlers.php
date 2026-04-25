@@ -349,6 +349,20 @@ class FS_REST_Handlers {
         $current_user = wp_get_current_user();
         $target_wp_user_id = get_post_meta($post->ID, '_wp_user_id', true);
 
+        // Find the "Member Reference" (user_login)
+        $official_member_id = '';
+        if ($target_wp_user_id) {
+            $target_user_obj = get_userdata($target_wp_user_id);
+            if ($target_user_obj) {
+                $official_member_id = $target_user_obj->user_login;
+            }
+        }
+
+        // Fallback: If no user is linked, use the post title as the reference
+        if (empty($official_member_id)) {
+            $official_member_id = $post->post_title;
+        }
+
         // Permissions Check
         if ($target_wp_user_id && $current_user->ID != $target_wp_user_id) {
             $target_user = get_userdata($target_wp_user_id);
@@ -357,14 +371,14 @@ class FS_REST_Handlers {
             }
         }
 
-        // Return the full data set for the Profile View
+        // Return the full data set
         return [
             'id'                  => $post->ID,
-            'member_id'           => get_post_meta($post->ID, '_member_id', true), // The username reference
+            'member_id'           => $official_member_id, // Now matches get_me logic
             'first_name'          => get_post_meta($post->ID, '_first_name', true),
             'last_name'           => get_post_meta($post->ID, '_last_name', true),
             'email'               => get_post_meta($post->ID, '_email', true),
-            'dob'                 => get_post_meta($post->ID, '_dob', true),
+            'dob'                 => get_post_meta($post->ID, '_dob', true) ?: get_post_meta($post->ID, '_date_of_birth', true),
             'status'              => get_post_meta($post->ID, '_status', true) ?: 'pending',
             'phone'               => get_post_meta($post->ID, '_phone', true),
             'street_address'      => get_post_meta($post->ID, '_street_address', true),
@@ -374,16 +388,16 @@ class FS_REST_Handlers {
             'region'              => get_post_meta($post->ID, '_region', true),
             'country'             => get_post_meta($post->ID, '_country', true),
             'discord_username'    => get_post_meta($post->ID, '_discord_username', true),
-            'comm_prefs'          => get_post_meta($post->ID, '_comm_prefs', true) ?: [],
+            'comm_prefs'          => maybe_unserialize(get_post_meta($post->ID, '_comm_prefs', true)) ?: ['Email'],
             'sim_environment'     => get_post_meta($post->ID, '_sim_environment', true),
-            'racing_interests'    => get_post_meta($post->ID, '_racing_interests', true) ?: [],
-            'sim_platforms'       => get_post_meta($post->ID, '_sim_platforms', true) ?: [],
+            'racing_interests'    => maybe_unserialize(get_post_meta($post->ID, '_racing_interests', true)) ?: [],
+            'sim_platforms'       => maybe_unserialize(get_post_meta($post->ID, '_sim_platforms', true)) ?: [],
             'sim_platforms_other' => get_post_meta($post->ID, '_sim_platforms_other', true),
             'member_type'         => get_post_meta($post->ID, '_member_type', true),
             'parent_name'         => get_post_meta($post->ID, '_parent_name', true),
             'parent_email'        => get_post_meta($post->ID, '_parent_email', true),
             'reason_for_joining'  => get_post_meta($post->ID, '_reason_for_joining', true),
-            'onboarding_complete' => get_post_meta($post->ID, '_onboarding_complete', true) === '1',
+            'onboarding_complete' => get_post_meta($post->ID, '_onboarding_complete', true) === 'yes',
             'roles'               => $target_wp_user_id ? get_userdata($target_wp_user_id)->roles : ['fs_member']
         ];
     }
