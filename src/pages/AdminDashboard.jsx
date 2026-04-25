@@ -31,7 +31,6 @@ export default function AdminDashboard() {
 
   // --- FILTER LOGIC ---
   const members = rawMembers.filter(m => m.status !== 'awaiting_consent');
-
   const active = members.filter(m => m.status === 'active').length;
   const pending = members.filter(m => m.status === 'pending').length;
   const quorum = Math.ceil(active * 0.5);
@@ -65,22 +64,33 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Overview of Full Send SimSport membership.</p>
+    <div className="space-y-4 md:space-y-8">
+      {/* COMPACT HEADER */}
+      <div className="px-1">
+        <h1 className="text-base md:text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-[10px] md:text-sm text-muted-foreground leading-tight">Full Send SimSport membership overview.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Members" value={members.length} icon={Users} />
-        <StatsCard title="Active Members" value={active} icon={UserCheck} accent="bg-green-100 text-green-700" />
-        <StatsCard title="Pending Approval" value={pending} icon={Clock} accent="bg-amber-100 text-amber-700" />
-        <StatsCard title="AGM Quorum (50%)" value={quorum} icon={Scale} accent="bg-accent/10 text-accent" />
+      {/* CLICKABLE MICRO STATS GRID */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
+        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members')}>
+          <StatsCard title="Total Members" value={members.length} icon={Users} />
+        </div>
+        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members', { state: { status: 'active' } })}>
+          <StatsCard title="Active Members" value={active} icon={UserCheck} accent="bg-green-100 text-green-700" />
+        </div>
+        <div className="cursor-pointer active:scale-95 transition-transform" onClick={() => navigate('/admin/members', { state: { status: 'pending' } })}>
+          <StatsCard title="Pending Approval" value={pending} icon={Clock} accent="bg-amber-100 text-amber-700" />
+        </div>
+        <div className="cursor-default">
+          <StatsCard title="AGM Quorum" value={quorum} icon={Scale} accent="bg-accent/10 text-accent" />
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Applications</CardTitle>
+      {/* RECENT APPLICATIONS: Hidden on mobile to keep everything "above the fold" */}
+      <Card className="hidden md:block border-0 sm:border">
+        <CardHeader className="px-4 py-3 md:px-6 md:py-6">
+          <CardTitle className="text-sm md:text-lg">Recent Applications</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -98,11 +108,7 @@ export default function AdminDashboard() {
                 <TableRow
                   key={member.id}
                   className="transition-colors hover:bg-slate-50/50 cursor-pointer group"
-                  onClick={() => {
-                    // Debugging log:
-                    console.log("Navigating to member ID:", member.id);
-                    navigate(`/admin/members/${member.id}`);
-                  }}
+                  onClick={() => navigate(`/admin/members/${member.id}`)}
                 >
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -117,21 +123,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   </TableCell>
-
-                  <TableCell className="px-4 py-4">
-                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                  <TableCell className="px-4 py-4 text-xs font-medium text-slate-600">
+                    <div className="flex items-center gap-2">
                       <MapPin className="w-3 h-3 text-slate-400" />
                       {formatLocation(member)}
                     </div>
                   </TableCell>
-
-                  <TableCell className="px-4 py-4">
-                    <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                  <TableCell className="px-4 py-4 text-xs font-medium text-slate-600">
+                    <div className="flex items-center gap-2">
                       <Calendar className="w-3 h-3 text-slate-400" />
                       {formatDate(member.created_date)}
                     </div>
                   </TableCell>
-
                   <TableCell className="px-4 py-4">
                     <span className={cn(
                       "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border",
@@ -141,24 +144,26 @@ export default function AdminDashboard() {
                       {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
                     </span>
                   </TableCell>
-
                   <TableCell className="px-4 py-4 text-right">
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-primary transition-colors" />
                   </TableCell>
                 </TableRow>
               ))}
-
-              {recentMembers.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
-                    No applications from the last 30 days.
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
+
+          {recentMembers.length === 0 && (
+            <div className="text-center text-muted-foreground py-12 px-4 text-sm">
+              No applications from the last 30 days.
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* MOBILE INSTRUCTION - Optional: helps users know cards are clickable */}
+      <p className="block md:hidden text-center text-[10px] text-muted-foreground pt-2 italic">
+        Tap a card to view filtered members
+      </p>
     </div>
   );
 }
