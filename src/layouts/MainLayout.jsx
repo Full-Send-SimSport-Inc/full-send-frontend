@@ -40,7 +40,7 @@ export default function MainLayout() {
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-[400px] flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -128,11 +128,14 @@ export default function MainLayout() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    /* CHANGE 1: Removed 'flex' and 'flex-col'.
+       By making this a standard 'block' element, it will no longer
+       try to fill vertical space or stretch its children.
+    */
+    <div className="bg-slate-50 block">
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* Mobile Menu Trigger */}
             {isMobile && (
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -147,7 +150,6 @@ export default function MainLayout() {
               Member Portal
             </Link>
 
-            {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-1">
               <NavLinks />
             </nav>
@@ -185,7 +187,6 @@ export default function MainLayout() {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
       {isMobile && mobileMenuOpen && (
         <div className="fixed inset-0 top-16 z-40 bg-white lg:hidden overflow-y-auto">
           <nav className="flex flex-col p-4 gap-2">
@@ -194,12 +195,15 @@ export default function MainLayout() {
         </div>
       )}
 
-      <main className={cn(
-        "flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-opacity",
-        mobileMenuOpen ? "opacity-20 pointer-events-none" : "opacity-100"
-      )}>
-        <Outlet />
-      </main>
+      {/* CHANGE 2: Removed 'flex-1'.
+          Standard block behavior will now let the footer rise up.
+      */}
+	  <main className={cn(
+	    "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 transition-opacity",
+	    mobileMenuOpen ? "opacity-20 pointer-events-none" : "opacity-100"
+	  )}>
+	    <Outlet />
+	  </main>
     </div>
   );
 }

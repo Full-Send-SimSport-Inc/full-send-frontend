@@ -1,31 +1,29 @@
 import React, { useEffect } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { User, UserPlus, Loader2 } from 'lucide-react';
+import { User, UserPlus, Loader2, ChevronRight } from 'lucide-react';
 
 export default function Portal() {
   const { isAuthenticated, isLoadingAuth } = useAuth();
   const navigate = useNavigate();
- 
+
   useEffect(() => {
-  // Check if the WooCommerce object is missing and mock it to prevent the crash
     if (typeof window.storefrontUrls === 'undefined') {
-        window.storefrontUrls = {}; 
+        window.storefrontUrls = {};
     }
   }, []);
-  
+
   useEffect(() => {
     if (!isLoadingAuth && isAuthenticated) {
-       console.log("DEBUG: Portal page detected authenticated user, redirecting to profile...");
        navigate('/my-profile', { replace: true });
     }
   }, [isAuthenticated, isLoadingAuth, navigate]);
 
   if (isLoadingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="py-20 flex items-center justify-center bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -36,51 +34,77 @@ export default function Portal() {
   }
 
   return (
-    /* 1. Removed justify-center so it doesn't force vertical centering
-       2. Kept items-center to keep the boxes horizontally centered
-       3. Increased padding to pt-20 / md:pt-32 to match the Login screen exactly
+    /* The "Anti-White-Space" wrapper:
+       - No min-h properties.
+       - Negative top margin on mobile to fight theme padding.
+       - pb-0 to ensure no space below the content inside our app.
     */
-    <div className="min-h-screen flex flex-col items-center bg-slate-50 p-4 pt-20 md:pt-32">
-      
-      <div className="w-full max-w-md text-center mb-10">
-        <h1 className="text-4xl font-extrabold text-primary mb-3 tracking-tight">Member Portal</h1>
-        <p className="text-muted-foreground text-lg font-medium">Choose an option to get started</p>
+    <div className="bg-slate-50 p-4 pt-0 pb-0 md:pt-12 -mt-4 md:mt-0 max-w-4xl mx-auto overflow-hidden">
+
+      {/* Tighter Heading Section */}
+      <div className="w-full text-center mb-4 md:mb-10">
+        <p className="text-sm md:text-xl font-bold text-muted-foreground tracking-wider opacity-80 py-1">
+          Welcome to the Member Portal. Choose an option:
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 w-full max-w-md">
-        <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md border-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <User className="w-6 h-6 text-primary" />
-              Existing Member
-            </CardTitle>
-            <CardDescription className="text-base">
-              Log in to access your profile, check meetings, and manage your account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild className="w-full text-lg h-12">
-              <Link to="/login">Sign In</Link>
-            </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-8 w-full">
+
+        {/* Existing Member Card */}
+        <Card className="hover:border-primary/50 transition-all shadow-sm border-2 bg-white overflow-hidden">
+          <CardContent className="p-3 md:p-8">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-3 mb-1 md:mb-4">
+                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                  <User className="w-5 h-5 md:w-8 md:h-8 text-primary" />
+                </div>
+                <h3 className="text-lg md:text-2xl font-bold text-slate-900">Existing Member</h3>
+              </div>
+
+              <p className="text-xs md:text-base text-muted-foreground leading-snug mb-3 md:mb-4">
+                Log in to access your profile, check meetings, and manage your account.
+              </p>
+
+              <Button asChild className="w-full h-10 md:h-12 text-sm md:text-lg">
+                <Link to="/login" className="flex items-center justify-center gap-1">
+                  <span>Sign In</span>
+                  <ChevronRight className="w-4 h-4 md:hidden" />
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md border-2 border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <UserPlus className="w-6 h-6 text-primary" />
-              New Member
-            </CardTitle>
-            <CardDescription className="text-base">
-              New to Full Send? Register here to create your racing profile.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" className="w-full text-lg h-12 border-primary text-primary hover:bg-primary/5">
-              <Link to="/join">Create Profile</Link>
-            </Button>
+        {/* New Member Card */}
+        <Card className="hover:border-primary/50 transition-all shadow-sm border-2 border-dashed bg-white overflow-hidden">
+          <CardContent className="p-3 md:p-8">
+            <div className="flex flex-col">
+              <div className="flex items-center gap-3 mb-1 md:mb-4">
+                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                  <UserPlus className="w-5 h-5 md:w-8 md:h-8 text-primary" />
+                </div>
+                <h3 className="text-lg md:text-2xl font-bold text-slate-900">New Member</h3>
+              </div>
+
+              <p className="text-xs md:text-base text-muted-foreground leading-snug mb-3 md:mb-4">
+                New to Full Send? Register here to create your racing profile and join the club.
+              </p>
+
+              <Button asChild variant="outline" className="w-full h-10 md:h-12 text-sm md:text-lg border-primary text-primary">
+                <Link to="/join" className="flex items-center justify-center gap-1">
+                  <span>Create Profile</span>
+                  <ChevronRight className="w-4 h-4 md:hidden" />
+                </Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+      </div>
+
+      {/* Tiny footer margin */}
+      <div className="pt-4 pb-2 text-center text-[10px] text-slate-400 md:hidden">
+        Full Send v1.0
       </div>
     </div>
   );

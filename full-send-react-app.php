@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Full Send React App
  * Description: WordPress backend API and loader for the Full Send SimSports React App.
- * Version: 1.2
+ * Version: 1.2.1
  */
 
 if (!defined('ABSPATH')) exit;
@@ -55,11 +55,13 @@ class FullSend_React_App {
         // 2. Setup Post Types and Roles
         add_action('init', [$this, 'register_post_types']);
         add_action('init', [$this, 'initialize_custom_roles']);
-		add_action('wp_head', [$this, 'add_mobile_viewport_meta']);
+        add_action('wp_head', [$this, 'add_mobile_viewport_meta']);
 
         // 3. Asset Management (Scripts/Styles)
         add_action('wp_enqueue_scripts', [$this, 'manage_storefront_scripts'], 999);
         add_action('wp_enqueue_scripts', [$this, 'localize_storefront_urls'], 5);
+        // Added specifically to kill theme-enforced white space
+        add_action('wp_enqueue_scripts', [$this, 'cleanup_theme_whitespace'], 999);
 
         // 4. Access Control & Redirects
         add_action('admin_init', [$this, 'restrict_admin_access']);
@@ -117,7 +119,7 @@ class FullSend_React_App {
         }
     }
 
-    // --- SCRIPT MANAGEMENT ---
+    // --- SCRIPT & STYLE MANAGEMENT ---
 
     public function manage_storefront_scripts() {
         if (is_page('portal')) {
@@ -130,6 +132,25 @@ class FullSend_React_App {
             wp_dequeue_script('storefront-sticky-payment');
             wp_deregister_script('storefront-functions');
         }
+    }
+
+    /**
+     * Fixes the "White Space" issue by stripping Storefront theme height constraints
+     * and injecting a fix for the content area on the portal page.
+     */
+    public function cleanup_theme_whitespace() {
+        if (!is_page('portal')) return;
+
+        // Force-collapse structural elements via inline CSS injection
+        $custom_css = "
+            #content .col-full { padding: 0 !important; max-width: none !important; }
+            .site-content { padding-bottom: 0 !important; margin-bottom: 0 !important; }
+            .site-main { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+            #main { min-height: unset !important; }
+            .entry-content { margin-top: 0 !important; }
+            #primary { margin-bottom: 0 !important; }
+        ";
+        wp_add_inline_style('storefront-style', $custom_css);
     }
 
     public function localize_storefront_urls() {
@@ -186,15 +207,12 @@ class FullSend_React_App {
         return $response;
     }
 
-	public function catch_member_status_change($meta_id, $post_id, $meta_key, $new_status) {
+    public function catch_member_status_change($meta_id, $post_id, $meta_key, $new_status) {
         if ($meta_key !== '_status' || get_post_type($post_id) !== 'fs_member') return;
-
-        // We get the previous status if we need to check if it was 'pending'
-        // But the helper you provided handles current vs old fine.
         fs_handle_status_change_emails($post_id, $new_status, '');
     }
 
-	public function add_mobile_viewport_meta() {
+    public function add_mobile_viewport_meta() {
         echo '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">';
     }
 
