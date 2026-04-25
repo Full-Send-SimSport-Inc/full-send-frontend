@@ -24,6 +24,7 @@ export default function AdminMemberManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
 
   // Local state to prevent the "snap-back" during slow WP DB writes
   const [localStatusOverrides, setLocalStatusOverrides] = useState({});
@@ -101,9 +102,11 @@ export default function AdminMemberManager() {
       }).filter(m => {
         const matchesSearch = !search || `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(search.toLowerCase());
         const matchesStatus = statusFilter === 'all' || m.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesType = typeFilter === 'all' || m.currentRole === typeFilter;
+
+        return matchesSearch && matchesStatus && matchesType;
       });
-  }, [members, users, search, statusFilter, myWeight, isSystemAdmin, localStatusOverrides]);
+  }, [members, users, search, statusFilter, typeFilter, myWeight, isSystemAdmin, localStatusOverrides]);
 
   // Status Mutation
   const updateStatus = useMutation({
@@ -157,6 +160,19 @@ export default function AdminMemberManager() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Search members..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
+
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="w-full sm:w-48"><SelectValue placeholder="All Member Types" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Member Types</SelectItem>
+            <SelectItem value="fs_member">Adult Members</SelectItem>
+            <SelectItem value="fs_junior_member">Junior Members</SelectItem>
+            <SelectItem value="committee">Committee</SelectItem>
+            <SelectItem value="executive_committee">Executive Committee</SelectItem>
+            <SelectItem value="administrator">Administrators</SelectItem>
+          </SelectContent>
+        </Select>
+
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="All Statuses" /></SelectTrigger>
           <SelectContent>
