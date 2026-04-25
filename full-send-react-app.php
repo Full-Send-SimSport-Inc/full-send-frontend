@@ -55,6 +55,7 @@ class FullSend_React_App {
         // 2. Setup Post Types and Roles
         add_action('init', [$this, 'register_post_types']);
         add_action('init', [$this, 'initialize_custom_roles']);
+		add_action('wp_head', [$this, 'add_mobile_viewport_meta']);
 
         // 3. Asset Management (Scripts/Styles)
         add_action('wp_enqueue_scripts', [$this, 'manage_storefront_scripts'], 999);
@@ -191,6 +192,10 @@ class FullSend_React_App {
         // We get the previous status if we need to check if it was 'pending'
         // But the helper you provided handles current vs old fine.
         fs_handle_status_change_emails($post_id, $new_status, '');
+    }
+
+	public function add_mobile_viewport_meta() {
+        echo '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">';
     }
 
     // --- DEV TOOLS ---
