@@ -19,7 +19,7 @@ const options = [
     icon: Users,
     title: 'Junior Membership',
     subtitle: 'Under 18',
-    description: 'For young racers under 18. Requires a parent or guardian who is already a registered Full Send SimSports member.',
+    description: 'For young racers or supporters under 18. Requires a parent or guardian who is already a registered Full Send SimSports member.',
     color: 'text-secondary-foreground'
   }
 ];
