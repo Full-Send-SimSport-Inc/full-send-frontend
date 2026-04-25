@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Search, UserCheck, UserX, CheckCircle2, XCircle, Users, Scale } from 'lucide-react';
+import { ArrowLeft, Search, UserCheck, UserX, CheckCircle2, Users, Scale, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STATUS_STYLES = {
@@ -27,7 +27,6 @@ export default function AGMDetail() {
     queryKey: ['agm', agmId],
     queryFn: async () => {
         const data = await base44.get(`/agm?id=${agmId}`);
-        // The PHP returns an array, so we take the first item
         return Array.isArray(data) ? data[0] : data;
     },
     enabled: !!agmId
@@ -39,19 +38,19 @@ export default function AGMDetail() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: (updates) => base44.post(`/agm/${agmId}`, updates), // Direct POST
+    mutationFn: (updates) => base44.post(`/agm/${agmId}`, updates),
     onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['agm', agmId] });
     }
-    });
+  });
 
   const toggleAttendance = (memberId) => {
-  const currentAttendees = agm.attendee_ids || [];
-  const isAttending = currentAttendees.includes(memberId);
-    
-  const newAttendees = isAttending
-    ? currentAttendees.filter(id => id !== memberId)
-    : [...currentAttendees, memberId];
+    const currentAttendees = agm.attendee_ids || [];
+    const isAttending = currentAttendees.includes(memberId);
+
+    const newAttendees = isAttending
+      ? currentAttendees.filter(id => id !== memberId)
+      : [...currentAttendees, memberId];
 
     updateMutation.mutate({ attendee_ids: newAttendees });
   };
@@ -73,31 +72,35 @@ export default function AGMDetail() {
   if (isLoadingAGM || loadingMembers) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   if (!agm) {
     return (
-      <div className="text-center py-20 text-muted-foreground">
-        Meeting not found. <Link to="/admin/agm" className="text-primary underline">Go back</Link>
+      <div className="text-center py-20 text-muted-foreground px-4">
+        Meeting not found. <Link to="/admin/agm" className="text-primary underline font-medium">Go back</Link>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <Link to="/admin/agm" className="p-2 rounded-lg hover:bg-muted transition-colors mt-1">
+      <div className="flex items-start gap-2 sm:gap-4">
+        <Link to="/admin/agm" className="p-2 rounded-lg hover:bg-muted transition-colors shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold tracking-tight">{agm.title}</h1>
-            <Select value={agm.status} onValueChange={(value) => updateMutation.mutate({ status: value })}>
-              <SelectTrigger className="w-36 h-7 text-xs">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{agm.title}</h1>
+            <Select
+              value={agm.status}
+              onValueChange={(value) => updateMutation.mutate({ status: value })}
+              disabled={updateMutation.isPending}
+            >
+              <SelectTrigger className="w-32 sm:w-36 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -108,132 +111,156 @@ export default function AGMDetail() {
               </SelectContent>
             </Select>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-xs sm:text-sm mt-1 flex flex-wrap gap-1 items-center">
             {agm.meeting_date ? format(new Date(agm.meeting_date), 'EEEE, dd MMMM yyyy') : 'Date TBC'}
-            {agm.location && ` · ${agm.location}`}
+            {agm.location && <><span className="hidden sm:inline">·</span> <span className="block sm:inline">{agm.location}</span></>}
           </p>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-0 shadow-md shadow-primary/5">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="border-0 shadow-sm shadow-primary/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
               <UserCheck className="w-5 h-5 text-primary" />
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Attending</p>
-              <p className="text-2xl font-bold">{attendeeCount} <span className="text-sm font-normal text-muted-foreground">of {activeMembers.length}</span></p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-md shadow-primary/5">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", quorumMet ? "bg-green-100" : "bg-amber-100")}>
-              <Scale className={cn("w-5 h-5", quorumMet ? "text-green-600" : "text-amber-600")} />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Quorum Required (min. {agm.quorum_minimum || 10} people)</p>
-              <p className="text-2xl font-bold">
-                {quorumNeeded}
-                <span className={cn("text-sm font-medium ml-2", quorumMet ? "text-green-600" : "text-amber-600")}>
-                  {quorumMet ? '✓ Met' : `Need ${quorumNeeded - attendeeCount} more`}
-                </span>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-semibold">Attending</p>
+              <p className="text-xl sm:text-2xl font-bold truncate">
+                {attendeeCount} <span className="text-sm font-normal text-muted-foreground">/ {activeMembers.length}</span>
               </p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-0 shadow-md shadow-primary/5">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
+
+        <Card className="border-0 shadow-sm shadow-primary/5">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0", quorumMet ? "bg-green-100" : "bg-amber-100")}>
+              <Scale className={cn("w-5 h-5", quorumMet ? "text-green-600" : "text-amber-600")} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-semibold truncate">Quorum (min. {agm.quorum_minimum})</p>
+              <p className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                {quorumNeeded}
+                <Badge variant="secondary" className={cn("text-[10px] px-1.5 h-5", quorumMet ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
+                  {quorumMet ? 'Met' : `+${quorumNeeded - attendeeCount}`}
+                </Badge>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-0 shadow-sm shadow-primary/5 sm:col-span-2 lg:col-span-1">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
               <Users className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Attendance Rate</p>
-              <p className="text-2xl font-bold">{quorumPct}%</p>
+              <p className="text-[10px] sm:text-xs text-muted-foreground uppercase font-semibold">Attendance Rate</p>
+              <p className="text-xl sm:text-2xl font-bold">{quorumPct}%</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Progress bar */}
-      <Card className="border-0 shadow-md shadow-primary/5">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-2 text-sm">
-            <span className="font-medium">Quorum Progress</span>
-            <span className="text-muted-foreground">{attendeeCount} / {quorumNeeded} required</span>
+      <Card className="border-0 shadow-sm shadow-primary/5">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-2 text-xs sm:text-sm">
+            <span className="font-semibold">Quorum Progress</span>
+            <span className="text-muted-foreground font-medium">{attendeeCount} / {quorumNeeded} reached</span>
           </div>
           <div className="h-3 bg-muted rounded-full overflow-hidden">
             <div
-              className={cn("h-full rounded-full transition-all duration-500", quorumMet ? "bg-green-500" : "bg-primary")}
+              className={cn("h-full rounded-full transition-all duration-700 ease-out", quorumMet ? "bg-green-500" : "bg-primary")}
               style={{ width: `${Math.min(100, quorumNeeded > 0 ? (attendeeCount / quorumNeeded) * 100 : 0)}%` }}
             />
           </div>
           {quorumMet && (
-            <p className="text-sm text-green-600 font-medium mt-2 flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Quorum has been reached — this AGM can proceed officially.
-            </p>
+            <div className="mt-3 p-2 bg-green-50 rounded-lg border border-green-100">
+              <p className="text-xs sm:text-sm text-green-700 font-medium flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" /> Quorum reached — meeting can proceed officially.
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Member Roll Call */}
-      <Card className="border-0 shadow-md shadow-primary/5">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <CardTitle className="text-lg">Roll Call — Active Members</CardTitle>
-            <div className="flex items-center gap-2 text-sm">
-              <Button variant="outline" size="sm" onClick={() => updateAGM.mutate({ attendee_ids: activeMembers.map(m => m.id) })}>
-                Mark All Present
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => updateAGM.mutate({ attendee_ids: [] })}>
-                Clear All
-              </Button>
+      <Card className="border-0 shadow-sm shadow-primary/5">
+        <CardHeader className="px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <CardTitle className="text-lg">Roll Call — Active Members</CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 sm:flex-none text-xs h-8"
+                  onClick={() => updateMutation.mutate({ attendee_ids: activeMembers.map(m => m.id) })}
+                  disabled={updateMutation.isPending}
+                >
+                  Mark All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 sm:flex-none text-xs h-8"
+                  onClick={() => updateMutation.mutate({ attendee_ids: [] })}
+                  disabled={updateMutation.isPending}
+                >
+                  Clear All
+                </Button>
+              </div>
             </div>
-          </div>
-          <div className="relative mt-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search members..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="pl-10"
-            />
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search members..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-9 h-10 text-sm"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y">
+          <div className="divide-y border-t">
             {filteredMembers.map(member => {
               const attending = attendeeIds.includes(member.id);
               return (
                 <div key={member.id} className={cn(
-                  "flex items-center justify-between px-5 py-3 transition-colors",
-                  attending ? "bg-green-50/50" : "hover:bg-muted/30"
+                  "flex items-center justify-between px-4 py-3 sm:px-6 transition-colors",
+                  attending ? "bg-green-50/40" : "hover:bg-muted/30"
                 )}>
-                  <div>
-                    <p className="font-medium text-sm">{member.first_name} {member.last_name}</p>
-                    <p className="text-xs text-muted-foreground">{member.email}</p>
+                  <div className="min-w-0 pr-2">
+                    <p className="font-semibold text-sm truncate">{member.first_name} {member.last_name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{member.email}</p>
                   </div>
                   <button
                     onClick={() => toggleAttendance(member.id)}
+                    disabled={updateMutation.isPending}
                     className={cn(
-                      "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
                       attending
-                        ? "bg-green-100 text-green-700 hover:bg-red-100 hover:text-red-600"
-                        : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                        ? "bg-green-100 text-green-700 hover:bg-red-50 hover:text-red-600 border border-green-200"
+                        : "bg-muted text-muted-foreground hover:bg-primary/10 hover:text-primary border border-transparent"
                     )}
                   >
                     {attending
-                      ? <><UserCheck className="w-4 h-4" /> Present</>
-                      : <><UserX className="w-4 h-4" /> Absent</>
+                      ? <><UserCheck className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Present</span></>
+                      : <><UserX className="w-3.5 h-3.5" /> <span className="hidden xs:inline">Absent</span></>
                     }
                   </button>
                 </div>
               );
             })}
             {filteredMembers.length === 0 && (
-              <p className="text-center py-8 text-muted-foreground text-sm">No active members found.</p>
+              <div className="text-center py-12 px-4">
+                <Users className="w-8 h-8 mx-auto text-muted-foreground opacity-20 mb-2" />
+                <p className="text-muted-foreground text-sm font-medium">No active members found.</p>
+              </div>
             )}
           </div>
         </CardContent>
