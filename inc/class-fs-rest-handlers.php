@@ -380,7 +380,7 @@ class FS_REST_Handlers {
         return rest_ensure_response(['status' => 'success']);
     }
 
-	 /**
+/**
      * POST /setup-account
      * Triggered when the User finishes their onboarding
      */
@@ -409,20 +409,27 @@ class FS_REST_Handlers {
         if ($user_id) {
             wp_set_password($password, $user_id);
         } else {
-            $user_id = wp_create_user($email, $password, $email);
+            // If for some reason the shell wasn't created, we use the Member ID as the username
+            $member_id_code = fs_generate_member_id($member_id);
+            $user_id = wp_create_user($member_id_code, $password, $email);
             if (is_wp_error($user_id)) return $user_id;
         }
 
         // Sync details to WP User
         $first_name = get_post_meta($member_id, '_first_name', true);
         $last_name  = get_post_meta($member_id, '_last_name', true);
-        $member_id_code = get_post_meta($member_id, '_fs_member_id', true);
+
+        // Construct the Name-based display name
+        $full_name = trim($first_name . ' ' . $last_name);
+        if (empty($full_name)) {
+            $full_name = $email; // Absolute fallback
+        }
 
         wp_update_user([
             'ID'           => $user_id,
             'first_name'   => $first_name,
             'last_name'    => $last_name,
-            'display_name' => $member_id_code ?: $email,
+            'display_name' => $full_name, // UPDATED: Sets display name to "First Last"
             'nickname'     => $first_name ?: $email,
         ]);
 

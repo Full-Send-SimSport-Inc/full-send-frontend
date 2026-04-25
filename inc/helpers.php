@@ -114,38 +114,47 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
     if (!$email) return;
 
     if ($new_status === 'active') {
+        // 1. Check if we have already sent the approval email to prevent duplicates
+        $already_sent = get_post_meta($post_id, '_approval_email_sent', true);
+        if ($already_sent === 'yes') return;
+
         $member_id_code = fs_generate_member_id($post_id);
         $user_id = email_exists($email);
 
         if (!$user_id) {
             $tmp_pass = wp_generate_password(24, true);
+
+            // Create user without triggering default WP welcome emails if possible
             $user_id = wp_create_user($member_id_code, $tmp_pass, $email);
 
-            // Determine the correct role based on the member type
             $member_type = get_post_meta($post_id, '_member_type', true);
             $target_role = ($member_type === 'junior') ? 'fs_junior_member' : 'fs_member';
 
+            // Use wp_update_user but keep it focused
             wp_update_user([
                 'ID'           => $user_id,
                 'first_name'   => $first_name,
                 'last_name'    => get_post_meta($post_id, '_last_name', true),
-                'display_name' => $member_id_code,
-                'role'         => $target_role // Explicitly set custom role to avoid 'Subscriber' default
+                'display_name' => $first_name . ' ' . get_post_meta($post_id, '_last_name', true),
+                'role'         => $target_role
             ]);
 
             update_user_meta($user_id, 'fs_member_id', $post_id);
             update_post_meta($post_id, '_wp_user_id', $user_id);
         }
 
+        // 2. Send the custom Approval Email
         $setup_link = home_url("/portal/#/setup-account/{$post_id}/" . urlencode($email));
         $subject = "Account Approved - Welcome to Full Send SimSport";
         $body = "<h2>Congratulations {$first_name}!</h2><p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p><p>Please click below to set your password and complete your profile:</p><div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #3a0a59; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
+
         fs_send_automated_email($email, $subject, $body);
 
+        // 3. Mark as sent so it never triggers again for this post_id
+        update_post_meta($post_id, '_approval_email_sent', 'yes');
+
         /**
-         * RELEASE GATEKEEPER:
-         * If this active user is a parent, find any Juniors waiting in 'awaiting_consent'
-         * who have already had consent recorded, and move them to 'pending'.
+         * RELEASE GATEKEEPER
          */
         $waiting_juniors = new WP_Query([
             'post_type'  => 'fs_member',
@@ -162,13 +171,15 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
 
         if ($waiting_juniors->have_posts()) {
             foreach ($waiting_juniors->posts as $junior) {
+                // This triggers this same function for the Junior,
+                // but that's okay because the 'pending' status doesn't send emails.
                 update_post_meta($junior->ID, '_status', 'pending');
             }
         }
 
     } elseif ($new_status === 'inactive' || $new_status === 'denied') {
         $subject = "Update regarding your Full Send SimSport Application";
-        $body = "<h2>Hi " . esc_html($first_name) . ",</h2><p>Thank you for your interest in joining Full Send SimSport.</p><p>After reviewing your application, the committee has decided not to proceed with your membership at this time.</p><p>Your application has been marked as inactive. If you have any questions, please reach out to the committee.</p>";
+        $body = "<h2>Hi " . esc_html($first_name) . ",</h2><p>After reviewing your application, the committee has decided not to proceed with your membership at this time.</p>";
         fs_send_automated_email($email, $subject, $body);
     }
 }
