@@ -25,11 +25,51 @@ import { Textarea } from '@/components/ui/textarea';
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
+/**
+ * AccordionSection defined outside the main component to prevent
+ * focus loss during re-renders.
+ */
+const AccordionSection = ({ id, title, icon: Icon, children, badge, expandedSection, toggleSection }) => (
+  <div className="border-b border-border last:border-0">
+    <button
+      type="button"
+      onClick={() => toggleSection(id)}
+      className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <Icon className="w-4 h-4" />
+        </div>
+        <div className="text-left">
+          <span className="font-bold text-base sm:text-lg block leading-none">{title}</span>
+          {badge && <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{badge}</span>}
+        </div>
+      </div>
+      <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
+    </button>
+    <AnimatePresence>
+      {expandedSection === id && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+          <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
+            {children}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
 export default function JuniorMemberForm({ onBack }) {
-  const [memberType, setMemberType] = useState(''); // Default to empty
+  const [memberType, setMemberType] = useState('');
   const [countries, setCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
-  const [expandedSection, setExpandedSection] = useState('membership'); // Default first section
+  const [expandedSection, setExpandedSection] = useState('membership');
 
   const [form, setForm] = useState({
     parent_name: '',
@@ -56,7 +96,7 @@ export default function JuniorMemberForm({ onBack }) {
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   const toggleSection = (section) => {
-    setExpandedSection(expandedSection === section ? null : section);
+    setExpandedSection(prev => (prev === section ? null : section));
   };
 
   const handleRegionChange = async (selectedRegion) => {
@@ -149,42 +189,6 @@ export default function JuniorMemberForm({ onBack }) {
     (form.country !== 'Australia' || form.state !== '') &&
     form.agreed_to_terms;
 
-  const AccordionSection = ({ id, title, icon: Icon, children, badge }) => (
-    <div className="border-b border-border last:border-0">
-      <button
-        type="button"
-        onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Icon className="w-4 h-4" />
-          </div>
-          <div className="text-left">
-            <span className="font-bold text-base sm:text-lg block leading-none">{title}</span>
-            {badge && <span className="text-[10px] text-primary font-bold uppercase tracking-wider">{badge}</span>}
-          </div>
-        </div>
-        <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
-      </button>
-      <AnimatePresence>
-        {expandedSection === id && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
       className="max-w-2xl mx-auto py-8 sm:py-10 px-4">
@@ -197,7 +201,13 @@ export default function JuniorMemberForm({ onBack }) {
         <form onSubmit={handleSubmit}>
 
           {/* Section 1: Membership Type */}
-          <AccordionSection id="membership" title="Membership Type" icon={Gauge}>
+          <AccordionSection
+            id="membership"
+            title="Membership Type"
+            icon={Gauge}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
               <button type="button"
                 onClick={() => { setMemberType('junior_racing'); setExpandedSection('parent'); }}
@@ -219,7 +229,14 @@ export default function JuniorMemberForm({ onBack }) {
           </AccordionSection>
 
           {/* Section 2: Parent / Guardian Verification */}
-          <AccordionSection id="parent" title="Parent / Guardian" icon={ShieldCheck} badge="Required Verification">
+          <AccordionSection
+            id="parent"
+            title="Parent / Guardian"
+            icon={ShieldCheck}
+            badge="Required Verification"
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -238,7 +255,13 @@ export default function JuniorMemberForm({ onBack }) {
           </AccordionSection>
 
           {/* Section 3: Junior Member Details */}
-          <AccordionSection id="junior" title="Junior Member" icon={User}>
+          <AccordionSection
+            id="junior"
+            title="Junior Member"
+            icon={User}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} required /></div>
               <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} required /></div>
@@ -249,7 +272,13 @@ export default function JuniorMemberForm({ onBack }) {
           </AccordionSection>
 
           {/* Section 4: Recruitment */}
-          <AccordionSection id="recruitment" title="Recruitment" icon={MessageSquare}>
+          <AccordionSection
+            id="recruitment"
+            title="Recruitment"
+            icon={MessageSquare}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="space-y-3">
               <Label htmlFor="reason">Why would you like to join Full Send SimSport? *</Label>
               <Textarea
@@ -267,7 +296,13 @@ export default function JuniorMemberForm({ onBack }) {
           </AccordionSection>
 
           {/* Section 5: Location */}
-          <AccordionSection id="location" title="Location" icon={MapPin}>
+          <AccordionSection
+            id="location"
+            title="Location"
+            icon={MapPin}
+            expandedSection={expandedSection}
+            toggleSection={toggleSection}
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Region *</Label>
