@@ -17,19 +17,55 @@ import {
   MessageSquare,
   ChevronDown,
   User,
-  MapPin,
-  ShieldCheck
+  MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
+/**
+ * AccordionSection moved outside the main component to prevent
+ * re-creation on every render, which preserves input focus.
+ */
+const AccordionSection = ({ id, title, icon: Icon, children, expandedSection, toggleSection }) => (
+  <div className="border-b border-border last:border-0">
+    <button
+      type="button"
+      onClick={() => toggleSection(id)}
+      className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+          <Icon className="w-4 h-4" />
+        </div>
+        <span className="font-bold text-base sm:text-lg">{title}</span>
+      </div>
+      <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
+    </button>
+    <AnimatePresence>
+      {expandedSection === id && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="overflow-hidden"
+        >
+          <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
+            {children}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+);
+
 export default function AdultMemberForm({ onBack }) {
   const [memberType, setMemberType] = useState('');
   const [countries, setCountries] = useState([]);
   const [loadingCountries, setLoadingCountries] = useState(false);
-  const [expandedSection, setExpandedSection] = useState('membership'); // Accordion state
+  const [expandedSection, setExpandedSection] = useState('membership');
 
   const [form, setForm] = useState({
     first_name: '',
@@ -145,39 +181,6 @@ export default function AdultMemberForm({ onBack }) {
     (form.country !== 'Australia' || form.state !== '') &&
     form.agreed_to_terms;
 
-  const AccordionSection = ({ id, title, icon: Icon, children }) => (
-    <div className="border-b border-border last:border-0">
-      <button
-        type="button"
-        onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-5 sm:p-6 hover:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-            <Icon className="w-4 h-4" />
-          </div>
-          <span className="font-bold text-base sm:text-lg">{title}</span>
-        </div>
-        <ChevronDown className={cn("w-5 h-5 text-muted-foreground transition-transform duration-200", expandedSection === id && "rotate-180")} />
-      </button>
-      <AnimatePresence>
-        {expandedSection === id && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="px-5 pb-6 sm:px-6 sm:pb-8 space-y-6">
-              {children}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
       className="max-w-2xl mx-auto py-8 sm:py-10 px-4">
@@ -189,8 +192,7 @@ export default function AdultMemberForm({ onBack }) {
       <Card className="border-0 shadow-2xl shadow-primary/5 overflow-hidden">
         <form onSubmit={handleSubmit}>
 
-          {/* Section 1: Membership Type */}
-          <AccordionSection id="membership" title="Membership Type" icon={Gauge}>
+          <AccordionSection id="membership" title="Membership Type" icon={Gauge} expandedSection={expandedSection} toggleSection={toggleSection}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
               <button type="button" onClick={() => { setMemberType('racing'); setExpandedSection('personal'); }}
                 className={cn("p-5 rounded-2xl border-2 text-left transition-all",
@@ -209,8 +211,7 @@ export default function AdultMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 2: Personal Details */}
-          <AccordionSection id="personal" title="Personal Details" icon={User}>
+          <AccordionSection id="personal" title="Personal Details" icon={User} expandedSection={expandedSection} toggleSection={toggleSection}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2"><Label>First Name *</Label><Input value={form.first_name} onChange={e => handleChange('first_name', e.target.value)} required /></div>
               <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} required /></div>
@@ -220,8 +221,7 @@ export default function AdultMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 3: Recruitment */}
-          <AccordionSection id="recruitment" title="Recruitment" icon={MessageSquare}>
+          <AccordionSection id="recruitment" title="Recruitment" icon={MessageSquare} expandedSection={expandedSection} toggleSection={toggleSection}>
             <div className="space-y-3">
               <Label htmlFor="reason">Why would you like to join Full Send SimSport? *</Label>
               <Textarea
@@ -238,8 +238,7 @@ export default function AdultMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 4: Location */}
-          <AccordionSection id="location" title="Location" icon={MapPin}>
+          <AccordionSection id="location" title="Location" icon={MapPin} expandedSection={expandedSection} toggleSection={toggleSection}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 sm:col-span-2">
                 <Label>Region *</Label>
@@ -282,7 +281,6 @@ export default function AdultMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Submission Area */}
           <div className="p-6 bg-muted/20 border-t border-border">
             <div className="flex items-start gap-3 p-4 bg-background rounded-xl border mb-6 shadow-sm">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-1" />
