@@ -128,10 +128,6 @@ export default function MainLayout() {
   };
 
   return (
-    /* CHANGE 1: Removed 'flex' and 'flex-col'.
-       By making this a standard 'block' element, it will no longer
-       try to fill vertical space or stretch its children.
-    */
     <div className="bg-slate-50 block">
       <header className="bg-white border-b sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -195,15 +191,17 @@ export default function MainLayout() {
         </div>
       )}
 
-      {/* CHANGE 2: Removed 'flex-1'.
-          Standard block behavior will now let the footer rise up.
+      {/* SPACING ADJUSTMENT:
+          Increased py-4 to py-6 for mobile,
+          and md:py-8 to md:py-12 for desktop to balance
+          header-distance and footer-distance.
       */}
-	  <main className={cn(
-	    "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 transition-opacity",
-	    mobileMenuOpen ? "opacity-20 pointer-events-none" : "opacity-100"
-	  )}>
-	    <Outlet />
-	  </main>
+      <main className={cn(
+        "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12 transition-opacity",
+        mobileMenuOpen ? "opacity-20 pointer-events-none" : "opacity-100"
+      )}>
+        <Outlet />
+      </main>
     </div>
   );
 }
