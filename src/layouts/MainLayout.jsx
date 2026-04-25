@@ -191,13 +191,13 @@ export default function MainLayout() {
         </div>
       )}
 
-      {/* SPACING ADJUSTMENT:
-          Increased py-4 to py-6 for mobile,
-          and md:py-8 to md:py-12 for desktop to balance
-          header-distance and footer-distance.
+      {/* REFINED HEIGHT:
+        Subtracting 260px from the viewport height (100vh).
+        This accounts for the header (64px), the footer, and the vertical padding (py-12).
       */}
       <main className={cn(
         "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-12 transition-opacity",
+        "min-h-[calc(100vh-230px)]",
         mobileMenuOpen ? "opacity-20 pointer-events-none" : "opacity-100"
       )}>
         <Outlet />

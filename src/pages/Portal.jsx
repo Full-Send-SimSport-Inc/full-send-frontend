@@ -34,14 +34,14 @@ export default function Portal() {
   }
 
   return (
-    /* The "Anti-White-Space" wrapper:
-       - No min-h properties.
-       - Negative top margin on mobile to fight theme padding.
-       - pb-0 to ensure no space below the content inside our app.
+    /* REVERTED TO TIGHT VIEW:
+       - Removed min-height and flex-centering logic.
+       - Restored -mt-4 on mobile to pull the content up.
+       - Kept padding minimal to maximize screen real estate on mobile.
     */
-    <div className="bg-slate-50 p-4 pt-0 pb-0 md:pt-12 -mt-4 md:mt-0 max-w-4xl mx-auto overflow-hidden">
+    <div className="bg-slate-50 max-w-4xl mx-auto overflow-hidden p-4 pt-0 -mt-4 md:mt-0">
 
-      {/* Tighter Heading Section */}
+      {/* TIGHT HEADING SECTION */}
       <div className="w-full text-center mb-4 md:mb-10">
         <p className="text-sm md:text-xl font-bold text-muted-foreground tracking-wider opacity-80 py-1">
           Welcome to the Member Portal. Choose an option:
@@ -100,11 +100,6 @@ export default function Portal() {
           </CardContent>
         </Card>
 
-      </div>
-
-      {/* Tiny footer margin */}
-      <div className="pt-4 pb-2 text-center text-[10px] text-slate-400 md:hidden">
-        Full Send v1.0
       </div>
     </div>
   );
