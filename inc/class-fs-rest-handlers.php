@@ -430,7 +430,7 @@ class FS_REST_Handlers {
         return rest_ensure_response(['status' => 'success']);
     }
 
-/**
+	/**
      * POST /setup-account
      * Triggered when the User finishes their onboarding
      */
@@ -504,7 +504,7 @@ class FS_REST_Handlers {
         ]);
     }
 
-    /**
+	/**
      * POST /members/self/onboarding
      */
     public static function complete_onboarding($request) {
@@ -513,8 +513,64 @@ class FS_REST_Handlers {
 
         if (!$member_id) return new WP_Error('no_record', 'No record.', ['status' => 404]);
 
+        $params = $request->get_json_params();
+        $onboarding_fields = [
+            'discord_username', 'comm_prefs', 'sim_environment',
+            'racing_interests', 'sim_platforms', 'sim_platforms_other'
+        ];
+
+        // Capture and save the data payload
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (in_array($key, $onboarding_fields)) {
+                    $sanitized = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+                    update_post_meta($member_id, '_' . $key, $sanitized);
+                }
+            }
+        }
+
+        // Mark onboarding as complete
         update_post_meta($member_id, '_onboarding_complete', 'yes');
+
         return ['status' => 'success', 'message' => 'Onboarding complete!'];
+    }
+
+	/**
+     * POST /update-me
+     */
+    public static function update_me($request) {
+        $user_id = get_current_user_id();
+        $member_id = get_user_meta($user_id, 'fs_member_id', true);
+
+        if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
+
+        $params = $request->get_json_params();
+        $allowed_fields = [
+            'first_name', 'last_name', 'dob', 'email', 'phone',
+            'street_address', 'city', 'state', 'postcode',
+            'region', 'country', 'discord_username',
+            'comm_prefs', 'sim_environment', 'racing_interests',
+            'sim_platforms', 'sim_platforms_other'
+        ];
+
+        if (!empty($params)) {
+            foreach ($params as $key => $value) {
+                if (in_array($key, $allowed_fields)) {
+                    if ($key === 'email') {
+                        $new_email = sanitize_email($value);
+                        if (!empty($new_email)) {
+                            wp_update_user(['ID' => $user_id, 'user_email' => $new_email]);
+                            update_post_meta($member_id, '_email', $new_email);
+                        }
+                    } else {
+                        $sanitized_value = is_array($value) ? array_map('sanitize_text_field', $value) : sanitize_text_field($value);
+                        update_post_meta($member_id, '_' . $key, $sanitized_value);
+                    }
+                }
+            }
+        }
+
+        return ['status' => 'success', 'message' => 'Profile updated successfully!'];
     }
 
     // ==========================================
