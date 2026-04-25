@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShieldCheck, User, Search, Download, Mail, Lock, UserX, Crown } from 'lucide-react';
+import { ShieldCheck, User, Search, Download, Mail, Lock, UserX, Crown, Calendar } from 'lucide-react';
 import { toast } from "sonner";
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -35,9 +35,15 @@ export default function AdminMemberManager() {
     return Math.max(...roleArray.map(r => ROLE_WEIGHTS[r] || 0), 0);
   };
 
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return '-';
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
   const formatRole = (roleStr) => {
     if (!roleStr) return 'No Access';
-    // Custom mapping for the base roles to match your preferred terminology
     if (roleStr === 'fs_member') return 'Adult Member';
     if (roleStr === 'fs_junior_member') return 'Junior Member';
 
@@ -81,14 +87,11 @@ export default function AdminMemberManager() {
       .map(member => {
         const linkedUser = users.find(u => u.email.toLowerCase() === member.email?.toLowerCase());
 
-        // If user exists, find their best role. If not, default based on member type meta.
         const currentRole = linkedUser
           ? getBestRole(linkedUser.roles)
           : (member.member_type === 'junior' ? 'fs_junior_member' : 'fs_member');
 
         const targetWeight = ROLE_WEIGHTS[currentRole] || 0;
-
-        // Prioritize local state over server data to stop the UI from jumping back
         const currentStatus = localStatusOverrides[member.id] || member.status;
 
         return {
@@ -108,7 +111,7 @@ export default function AdminMemberManager() {
       });
   }, [members, users, search, statusFilter, typeFilter, myWeight, isSystemAdmin, localStatusOverrides]);
 
-  // Status Mutation
+  // Mutations
   const updateStatus = useMutation({
     mutationFn: ({ id, status }) => base44.post(`/members/${id}`, { status }),
     onMutate: ({ id, status }) => {
@@ -190,16 +193,17 @@ export default function AdminMemberManager() {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/50">
-                <TableHead className="w-[35%] px-6 h-12">Member Name</TableHead>
-                <TableHead className="w-[20%] px-4 h-12">Member Type</TableHead>
-                <TableHead className="w-[20%] px-4 h-12">Account Status</TableHead>
+                <TableHead className="w-[30%] px-6 h-12">Member Name</TableHead>
+                <TableHead className="w-[15%] px-4 h-12">Joined</TableHead>
+                <TableHead className="w-[15%] px-4 h-12">Type</TableHead>
+                <TableHead className="w-[15%] px-4 h-12">Status</TableHead>
                 <TableHead className="w-[25%] px-6 h-12 text-right">Manage Access Role</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {unifiedData.map((member) => (
                 <TableRow key={member.id} className={cn("transition-colors", member.isDisabled && "bg-slate-50 opacity-75")}>
-                  {/* Member Column */}
+                  {/* Member Name Column */}
                   <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className={cn(
@@ -222,10 +226,18 @@ export default function AdminMemberManager() {
                     </div>
                   </TableCell>
 
-                  {/* Access Level Column */}
+                  {/* Joined Column */}
                   <TableCell className="px-4 py-4">
                     <div className="flex flex-col">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Current</span>
+                      <span className="text-xs font-medium text-slate-600">
+                        {member.wpUser?.registered ? formatDate(member.wpUser.registered) : <span className="text-slate-300 italic">Not Linked</span>}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  {/* Member Type Column */}
+                  <TableCell className="px-4 py-4">
+                    <div className="flex flex-col">
                       <span className="text-xs font-semibold">
                         {member.wpUser ? formatRole(member.currentRole) : 'No Portal Access'}
                       </span>
@@ -239,7 +251,7 @@ export default function AdminMemberManager() {
                       onValueChange={(status) => updateStatus.mutate({ id: member.id, status })}
                       disabled={!member.canEdit || updateStatus.isPending}
                     >
-                      <SelectTrigger className={cn("w-36 h-9 text-xs font-bold",
+                      <SelectTrigger className={cn("w-32 h-8 text-[11px] font-bold",
                         member.status === 'active' && "text-green-700 bg-green-50 border-green-200",
                         (member.status === 'inactive' || member.status === 'denied') && "text-red-700 bg-red-50 border-red-200",
                         member.status === 'pending' && "text-orange-700 bg-orange-50 border-orange-200"
@@ -264,7 +276,7 @@ export default function AdminMemberManager() {
                           onValueChange={(role) => updateRole.mutate({ id: member.wpUser.id, role })}
                           disabled={!member.canEdit || member.isDisabled}
                         >
-                          <SelectTrigger className="w-44 h-9 text-xs">
+                          <SelectTrigger className="w-40 h-8 text-[11px]">
                             {!member.canEdit ? (
                               <span className="flex items-center text-muted-foreground"><Lock className="w-3 h-3 mr-2"/> Restricted</span>
                             ) : member.isDisabled ? (
@@ -288,7 +300,7 @@ export default function AdminMemberManager() {
                           </SelectContent>
                         </Select>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground italic px-3">Sync Required</span>
+                        <span className="text-[10px] text-muted-foreground italic px-3">Sync Required</span>
                       )}
                     </div>
                   </TableCell>
@@ -296,7 +308,7 @@ export default function AdminMemberManager() {
               ))}
               {unifiedData.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground py-12">
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-12">
                     No members match your criteria.
                   </TableCell>
                 </TableRow>
