@@ -15,7 +15,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import {
-  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, MessageSquare, Monitor, ChevronDown, ChevronRight
+  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, MessageSquare, Monitor, ChevronDown, ChevronRight, Trophy, Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -50,7 +50,7 @@ const RACING_INTERESTS = [
   "Solo Sprint Racing"
 ];
 
-// --- REUSABLE COLLAPSIBLE WRAPPER (Moved outside to prevent focus loss) ---
+// --- REUSABLE COLLAPSIBLE WRAPPER ---
 const AccordionSection = ({ id, title, icon: Icon, children, isLast, activeSection, setActiveSection }) => {
     const isOpen = activeSection === id;
     return (
@@ -405,14 +405,22 @@ export default function ProfileView() {
                                 activeSection={activeSection}
                                 setActiveSection={setActiveSection}
                             >
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-lg">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                     {COMM_PREFS.map(pref => (
-                                        <label key={pref} className={cn("flex items-center gap-2 cursor-pointer group", isLocked && "pointer-events-none")}>
-                                            <Checkbox disabled={isLocked} checked={form.comm_prefs.includes(pref)} onCheckedChange={(checked) => {
-                                                const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
-                                                handleChange('comm_prefs', next);
-                                            }}/>
-                                            <span className="text-sm group-hover:text-primary">{pref}</span>
+                                        <label key={pref} className={cn(
+                                            "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                                            form.comm_prefs.includes(pref) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50",
+                                            isLocked && "pointer-events-none opacity-80"
+                                        )}>
+                                            <Checkbox
+                                                disabled={isLocked}
+                                                checked={form.comm_prefs.includes(pref)}
+                                                onCheckedChange={(checked) => {
+                                                    const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
+                                                    handleChange('comm_prefs', next);
+                                                }}
+                                            />
+                                            <span className="text-xs font-medium leading-tight">{pref}</span>
                                         </label>
                                     ))}
                                 </div>
@@ -432,35 +440,54 @@ export default function ProfileView() {
                                         <Input disabled={isLocked} placeholder="e.g. PC with wheel and pedals" value={form.sim_environment} onChange={e => handleChange('sim_environment', e.target.value)} />
                                     </div>
                                     <div className="space-y-3">
-                                        <Label>Racing Interests *</Label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <Label className="font-bold flex items-center gap-2"><Trophy className="w-4 h-4 text-primary" /> Racing Interests *</Label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {RACING_INTERESTS.map(interest => (
-                                                <label key={interest} className={cn("flex items-start gap-2 cursor-pointer p-3 hover:bg-slate-50 rounded border", isLocked && "pointer-events-none")}>
-                                                    <Checkbox disabled={isLocked} checked={form.racing_interests.includes(interest)} onCheckedChange={(checked) => {
-                                                        const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
-                                                        handleChange('racing_interests', next);
-                                                    }}/>
-                                                    <span className="text-[11px] sm:text-xs leading-tight">{interest}</span>
+                                                <label key={interest} className={cn(
+                                                    "flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                                                    form.racing_interests.includes(interest) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50",
+                                                    isLocked && "pointer-events-none opacity-80"
+                                                )}>
+                                                    <Checkbox
+                                                        disabled={isLocked}
+                                                        checked={form.racing_interests.includes(interest)}
+                                                        onCheckedChange={(checked) => {
+                                                            const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                                                            handleChange('racing_interests', next);
+                                                        }}
+                                                    />
+                                                    <span className="text-xs font-medium leading-tight">{interest}</span>
                                                 </label>
                                             ))}
                                         </div>
                                     </div>
                                     <div className="space-y-3">
-                                        <Label>Platforms & Software</Label>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <Label className="font-bold flex items-center gap-2"><Globe className="w-4 h-4 text-primary" /> Active Platforms</Label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                             {SIM_PLATFORMS.map(p => (
-                                                <label key={p} className={cn("flex items-center gap-2 cursor-pointer group p-1 sm:p-0", isLocked && "pointer-events-none")}>
-                                                    <Checkbox disabled={isLocked} checked={form.sim_platforms.includes(p)} onCheckedChange={checked => {
-                                                        const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
-                                                        handleChange('sim_platforms', next);
-                                                        if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
-                                                    }} />
-                                                    <span className="text-sm group-hover:text-primary">{p}</span>
+                                                <label key={p} className={cn(
+                                                    "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                                                    form.sim_platforms.includes(p) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50",
+                                                    isLocked && "pointer-events-none opacity-80"
+                                                )}>
+                                                    <Checkbox
+                                                        disabled={isLocked}
+                                                        checked={form.sim_platforms.includes(p)}
+                                                        onCheckedChange={checked => {
+                                                            const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                                                            handleChange('sim_platforms', next);
+                                                            if (!checked && p === 'Other') handleChange('sim_platforms_other', '');
+                                                        }}
+                                                    />
+                                                    <span className="text-xs font-medium leading-tight">{p}</span>
                                                 </label>
                                             ))}
                                         </div>
                                         {form.sim_platforms.includes("Other") && (
-                                            <Input disabled={isLocked} placeholder="Specify other platforms" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="mt-2" />
+                                            <div className="mt-3 pl-4 border-l-2 border-primary space-y-1">
+                                                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Specify Other Platform</Label>
+                                                <Input disabled={isLocked} placeholder="e.g. BeamNG, KartKraft" value={form.sim_platforms_other} onChange={e => handleChange('sim_platforms_other', e.target.value)} className="bg-white" />
+                                            </div>
                                         )}
                                     </div>
                                 </div>
