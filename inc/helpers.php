@@ -208,3 +208,42 @@ function fs_react_app_rewrite_rules() {
         'top'
     );
 }
+
+/**
+ * Hide the WordPress Admin Bar for non-administrators.
+ * This ensures the React Member Portal feels like a standalone app.
+ */
+add_action('after_setup_theme', 'fs_hide_admin_bar_for_members');
+
+function fs_hide_admin_bar_for_members() {
+    if (!current_user_can('manage_options')) {
+        show_admin_bar(false);
+    }
+}
+
+/**
+ * Force the WordPress Theme header to appear on top of the React Portal.
+ */
+function fs_fix_header_stacking() {
+    if (is_admin()) return;
+    ?>
+    <style type="text/css">
+        /* Force standard WordPress header elements to the front */
+        header,
+        .site-header,
+        #masthead,
+        .elementor-header,
+        .wp-block-template-part-header {
+            position: relative !important;
+            z-index: 9999 !important;
+        }
+
+        /* Ensure the React mount point doesn't create a new stacking context */
+        #root, #react-app {
+            position: relative !important;
+            z-index: 1 !important;
+        }
+    </style>
+    <?php
+}
+add_action('wp_head', 'fs_fix_header_stacking', 999);

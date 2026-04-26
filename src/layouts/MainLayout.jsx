@@ -49,7 +49,7 @@ export default function MainLayout() {
 
   const NavLinks = ({ mobile = false }) => {
     const linkClass = mobile
-      ? "flex items-center gap-3 px-3 py-3 rounded-lg text-base font-medium transition-colors w-full"
+      ? "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full"
       : "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors";
 
     const activeClass = "bg-primary text-primary-foreground shadow-sm";
@@ -57,9 +57,8 @@ export default function MainLayout() {
     const inactiveClass = "text-muted-foreground hover:text-foreground hover:bg-slate-100";
 
     return (
-      <div className={cn("flex", mobile ? "flex-col gap-1" : "flex-row gap-1 items-center")}>
-        {/* Core Portal Links */}
-        {!user && (
+      <div className={cn("flex", mobile ? "flex-col gap-0.5" : "flex-row gap-1 items-center")}>
+        {(mobile || !user) && (
           <Link
             to="/"
             className={cn(linkClass, location.pathname === '/' ? activeClass : inactiveClass)}
@@ -87,12 +86,11 @@ export default function MainLayout() {
           Meetings
         </Link>
 
-        {/* Admin Section */}
         {isActuallyAdmin && (
           <>
             {!mobile && <div className="w-px h-6 bg-slate-200 mx-2" />}
             {mobile && (
-              <div className="mt-4 mb-1 px-3">
+              <div className="mt-2 mb-1 px-3 border-t pt-2">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin Management</p>
               </div>
             )}
@@ -131,11 +129,10 @@ export default function MainLayout() {
           </>
         )}
 
-        {/* WP Admin Link - Mobile Only */}
         {mobile && isWPAdmin && (
           <a
             href="/wp-admin"
-            className={cn(linkClass, "text-amber-700 hover:bg-amber-50 mt-2")}
+            className={cn(linkClass, "text-amber-700 hover:bg-amber-50 mt-1")}
           >
             <Settings className="w-5 h-5" />
             WordPress Admin
@@ -147,67 +144,56 @@ export default function MainLayout() {
 
   return (
     <div className="bg-slate-50 min-h-screen relative flex flex-col">
-      {/* Header Sticky - Lower Z-index than the open menu */}
-      <header className="bg-white border-b sticky top-0 z-[100] shadow-sm h-16 shrink-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+      <header className={cn(
+        "bg-white border-b h-16 shrink-0 transition-opacity duration-200",
+        isMobile ? "fixed top-0 left-0 right-0 z-[9999]" : "sticky top-0 z-10 shadow-sm",
+        (isMobile && mobileMenuOpen) ? "opacity-0 pointer-events-none" : "opacity-100"
+      )}>
+        <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isMobile && (
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() => setMobileMenuOpen(true)}
                 className="p-2 text-muted-foreground hover:bg-slate-100 rounded-lg transition-colors focus:outline-none"
-                aria-label="Toggle menu"
+                aria-label="Open menu"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                <Menu className="w-6 h-6" />
               </button>
             )}
 
-            <Link to="/" className="font-bold text-lg sm:text-xl text-primary shrink-0">
-              Member Portal
-            </Link>
+            {!isMobile && (
+              <Link to="/" className="font-bold text-lg sm:text-xl text-primary shrink-0">
+                Member Portal
+              </Link>
+            )}
 
-            {/* Desktop Navigation */}
             <nav className="hidden lg:block ml-4">
               <NavLinks />
             </nav>
           </div>
 
-          {/* Desktop Right Actions */}
           <div className="hidden lg:flex items-center gap-3">
             {isWPAdmin && (
-              <a
-                href="/wp-admin"
-                className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
-              >
+              <a href="/wp-admin" className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 rounded-lg">
                 <LayoutDashboard className="w-4 h-4" />
                 <span>WP Admin</span>
               </a>
             )}
-
             {user ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              >
+              <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg">
                 <LogOut className="w-4 h-4" />
                 <span>Sign Out</span>
               </button>
             ) : (
-              <Link
-                to="/"
-                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-full transition-all"
-              >
+              <Link to="/" className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-primary rounded-full">
                 <LogIn className="w-4 h-4" />
                 <span>Sign In</span>
               </Link>
             )}
           </div>
 
-          {/* Mobile Right Actions (Login only) */}
           {!user && isMobile && (
-            <Link
-              to="/"
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-full"
-            >
+            <Link to="/" className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-full">
               <LogIn className="w-3.5 h-3.5" />
               Sign In
             </Link>
@@ -215,40 +201,47 @@ export default function MainLayout() {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
+      {isMobile && <div className="h-16" />}
+
       {isMobile && mobileMenuOpen && (
         <>
-          {/* Background overlay - stays below menu container but above main content */}
           <div
-            className="fixed inset-0 bg-slate-900/40 z-[105] backdrop-blur-sm"
-            style={{ top: '64px' }}
+            className="fixed inset-0 bg-slate-900/60 z-[10000] backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
-          {/* Menu container - High z-index to overlay header if needed */}
           <div
-            className="fixed inset-x-0 top-16 z-[110] bg-white border-b shadow-2xl max-h-[calc(100vh-64px)] overflow-y-auto lg:hidden"
+            className="fixed inset-x-0 top-0 z-[10001] bg-white shadow-2xl overflow-y-auto lg:hidden min-h-screen"
           >
-            <nav className="p-4 flex flex-col">
+            {/* X Button removed to prevent conflict with WordPress theme header.
+                Menu can be closed by clicking the "Close Menu" button or the backdrop.
+            */}
+            <nav className="p-5 pt-32 flex flex-col">
               <NavLinks mobile={true} />
 
               {user && (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-3 py-4 mt-4 border-t border-slate-100 text-red-600 font-semibold w-full text-left"
+                  className="flex items-center gap-3 px-3 py-3 mt-4 border-t border-slate-100 text-red-600 font-semibold w-full text-left text-sm"
                 >
                   <LogOut className="w-5 h-5" />
                   Sign Out
                 </button>
               )}
+
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="mt-6 w-full py-4 text-center text-xs text-slate-400 uppercase tracking-widest font-bold border-t border-slate-50"
+              >
+                Close Menu
+              </button>
             </nav>
           </div>
         </>
       )}
 
-      {/* Main Content Area */}
       <main className={cn(
         "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 transition-all duration-300 flex-1",
-        mobileMenuOpen ? "blur-sm pointer-events-none opacity-50" : "opacity-100"
+        (isMobile && mobileMenuOpen) ? "opacity-0" : "opacity-100"
       )}>
         <Outlet />
       </main>
