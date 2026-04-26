@@ -246,6 +246,9 @@ class FS_REST_Handlers {
         $parent_email = get_post_meta($post_id, '_parent_email', true);
 
         if ($action === 'decline') {
+            // Set a flag to prevent the 'Committee Denied' email from firing
+            update_post_meta($post_id, '_denied_by_parent', 'yes');
+
             update_post_meta($post_id, '_parental_consent_given', 'no');
             update_post_meta($post_id, '_status', 'denied');
 

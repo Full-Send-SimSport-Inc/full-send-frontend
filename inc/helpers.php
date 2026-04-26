@@ -178,6 +178,16 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         }
 
     } elseif ($new_status === 'inactive' || $new_status === 'denied') {
+        /**
+         * FIX: Check if this denial was triggered by a parent.
+         * If it was, the parent consent handler has already sent a specific email.
+         * We return early here to prevent the generic "Committee" email from being sent.
+         */
+        $denied_by_parent = get_post_meta($post_id, '_denied_by_parent', true);
+        if ($denied_by_parent === 'yes') {
+            return;
+        }
+
         $subject = "Update regarding your Full Send SimSport Application";
         $body = "<h2>Hi " . esc_html($first_name) . ",</h2><p>After reviewing your application, the committee has decided not to proceed with your membership at this time.</p>";
         fs_send_automated_email($email, $subject, $body);
