@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,26 @@ import { cn } from '@/lib/utils';
 
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
+
+/**
+ * Helper function to calculate age accurately from YYYY-MM-DD string
+ */
+const calculateAge = (dobString) => {
+  if (!dobString) return 0;
+  const parts = dobString.split('-');
+  if (parts.length !== 3) return 0;
+
+  const birthDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const today = new Date();
+
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+};
 
 const AccordionSection = ({ id, title, icon: Icon, children, expandedSection, toggleSection }) => (
   <div className="border-b border-border last:border-0">
@@ -83,6 +103,9 @@ export default function AdultMemberForm({ onBack }) {
   const [error, setError] = useState('');
   const [submittedData, setSubmittedData] = useState(null);
 
+  // Derived age state
+  const age = useMemo(() => calculateAge(form.dob), [form.dob]);
+
   const handleChange = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
 
   const toggleSection = (section) => {
@@ -123,6 +146,12 @@ export default function AdultMemberForm({ onBack }) {
     if (!form.agreed_to_terms) return setError("You must agree to the terms to continue.");
     if (!memberType) return setError("Please select a membership type.");
     if (!form.dob) return setError("Please select your full date of birth.");
+
+    // ENHANCEMENT: Age check
+    if (age < 18) {
+      return setError("You must be at least 18 years old to apply for an Adult Membership. Please use the Junior Membership form instead.");
+    }
+
     if (form.reason_for_joining.trim().length < 20) return setError("Please provide a more detailed reason for joining (min 20 characters).");
     if (!form.region) return setError("Region is required.");
     if (!form.country) return setError("Country is required.");
@@ -171,6 +200,7 @@ export default function AdultMemberForm({ onBack }) {
     form.last_name.trim() !== '' &&
     form.email.trim() !== '' &&
     form.dob !== '' &&
+    age >= 18 && // Button stays disabled for minors
     form.reason_for_joining.trim().length >= 20 &&
     form.region !== '' &&
     form.country !== '' &&
@@ -213,7 +243,16 @@ export default function AdultMemberForm({ onBack }) {
               <div className="space-y-2"><Label>Last Name *</Label><Input value={form.last_name} onChange={e => handleChange('last_name', e.target.value)} required /></div>
               <div className="space-y-2"><Label>Email Address *</Label><Input type="email" value={form.email} onChange={e => handleChange('email', e.target.value)} required /></div>
               <div className="space-y-2"><Label>Phone Number</Label><Input type="tel" value={form.phone} onChange={e => handleChange('phone', e.target.value)} /></div>
-              <div className="space-y-2 sm:col-span-2"><Label>Date of Birth *</Label><Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} required className="w-full" /></div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Date of Birth *</Label>
+                <Input type="date" value={form.dob} onChange={e => handleChange('dob', e.target.value)} required className="w-full" />
+                {form.dob && age < 18 && (
+                  <p className="text-destructive text-xs font-medium mt-1 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    You must be 18 or older for this form. Please use the Junior form.
+                  </p>
+                )}
+              </div>
             </div>
           </AccordionSection>
 
