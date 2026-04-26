@@ -24,10 +24,6 @@ import { cn } from '@/lib/utils';
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
-/**
- * AccordionSection moved outside the main component to prevent
- * re-creation on every render, which preserves input focus.
- */
 const AccordionSection = ({ id, title, icon: Icon, children, expandedSection, toggleSection }) => (
   <div className="border-b border-border last:border-0">
     <button
@@ -224,9 +220,10 @@ export default function AdultMemberForm({ onBack }) {
           <AccordionSection id="recruitment" title="Recruitment" icon={MessageSquare} expandedSection={expandedSection} toggleSection={toggleSection}>
             <div className="space-y-3">
               <Label htmlFor="reason">Why would you like to join Full Send SimSport? *</Label>
+              <span className="sr-only">Selection context: {memberType}</span>
               <Textarea
                 id="reason"
-                placeholder="Tell us a bit about yourself and why you're interested in our community..."
+                placeholder={memberType === 'supporting' ? "Tell us why you'd like to support our community..." : "Tell us a bit about yourself and your racing interests..."}
                 value={form.reason_for_joining}
                 onChange={e => handleChange('reason_for_joining', e.target.value)}
                 className="min-h-[120px] resize-none text-sm leading-relaxed"

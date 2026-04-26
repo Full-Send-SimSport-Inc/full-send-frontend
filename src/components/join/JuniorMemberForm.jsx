@@ -25,10 +25,6 @@ import { Textarea } from '@/components/ui/textarea';
 const AU_STATES = ["ACT", "NSW", "NT", "QLD", "SA", "TAS", "VIC", "WA"];
 const REGIONS = ["Oceania", "Africa", "Asia", "Europe", "North America", "South America"];
 
-/**
- * AccordionSection defined outside the main component to prevent
- * focus loss during re-renders.
- */
 const AccordionSection = ({ id, title, icon: Icon, children, badge, expandedSection, toggleSection }) => (
   <div className="border-b border-border last:border-0">
     <button
@@ -142,6 +138,7 @@ export default function JuniorMemberForm({ onBack }) {
     setError('');
 
     try {
+      // Ensure the selected memberType (e.g., 'junior_racing' or 'junior_supporting') is sent as sub_type
       const payload = { ...form, member_type: 'junior', sub_type: memberType };
       const response = await base44.post('/join', payload);
       setSubmittedData({ id: response.data?.id || response.id, email: form.email });
@@ -200,7 +197,6 @@ export default function JuniorMemberForm({ onBack }) {
       <Card className="border-0 shadow-2xl shadow-primary/5 overflow-hidden">
         <form onSubmit={handleSubmit}>
 
-          {/* Section 1: Membership Type */}
           <AccordionSection
             id="membership"
             title="Membership Type"
@@ -228,7 +224,6 @@ export default function JuniorMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 2: Parent / Guardian Verification */}
           <AccordionSection
             id="parent"
             title="Parent / Guardian"
@@ -254,7 +249,6 @@ export default function JuniorMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 3: Junior Member Details */}
           <AccordionSection
             id="junior"
             title="Junior Member"
@@ -271,7 +265,6 @@ export default function JuniorMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 4: Recruitment */}
           <AccordionSection
             id="recruitment"
             title="Recruitment"
@@ -295,7 +288,6 @@ export default function JuniorMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Section 5: Location */}
           <AccordionSection
             id="location"
             title="Location"
@@ -339,7 +331,6 @@ export default function JuniorMemberForm({ onBack }) {
             </div>
           </AccordionSection>
 
-          {/* Submission Area */}
           <div className="p-6 bg-muted/20 border-t border-border">
             <div className="flex items-start gap-3 p-4 bg-background rounded-xl border mb-6 shadow-sm">
               <Checkbox id="terms" checked={form.agreed_to_terms} onCheckedChange={v => handleChange('agreed_to_terms', v)} className="mt-1" />

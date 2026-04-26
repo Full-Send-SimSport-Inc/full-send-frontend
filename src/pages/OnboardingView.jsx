@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Monitor, MessageSquare, AlertCircle, Loader2, ChevronDown, Rocket, Trophy, Globe } from 'lucide-react';
+import { Monitor, MessageSquare, AlertCircle, Loader2, ChevronDown, Rocket, Trophy, Globe, Heart } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 
@@ -74,6 +74,22 @@ const AccordionSection = ({ id, title, icon: Icon, children, badge, expandedSect
 );
 
 export default function OnboardingView({ user, onComplete }) {
+  /**
+   * ENHANCED TYPE CHECK:
+   * ProfileView indicates primary classification lives in member_details.member_type.
+   * We search for the keyword 'supporting' across all potential type fields to
+   * catch 'Supporting', 'Junior Supporting', etc.
+   */
+  const effectiveType = (
+    user?.member_details?.member_type ||
+    user?.member_type ||
+    user?.sub_type ||
+    user?.membership_subtype ||
+    ''
+  ).toLowerCase();
+
+  const isSupporting = effectiveType.includes('supporting');
+
   const [form, setForm] = useState({
     discord_username: '',
     comm_prefs: ['Email'],
@@ -90,8 +106,7 @@ export default function OnboardingView({ user, onComplete }) {
   const isFormValid =
     form.discord_username.trim() !== '' &&
     form.comm_prefs.length > 0 &&
-    form.sim_environment !== '' &&
-    form.racing_interests.length > 0;
+    (isSupporting || (form.sim_environment !== '' && form.racing_interests.length > 0));
 
   const toggleSection = (section) => {
     setExpandedSection(expandedSection === section ? null : section);
@@ -101,8 +116,11 @@ export default function OnboardingView({ user, onComplete }) {
     e.preventDefault();
     if (!form.discord_username.trim()) return setError("Please enter your Discord username.");
     if (form.comm_prefs.length === 0) return setError("Please select at least one communication preference.");
-    if (!form.sim_environment) return setError("Please select your sim racing environment.");
-    if (form.racing_interests.length === 0) return setError("Please select at least one racing interest.");
+
+    if (!isSupporting) {
+        if (!form.sim_environment) return setError("Please select your sim racing environment.");
+        if (form.racing_interests.length === 0) return setError("Please select at least one racing interest.");
+    }
 
     setError('');
     setLoading(true);
@@ -123,10 +141,13 @@ export default function OnboardingView({ user, onComplete }) {
       <Card className="shadow-2xl border-primary/20 overflow-hidden p-0">
         <CardHeader className="bg-primary/5 border-b pb-6 pt-5">
           <CardTitle className="text-2xl font-black flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-primary" /> Welcome, {user.display_name}!
+            {isSupporting ? <Heart className="w-6 h-6 text-primary" /> : <Trophy className="w-6 h-6 text-primary" />}
+            Welcome, {user?.display_name || user?.member_details?.first_name || 'Member'}!
           </CardTitle>
           <p className="text-muted-foreground text-sm mt-1">
-            Let's finish setting up your racing profile before you hit the track.
+            {isSupporting
+              ? "Let's finish setting up your community profile."
+              : "Let's finish setting up your racing profile before you hit the track."}
           </p>
         </CardHeader>
 
@@ -177,99 +198,103 @@ export default function OnboardingView({ user, onComplete }) {
             </div>
           </AccordionSection>
 
-          <AccordionSection
-            id="equipment"
-            title="Sim Environment"
-            icon={Monitor}
-            expandedSection={expandedSection}
-            toggleSection={toggleSection}
-          >
-            <div className="space-y-4">
-              <Label className="font-bold block">What equipment do you operate with? *</Label>
-              <Select value={form.sim_environment} onValueChange={v => setForm({...form, sim_environment: v})} required>
-                <SelectTrigger className="w-full h-12">
-                  <SelectValue placeholder="Select your setup" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SIM_ENVIRONMENTS.map(env => <SelectItem key={env} value={env}>{env}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </AccordionSection>
+          {!isSupporting && (
+            <>
+              <AccordionSection
+                id="equipment"
+                title="Sim Environment"
+                icon={Monitor}
+                expandedSection={expandedSection}
+                toggleSection={toggleSection}
+              >
+                <div className="space-y-4">
+                  <Label className="font-bold block">What equipment do you operate with? *</Label>
+                  <Select value={form.sim_environment} onValueChange={v => setForm({...form, sim_environment: v})} required>
+                    <SelectTrigger className="w-full h-12">
+                      <SelectValue placeholder="Select your setup" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SIM_ENVIRONMENTS.map(env => <SelectItem key={env} value={env}>{env}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </AccordionSection>
 
-          <AccordionSection
-            id="interests"
-            title="Racing Interests"
-            icon={Trophy}
-            expandedSection={expandedSection}
-            toggleSection={toggleSection}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {RACING_INTERESTS.map(interest => (
-                <label key={interest} className={cn(
-                  "flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-all",
-                  form.racing_interests.includes(interest) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
-                )}>
-                  <Checkbox
-                    checked={form.racing_interests.includes(interest)}
-                    onCheckedChange={(checked) => {
-                      const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
-                      setForm({...form, racing_interests: next});
-                    }}
-                  />
-                  <span className="text-xs font-medium leading-tight">{interest}</span>
-                </label>
-              ))}
-            </div>
-          </AccordionSection>
+              <AccordionSection
+                id="interests"
+                title="Racing Interests"
+                icon={Trophy}
+                expandedSection={expandedSection}
+                toggleSection={toggleSection}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {RACING_INTERESTS.map(interest => (
+                    <label key={interest} className={cn(
+                      "flex items-start gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                      form.racing_interests.includes(interest) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
+                    )}>
+                      <Checkbox
+                        checked={form.racing_interests.includes(interest)}
+                        onCheckedChange={(checked) => {
+                          const next = checked ? [...form.racing_interests, interest] : form.racing_interests.filter(i => i !== interest);
+                          setForm({...form, racing_interests: next});
+                        }}
+                      />
+                      <span className="text-xs font-medium leading-tight">{interest}</span>
+                    </label>
+                  ))}
+                </div>
+              </AccordionSection>
 
-          <AccordionSection
-            id="platforms"
-            title="Active Platforms"
-            icon={Globe}
-            expandedSection={expandedSection}
-            toggleSection={toggleSection}
-          >
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {SIM_PLATFORMS.map(p => (
-                  <label key={p} className={cn(
-                    "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
-                    form.sim_platforms.includes(p) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
-                  )}>
-                    <Checkbox
-                      checked={form.sim_platforms.includes(p)}
-                      onCheckedChange={checked => {
-                        const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
-                        setForm({...form, sim_platforms: next});
-                        if (!checked && p === 'Other') setForm(prev => ({...prev, sim_platforms_other: ''}));
-                      }}
-                    />
-                    <span className="text-xs font-medium leading-tight">{p}</span>
-                  </label>
-                ))}
-              </div>
-              <AnimatePresence>
-                {form.sim_platforms.includes('Other') && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    className="space-y-2 pl-4 border-l-2 border-primary"
-                  >
-                    <Label htmlFor="sim_platforms_other" className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Specify Other Platforms</Label>
-                    <Input
-                      id="sim_platforms_other"
-                      placeholder="e.g. BeamNG, KartKraft"
-                      value={form.sim_platforms_other}
-                      onChange={e => setForm({...form, sim_platforms_other: e.target.value})}
-                      className="bg-white max-w-md"
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </AccordionSection>
+              <AccordionSection
+                id="platforms"
+                title="Active Platforms"
+                icon={Globe}
+                expandedSection={expandedSection}
+                toggleSection={toggleSection}
+              >
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {SIM_PLATFORMS.map(p => (
+                      <label key={p} className={cn(
+                        "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                        form.sim_platforms.includes(p) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
+                      )}>
+                        <Checkbox
+                          checked={form.sim_platforms.includes(p)}
+                          onCheckedChange={checked => {
+                            const next = checked ? [...form.sim_platforms, p] : form.sim_platforms.filter(x => x !== p);
+                            setForm({...form, sim_platforms: next});
+                            if (!checked && p === 'Other') setForm(prev => ({...prev, sim_platforms_other: ''}));
+                          }}
+                        />
+                        <span className="text-xs font-medium leading-tight">{p}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <AnimatePresence>
+                    {form.sim_platforms.includes('Other') && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        className="space-y-2 pl-4 border-l-2 border-primary"
+                      >
+                        <Label htmlFor="sim_platforms_other" className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Specify Other Platforms</Label>
+                        <Input
+                          id="sim_platforms_other"
+                          placeholder="e.g. BeamNG, KartKraft"
+                          value={form.sim_platforms_other}
+                          onChange={e => setForm({...form, sim_platforms_other: e.target.value})}
+                          className="bg-white max-w-md"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </AccordionSection>
+            </>
+          )}
 
           <div className="p-6 sm:p-8 bg-muted/20 border-t border-border">
             {error && (

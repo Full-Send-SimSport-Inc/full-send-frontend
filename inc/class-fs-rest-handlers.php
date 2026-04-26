@@ -108,7 +108,7 @@ class FS_REST_Handlers {
         ]);
     }
 
-	/**
+/**
      * POST /join
      */
     public static function handle_join($request) {
@@ -117,7 +117,25 @@ class FS_REST_Handlers {
         $first_name = sanitize_text_field($params['first_name']);
         $last_name = sanitize_text_field($params['last_name']);
         $dob = sanitize_text_field($params['dob']);
-        $member_type = strtolower(sanitize_text_field($params['member_type'] ?? 'individual'));
+
+        // Capture types for logic, but DO NOT modify the $params array in-place
+        // so that the email function receives the expected raw values.
+        $base_member_type = strtolower(sanitize_text_field($params['member_type'] ?? 'individual'));
+        $sub_type = strtolower(sanitize_text_field($params['sub_type'] ?? ''));
+
+        // Determine the formatted member_type for the database
+        $formatted_type = '';
+        if ($sub_type === 'racing') {
+            $formatted_type = 'Racing Member';
+        } elseif ($sub_type === 'supporting') {
+            $formatted_type = 'Supporting Member';
+        } elseif ($sub_type === 'junior_racing') {
+            $formatted_type = 'Junior Racing Member';
+        } elseif ($sub_type === 'junior_supporting') {
+            $formatted_type = 'Junior Supporting Member';
+        } else {
+            $formatted_type = ucfirst($base_member_type) . ' Member';
+        }
 
         if (email_exists($email)) {
             return new WP_Error('registration_conflict', 'An account with this email already exists.', ['status' => 409]);
@@ -150,15 +168,22 @@ class FS_REST_Handlers {
             if ($key === 'parent_guardian_name' || $key === 'guardian_name') $target_key = 'parent_name';
 
             $meta_key = '_' . $target_key;
-            if (is_array($value)) {
-                $sanitized_array = array_map('sanitize_text_field', $value);
+
+            // Intercept member_type to save the pretty name to the DB
+            $value_to_save = $value;
+            if ($key === 'member_type') {
+                $value_to_save = $formatted_type;
+            }
+
+            if (is_array($value_to_save)) {
+                $sanitized_array = array_map('sanitize_text_field', $value_to_save);
                 update_post_meta($post_id, $meta_key, $sanitized_array);
             } else {
-                update_post_meta($post_id, $meta_key, sanitize_text_field($value));
+                update_post_meta($post_id, $meta_key, sanitize_text_field($value_to_save));
             }
         }
 
-        if ($member_type === 'junior') {
+        if ($base_member_type === 'junior') {
             $consent_token = wp_generate_password(32, false);
             update_post_meta($post_id, '_parental_consent_token', $consent_token);
             update_post_meta($post_id, '_status', 'awaiting_consent');
@@ -167,12 +192,13 @@ class FS_REST_Handlers {
         }
 
         $auto_consented_children = false;
-        if ($member_type !== 'junior') {
+        if ($base_member_type !== 'junior') {
             $orphaned_juniors = new WP_Query([
                 'post_type' => 'fs_member',
                 'meta_query' => [
                     'relation' => 'AND',
-                    ['key' => '_member_type', 'value' => 'junior'],
+                    // Use LIKE to match "Junior Racing Member" etc.
+                    ['key' => '_member_type', 'value' => 'junior', 'compare' => 'LIKE'],
                     ['key' => '_parent_email', 'value' => $email],
                     ['key' => '_status', 'value' => 'awaiting_consent']
                 ],
@@ -184,19 +210,18 @@ class FS_REST_Handlers {
                     update_post_meta($junior_post->ID, '_parental_consent_given', 'yes');
                     update_post_meta($junior_post->ID, '_parental_consent_date', current_time('mysql'));
                     update_post_meta($junior_post->ID, '_parental_consent_method', 'auto_on_parent_registration');
-
-                    // Logic: We DO NOT move to 'pending' yet.
-                    // We leave them in 'awaiting_consent'.
-                    // They will be "released" to pending only when this parent is approved.
                 }
             }
         }
 
+        // We pass the original $params here (where member_type is still 'junior' or 'individual')
+        // to ensure the automated email logic is triggered correctly.
         fs_email_on_initial_application($post_id, $params, $auto_consented_children);
+
         return ['status' => 'success', 'message' => 'Application Submitted!', 'id' => $post_id, 'email' => $email];
     }
 
-/**
+	/**
      * GET /members
      */
     public static function get_all_members() {
@@ -340,7 +365,7 @@ class FS_REST_Handlers {
         ];
     }
 
-/**
+	/**
      * GET /members/(?P<id>\d+)
      */
     public static function get_single_member($data) {
@@ -433,7 +458,7 @@ class FS_REST_Handlers {
         return rest_ensure_response(['status' => 'success']);
     }
 
-	/**
+/**
      * POST /setup-account
      * Triggered when the User finishes their onboarding
      */
@@ -479,17 +504,27 @@ class FS_REST_Handlers {
         }
 
         wp_update_user([
-            'ID'           => $user_id,
-            'first_name'   => $first_name,
-            'last_name'    => $last_name,
-            'display_name' => $full_name, // UPDATED: Sets display name to "First Last"
-            'nickname'     => $first_name ?: $email,
+            'ID'            => $user_id,
+            'first_name'    => $first_name,
+            'last_name'     => $last_name,
+            'display_name'  => $full_name, // UPDATED: Sets display name to "First Last"
+            'nickname'      => $first_name ?: $email,
         ]);
 
         // Assign Role
         $user = new WP_User($user_id);
         $member_type = get_post_meta($member_id, '_member_type', true);
-        $user->set_role($member_type === 'junior' ? 'fs_junior_member' : 'fs_member');
+
+        /**
+         * ENHANCED ROLE LOGIC:
+         * Uses stripos to check if "junior" exists anywhere in the member type string.
+         * This correctly identifies "junior", "junior_supporting", etc.
+         */
+        if (stripos($member_type, 'junior') !== false) {
+            $user->set_role('fs_junior_member');
+        } else {
+            $user->set_role('fs_member');
+        }
 
         // Link and Login
         update_user_meta($user_id, 'fs_member_id', $member_id);
@@ -548,12 +583,15 @@ class FS_REST_Handlers {
         if (!$member_id) return new WP_Error('no_record', 'No member record linked to this user.', ['status' => 404]);
 
         $params = $request->get_json_params();
+
+        // Added 'member_type' and 'status' to allow React to update them
         $allowed_fields = [
             'first_name', 'last_name', 'dob', 'email', 'phone',
             'street_address', 'city', 'state', 'postcode',
             'region', 'country', 'discord_username',
             'comm_prefs', 'sim_environment', 'racing_interests',
-            'sim_platforms', 'sim_platforms_other'
+            'sim_platforms', 'sim_platforms_other',
+            'member_type', 'status'
         ];
 
         if (!empty($params)) {
