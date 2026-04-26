@@ -58,20 +58,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center bg-slate-50 p-4 pt-16 md:pt-32">
+    <div className="min-h-[80vh] flex items-center justify-center bg-slate-50 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
+        className="max-w-md w-full mx-auto"
       >
-        <Card className="shadow-2xl border-primary/10 overflow-hidden">
-          <CardHeader className="space-y-2 pb-8 pt-8 bg-primary/5 border-b">
+        <Card className="shadow-2xl border-primary/10 overflow-hidden p-0">
+          <CardHeader className="space-y-1 pb-8 pt-8 bg-primary/5 border-b">
             <div className="flex justify-center mb-2">
-               <div className="p-4 bg-white rounded-2xl shadow-sm border border-primary/10">
-                  <Lock className="w-8 h-8 text-primary" />
-               </div>
             </div>
-            <CardTitle className="text-3xl font-black text-center tracking-tight">Member Portal</CardTitle>
+            <CardTitle className="text-3xl font-black text-center tracking-tight">Sign In</CardTitle>
             <p className="text-center text-sm text-muted-foreground font-medium">
               Access your Full Send SimSport profile
             </p>
