@@ -61,11 +61,11 @@ export default function SetupAccount() {
 
   if (status === 'success') {
     return (
-      <div className="min-h-screen flex items-start sm:items-center justify-center bg-slate-50 p-4 pt-20">
+      <div className="min-h-[80vh] flex items-center justify-center bg-slate-50 p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full text-center"
+          className="max-w-md w-full mx-auto text-center"
         >
           <Card className="shadow-2xl border-0 p-8 sm:p-12">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -87,32 +87,23 @@ export default function SetupAccount() {
   }
 
   return (
-    <div className="min-h-screen flex items-start sm:items-center justify-center bg-slate-50 p-4 pt-12 sm:pt-4">
+    <div className="min-h-[80vh] flex items-center justify-center bg-slate-50 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full"
+        className="max-w-md w-full mx-auto"
       >
-        <div className="text-center mb-8 px-4">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm border border-primary/10">
-            <KeyRound className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-3xl font-black tracking-tight">Activate Account</h1>
-          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-            Set a secure password for <span className="text-foreground font-semibold">{email}</span>
-          </p>
-        </div>
-
-        <Card className="shadow-2xl border-0 overflow-hidden">
+        <Card className="text-center shadow-2xl border-0 overflow-hidden">
           <CardHeader className="bg-primary/5 border-b py-4">
-            <p className="text-[10px] uppercase tracking-widest font-bold text-center text-primary">
-              Security Credentials
+            <h1 className="text-3xl font-black tracking-tight">Activate Account</h1>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              Set a secure password for <span className="text-foreground font-semibold">{email}</span>
             </p>
           </CardHeader>
-          <CardContent className="p-6 sm:p-10 pt-8">
+          <CardContent className="p-6 sm:p-10 pt-8 text-left">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="password font-bold">New Password</Label>
+              <div className="space-y-1">
+                <Label htmlFor="password" title="font-bold">New Password</Label>
                 <div className="relative">
                   <Input
                     id="password"
@@ -135,7 +126,7 @@ export default function SetupAccount() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword font-bold">Confirm Password</Label>
+                <Label htmlFor="confirmPassword" title="font-bold">Confirm Password</Label>
                 <Input
                   id="confirmPassword"
                   type={showPassword ? "text" : "password"}
