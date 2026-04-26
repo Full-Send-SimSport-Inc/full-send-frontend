@@ -193,3 +193,18 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
         fs_send_automated_email($email, $subject, $body);
     }
 }
+
+// ==========================================
+// React App Rewrite Rules
+// ==========================================
+add_action('init', 'fs_react_app_rewrite_rules');
+
+function fs_react_app_rewrite_rules() {
+    // This tells WordPress: If someone visits /portal/reset-password (or anything after it),
+    // load the WordPress page with the slug 'portal' and let React handle the rest.
+    add_rewrite_rule(
+        '^portal/reset-password/?$',
+        'index.php?pagename=portal',
+        'top'
+    );
+}

@@ -29,7 +29,19 @@ class FS_REST_API_Manager {
             'permission_callback' => '__return_true'
         ]);
 
-        // --- MEMBER MANAGEMENT ---
+        register_rest_route($this->namespace, '/forgot-password', [
+			'methods'  => 'POST',
+			'callback' => ['FS_REST_Handlers', 'forgot_password'],
+			'permission_callback' => '__return_true' // Publicly accessible
+		]);
+
+		register_rest_route($this->namespace, '/reset-password', [
+			'methods'             => 'POST',
+			'callback'            => ['FS_REST_Handlers', 'reset_password_action'],
+			'permission_callback' => '__return_true', // Publicly accessible so users can reset
+		]);
+
+		// --- MEMBER MANAGEMENT ---
         register_rest_route($this->namespace, '/members', [
             'methods'  => 'GET',
             'callback' => ['FS_REST_Handlers', 'get_all_members'],

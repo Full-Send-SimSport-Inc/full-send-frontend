@@ -23,6 +23,7 @@ import PageNotFound from '@/lib/PageNotFound';
 import Portal from '@/pages/Portal';
 import SetupAccount from '@/components/auth/SetupAccount';
 import ConsentView from '@/pages/ConsentView';
+import ResetPassword from '@/components/Auth/ResetPassword';
 
 // Defensive fix for Storefront theme script crashes
 if (typeof window.storefrontUrls === 'undefined') {
@@ -79,7 +80,8 @@ function AppRoutes() {
         <Route path="/meetings" element={<Meetings />} />
         <Route path="/login" element={isAuthenticated ? <Navigate to="/my-profile" replace /> : <Login />} />
         <Route path="/join" element={<Join />} />
-         <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
+        <Route path="/my-profile" element={isAuthenticated ? <ProfileView /> : <Navigate to="/login" replace />} />
+		<Route path="/reset-password" element={<ResetPassword />} />
 
 
         {/* ADMIN NESTED ROUTES */}

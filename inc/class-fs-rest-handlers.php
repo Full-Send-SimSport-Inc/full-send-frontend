@@ -576,6 +576,72 @@ class FS_REST_Handlers {
         return ['status' => 'success', 'message' => 'Profile updated successfully!'];
     }
 
+	/**
+     * POST /forgot_password
+     */
+	public static function forgot_password($request) {
+		$email = sanitize_email($request->get_param('email'));
+		$user = get_user_by('email', $email);
+
+		if (!$user) {
+			// For security, don't confirm if the email exists or not
+			return new WP_REST_Response(['message' => 'If that account exists, a reset link has been sent.'], 200);
+		}
+
+		// Generate the WP reset key
+		$key = get_password_reset_key($user);
+		if (is_wp_error($key)) {
+			return new WP_Error('key_error', 'Could not generate reset key.', ['status' => 500]);
+		}
+
+		// Construct the reset URL (points back to your React app)
+		// Assuming your app handles the 'key' and 'login' params at /reset-password
+		$reset_url = home_url("/portal/#/reset-password?key=$key&login=" . rawurlencode($user->user_login));
+
+		$subject = 'Password Reset Request - Full Send SimSport';
+
+		// HTML Email Body
+		$message = '<div style="font-family: sans-serif; color: #333; line-height: 1.6;">';
+		$message .= '<p>Hello,</p>';
+		$message .= '<p>We received a request to reset your password for your Full Send SimSport account.</p>';
+		$message .= '<p style="margin: 30px 0;"><a href="' . $reset_url . '" style="background-color: #3a0a59; color: #ffffff; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset My Password</a></p>';
+		$message .= '<p>If you did not request this, please ignore this email.</p>';
+		$message .= '<br>' . FS_MASTER_SIGNATURE;
+		$message .= '</div>';
+
+		$headers = ['Content-Type: text/html; charset=UTF-8'];
+
+		wp_mail($email, $subject, $message, $headers);
+
+		return new WP_REST_Response(['message' => 'If that account exists, a reset link has been sent.'], 200);
+	}
+
+		/**
+	 * POST /reset-password
+	 */
+	public static function reset_password_action($request) {
+		$params = $request->get_json_params();
+		$key    = $params['key'] ?? '';
+		$login  = $params['login'] ?? '';
+		$pass   = $params['password'] ?? '';
+
+		if (empty($key) || empty($login) || empty($pass)) {
+			return new WP_Error('missing_data', 'Missing required fields.', ['status' => 400]);
+		}
+
+		// This WordPress function validates the key and login
+		$user = check_password_reset_key($key, $login);
+
+		if (is_wp_error($user)) {
+			return new WP_Error('invalid_key', 'The reset link has expired or is invalid.', ['status' => 403]);
+		}
+
+		// Set the new password
+		reset_password($user, $pass);
+
+		return new WP_REST_Response(['message' => 'Password updated successfully.'], 200);
+	}
+
     // ==========================================
     // DELEGATED ADMIN & AGM METHODS (NEW)
     // ==========================================
