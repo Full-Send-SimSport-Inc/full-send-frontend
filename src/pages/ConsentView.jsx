@@ -36,9 +36,9 @@ export default function ConsentView() {
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="max-w-md w-full"
+                className="max-w-md w-full mx-auto"
             >
-                <Card className="shadow-2xl border-0 overflow-hidden">
+                <Card className="shadow-2xl border-0 overflow-hidden p-0">
                     <CardHeader className="text-center pb-6 pt-8 bg-primary/5 border-b">
                         <div className="flex justify-center mb-4">
                             <div className="p-4 bg-white rounded-2xl shadow-sm border border-primary/10">
@@ -51,7 +51,7 @@ export default function ConsentView() {
                         </p>
                     </CardHeader>
 
-                    <CardContent className="p-6 sm:p-10">
+                    <CardContent className="p-6 sm:p-6">
                         <AnimatePresence mode="wait">
                             {status === 'idle' && (
                                 <motion.div
@@ -60,7 +60,7 @@ export default function ConsentView() {
                                     className="space-y-8"
                                 >
                                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 italic text-sm leading-relaxed text-slate-600">
-                                        "You are reviewing a Junior Membership application for your child to join the Full Send SimSport community. This requires your verified authorization to proceed."
+                                        You are reviewing a Junior Membership application for your child to join the Full Send SimSport community. This requires your verified authorization to proceed.
                                     </div>
 
                                     <div className="flex flex-col gap-3">
