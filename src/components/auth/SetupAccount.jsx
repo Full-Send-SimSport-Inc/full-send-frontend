@@ -93,7 +93,7 @@ export default function SetupAccount() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full mx-auto"
       >
-        <Card className="text-center shadow-2xl border-0 overflow-hidden">
+        <Card className="text-center shadow-2xl border-0 overflow-hidden p-0">
           <CardHeader className="bg-primary/5 border-b py-4">
             <h1 className="text-3xl font-black tracking-tight">Activate Account</h1>
             <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
