@@ -37,10 +37,6 @@ const RACING_INTERESTS = [
   "Solo Sprint Racing"
 ];
 
-/**
- * AccordionSection moved outside the main component to prevent
- * re-creation on every render, which preserves input focus.
- */
 const AccordionSection = ({ id, title, icon: Icon, children, badge, expandedSection, toggleSection }) => (
   <div className="border-b border-border last:border-0">
     <button
@@ -103,7 +99,6 @@ export default function OnboardingView({ user, onComplete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.discord_username.trim()) return setError("Please enter your Discord username.");
     if (form.comm_prefs.length === 0) return setError("Please select at least one communication preference.");
     if (!form.sim_environment) return setError("Please select your sim racing environment.");
@@ -124,11 +119,11 @@ export default function OnboardingView({ user, onComplete }) {
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 sm:py-12 px-4 w-full animate-in fade-in zoom-in-95 duration-300">
-      <Card className="shadow-2xl border-primary/20 overflow-hidden">
-        <CardHeader className="bg-primary/5 border-b pb-6">
+    <div className="max-w-3xl mx-auto pb-8 sm:pb-12 pt-0 px-4 w-full animate-in fade-in zoom-in-95 duration-300">
+      <Card className="shadow-2xl border-primary/20 overflow-hidden p-0">
+        <CardHeader className="bg-primary/5 border-b pb-6 pt-5">
           <CardTitle className="text-2xl font-black flex items-center gap-2">
-            <Rocket className="w-6 h-6 text-primary" /> Welcome, {user.display_name}!
+            <Trophy className="w-6 h-6 text-primary" /> Welcome, {user.display_name}!
           </CardTitle>
           <p className="text-muted-foreground text-sm mt-1">
             Let's finish setting up your racing profile before you hit the track.
@@ -136,7 +131,6 @@ export default function OnboardingView({ user, onComplete }) {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          {/* Section: Discord & Comm Prefs */}
           <AccordionSection
             id="discord"
             title="Identity & Contact"
@@ -146,17 +140,17 @@ export default function OnboardingView({ user, onComplete }) {
             toggleSection={toggleSection}
           >
             <div className="space-y-6">
-              <div className="p-5 bg-slate-900 text-white rounded-xl shadow-inner">
-                <Label className="text-sm font-bold mb-3 block text-slate-300 uppercase tracking-wide">Discord Username *</Label>
+              <div className="p-5 bg-primary/100 border border-primary/20 rounded-xl shadow-sm">
+                <Label className="text-sm font-bold mb-3 block text-background uppercase tracking-wide">Discord Username *</Label>
                 <Input
                   value={form.discord_username}
                   onChange={e => setForm({...form, discord_username: e.target.value})}
-                  className="bg-white text-black w-full"
+                  className="bg-white border-primary/20 focus-visible:ring-primary w-full"
                   placeholder="e.g. racer_44"
                   required
                 />
-                <p className="text-xs text-slate-400 mt-3 leading-relaxed">
-                  Discord is mandatory for official communications, race briefings, and community chat.
+                <p className="text-xs text-background mt-3 leading-relaxed">
+                  Discord is mandatory for official team communications and community chat.
                 </p>
               </div>
 
@@ -164,7 +158,10 @@ export default function OnboardingView({ user, onComplete }) {
                 <Label className="text-base font-bold block">Communication Preferences *</Label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {COMM_PREFS.map(pref => (
-                    <label key={pref} className="flex items-center gap-2 cursor-pointer group p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                    <label key={pref} className={cn(
+                      "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                      form.comm_prefs.includes(pref) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
+                    )}>
                       <Checkbox
                         checked={form.comm_prefs.includes(pref)}
                         onCheckedChange={(checked) => {
@@ -172,7 +169,7 @@ export default function OnboardingView({ user, onComplete }) {
                           setForm({...form, comm_prefs: next});
                         }}
                       />
-                      <span className="text-sm group-hover:text-primary transition-colors">{pref}</span>
+                      <span className="text-xs font-medium leading-tight">{pref}</span>
                     </label>
                   ))}
                 </div>
@@ -180,7 +177,6 @@ export default function OnboardingView({ user, onComplete }) {
             </div>
           </AccordionSection>
 
-          {/* Section: Sim Equipment */}
           <AccordionSection
             id="equipment"
             title="Sim Environment"
@@ -201,7 +197,6 @@ export default function OnboardingView({ user, onComplete }) {
             </div>
           </AccordionSection>
 
-          {/* Section: Racing Interests */}
           <AccordionSection
             id="interests"
             title="Racing Interests"
@@ -228,7 +223,6 @@ export default function OnboardingView({ user, onComplete }) {
             </div>
           </AccordionSection>
 
-          {/* Section: Platforms */}
           <AccordionSection
             id="platforms"
             title="Active Platforms"
@@ -239,7 +233,10 @@ export default function OnboardingView({ user, onComplete }) {
             <div className="space-y-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {SIM_PLATFORMS.map(p => (
-                  <label key={p} className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                  <label key={p} className={cn(
+                    "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                    form.sim_platforms.includes(p) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50"
+                  )}>
                     <Checkbox
                       checked={form.sim_platforms.includes(p)}
                       onCheckedChange={checked => {
@@ -248,11 +245,10 @@ export default function OnboardingView({ user, onComplete }) {
                         if (!checked && p === 'Other') setForm(prev => ({...prev, sim_platforms_other: ''}));
                       }}
                     />
-                    <span className="text-sm">{p}</span>
+                    <span className="text-xs font-medium leading-tight">{p}</span>
                   </label>
                 ))}
               </div>
-
               <AnimatePresence>
                 {form.sim_platforms.includes('Other') && (
                   <motion.div
@@ -275,7 +271,6 @@ export default function OnboardingView({ user, onComplete }) {
             </div>
           </AccordionSection>
 
-          {/* Footer & Submit */}
           <div className="p-6 sm:p-8 bg-muted/20 border-t border-border">
             {error && (
               <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 rounded-lg px-4 py-3 mb-6 animate-in slide-in-from-top-2">
@@ -283,7 +278,6 @@ export default function OnboardingView({ user, onComplete }) {
                 {error}
               </div>
             )}
-
             <Button
               type="submit"
               className="w-full h-14 text-lg font-bold shadow-xl shadow-primary/20"
