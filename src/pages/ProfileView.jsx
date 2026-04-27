@@ -15,7 +15,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from "@/components/ui/alert-dialog";
 import {
-  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, MessageSquare, Monitor, ChevronDown, ChevronRight, Trophy, Globe, AlertCircle
+  Loader2, UserCircle, Lock, Unlock, ArrowLeft, Shield, MessageSquare, Monitor, ChevronDown, ChevronRight, Trophy, Globe, AlertCircle, MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -284,7 +284,7 @@ export default function ProfileView() {
             </div>
 
             <main className="flex-1 max-w-3xl w-full mx-auto space-y-4 sm:space-y-6">
-                {/* Profile Identity Card - Hardcoded to ProfileData to prevent immediate change without approval */}
+                {/* Profile Identity Card */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 bg-white rounded-xl shadow-sm border gap-4">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center shrink-0">
@@ -303,7 +303,6 @@ export default function ProfileView() {
                             </div>
                         </div>
                     </div>
-                    {/* Member Reference Container */}
                     <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
                         <span className="text-[9px] uppercase font-bold text-slate-400 sm:mb-1">Member Reference</span>
                         <div className="flex items-center px-3 py-1 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 font-mono text-xs font-bold min-h-[26px]">
@@ -321,6 +320,7 @@ export default function ProfileView() {
                     <CardContent className="px-4 sm:px-6 pb-6">
                         <div className="flex flex-col">
 
+                            {/* SECTION: Identity */}
                             <AccordionSection
                                 id="identity"
                                 title="Identity"
@@ -377,6 +377,27 @@ export default function ProfileView() {
                                 </div>
                             </AccordionSection>
 
+                            {/* SECTION: Mission Alignment (Admin Only) */}
+                            {isAdmin && (
+                                <AccordionSection
+                                    id="recruitment"
+                                    title="Mission Alignment"
+                                    icon={Shield}
+                                    activeSection={activeSection}
+                                    setActiveSection={setActiveSection}
+                                >
+                                    <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
+                                        <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                                            {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
+                                        </div>
+                                        <Label>Why did you join Full Send SimSport?</Label>
+                                        <Textarea value={form.reason_for_joining} onChange={e => handleChange('reason_for_joining', e.target.value)} disabled={isLocked || isEditingSelf} className="min-h-[100px] bg-white resize-none" />
+                                        <p className="text-[10px] text-muted-foreground italic">Note: Provided during application for committee review.</p>
+                                    </div>
+                                </AccordionSection>
+                            )}
+
+                            {/* SECTION: Parent Details (Conditional) */}
                             {isJuniorRecord && (
                                 <AccordionSection
                                     id="junior"
@@ -392,23 +413,11 @@ export default function ProfileView() {
                                 </AccordionSection>
                             )}
 
-                            <AccordionSection
-                                id="contact"
-                                title="Contact & Social"
-                                icon={MessageSquare}
-                                activeSection={activeSection}
-                                setActiveSection={setActiveSection}
-                            >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
-                                    <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
-                                </div>
-                            </AccordionSection>
-
+                            {/* SECTION: Location */}
                             <AccordionSection
                                 id="location"
                                 title="Location"
-                                icon={Monitor}
+                                icon={MapPin}
                                 activeSection={activeSection}
                                 setActiveSection={setActiveSection}
                             >
@@ -422,51 +431,46 @@ export default function ProfileView() {
                                 </div>
                             </AccordionSection>
 
+                            {/* SECTION: Contact, Social & Preferences (Merged) */}
                             <AccordionSection
-                                id="recruitment"
-                                title="Mission Alignment"
-                                icon={Shield}
-                                activeSection={activeSection}
-                                setActiveSection={setActiveSection}
-                            >
-                                <div className="space-y-2 p-4 bg-muted/30 rounded-lg border border-dashed relative">
-                                    <div className="absolute top-2 right-2 text-[10px] font-medium text-muted-foreground flex items-center gap-1">
-                                        {(!canManageThisRecord || isEditingSelf) ? <><Lock className="w-3 h-3" /> Field Locked</> : <><Unlock className="w-3 h-3 text-green-600" /> Field Editable</>}
-                                    </div>
-                                    <Label>Why did you join Full Send SimSport?</Label>
-                                    <Textarea value={form.reason_for_joining} onChange={e => handleChange('reason_for_joining', e.target.value)} disabled={isLocked || isEditingSelf} className="min-h-[100px] bg-white resize-none" />
-                                    <p className="text-[10px] text-muted-foreground italic">Note: Provided during application for committee review.</p>
-                                </div>
-                            </AccordionSection>
-
-                            <AccordionSection
-                                id="comm"
-                                title="Communication Prefs"
+                                id="contact"
+                                title="Contact & Social"
                                 icon={MessageSquare}
                                 activeSection={activeSection}
                                 setActiveSection={setActiveSection}
                             >
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                    {COMM_PREFS.map(pref => (
-                                        <label key={pref} className={cn(
-                                            "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
-                                            form.comm_prefs.includes(pref) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50",
-                                            isLocked && "pointer-events-none opacity-80"
-                                        )}>
-                                            <Checkbox
-                                                disabled={isLocked}
-                                                checked={form.comm_prefs.includes(pref)}
-                                                onCheckedChange={(checked) => {
-                                                    const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
-                                                    handleChange('comm_prefs', next);
-                                                }}
-                                            />
-                                            <span className="text-xs font-medium leading-tight">{pref}</span>
-                                        </label>
-                                    ))}
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2"><Label>Email Address *</Label><Input value={form.email} onChange={e => handleChange('email', e.target.value)} disabled={isLocked} /></div>
+                                        <div className="space-y-2"><Label>Discord Username *</Label><Input value={form.discord_username} onChange={e => handleChange('discord_username', e.target.value)} disabled={isLocked} /></div>
+                                    </div>
+
+                                    <div className="space-y-3 pt-2">
+                                        <Label className="text-sm font-semibold">Communication Preferences</Label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                            {COMM_PREFS.map(pref => (
+                                                <label key={pref} className={cn(
+                                                    "flex items-center gap-3 cursor-pointer p-3 rounded-xl border transition-all",
+                                                    form.comm_prefs.includes(pref) ? "bg-primary/5 border-primary/40 shadow-sm" : "hover:bg-muted/50",
+                                                    isLocked && "pointer-events-none opacity-80"
+                                                )}>
+                                                    <Checkbox
+                                                        disabled={isLocked}
+                                                        checked={form.comm_prefs.includes(pref)}
+                                                        onCheckedChange={(checked) => {
+                                                            const next = checked ? [...form.comm_prefs, pref] : form.comm_prefs.filter(p => p !== pref);
+                                                            handleChange('comm_prefs', next);
+                                                        }}
+                                                    />
+                                                    <span className="text-xs font-medium leading-tight">{pref}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </AccordionSection>
 
+                            {/* SECTION: Sim Racing Profile */}
                             {isRacingTypeSelected && (
                                 <AccordionSection
                                     id="sim"
@@ -536,7 +540,7 @@ export default function ProfileView() {
                                 </AccordionSection>
                             )}
 
-                            {/* Corrected spacing container */}
+                            {/* Footer Actions */}
                             <div className="pt-6 space-y-3 border-t mt-0">
                                 <Button
                                     onClick={() => setShowSaveConfirm(true)}
