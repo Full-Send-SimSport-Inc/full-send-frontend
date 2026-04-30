@@ -14,9 +14,13 @@ import {
   LogIn,
   Menu,
   X,
-  Settings
+  Settings,
+  Globe
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Corrected path with URL encoding for the space
+const LOGO_URL = "https://fullsendsimsport.com.au/wp-content/uploads/Purple%20w_%20Black%20Tyres.png";
 
 export default function MainLayout() {
   const { user, isLoadingAuth } = useAuth();
@@ -24,7 +28,6 @@ export default function MainLayout() {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Close mobile menu when route changes
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
@@ -58,13 +61,21 @@ export default function MainLayout() {
 
     return (
       <div className={cn("flex", mobile ? "flex-col gap-0.5" : "flex-row gap-1 items-center")}>
+        <a
+          href="https://www.fullsendsimsport.com.au"
+          className={cn(linkClass, inactiveClass)}
+        >
+          <Globe className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+          Back to Website
+        </a>
+
         {(mobile || !user) && (
           <Link
             to="/"
             className={cn(linkClass, location.pathname === '/' ? activeClass : inactiveClass)}
           >
             <LayoutDashboard className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-            Portal Home
+            Member Portal Home
           </Link>
         )}
 
@@ -145,12 +156,13 @@ export default function MainLayout() {
   return (
     <div className="bg-slate-50 min-h-screen relative flex flex-col">
       <header className={cn(
-        "bg-white border-b h-16 shrink-0 transition-opacity duration-200",
-        isMobile ? "fixed top-0 left-0 right-0 z-[9999]" : "sticky top-0 z-10 shadow-sm",
+        "bg-white border-b shrink-0 transition-all duration-200",
+        // Reduced mobile header height from h-20 to h-16
+        isMobile ? "fixed top-0 left-0 right-0 z-[9999] h-16" : "sticky top-0 z-10 shadow-sm h-[110px]",
         (isMobile && mobileMenuOpen) ? "opacity-0 pointer-events-none" : "opacity-100"
       )}>
         <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6 h-full">
             {isMobile && (
               <button
                 onClick={() => setMobileMenuOpen(true)}
@@ -161,13 +173,22 @@ export default function MainLayout() {
               </button>
             )}
 
-            {!isMobile && (
-              <Link to="/" className="font-bold text-lg sm:text-xl text-primary shrink-0">
-                Member Portal
-              </Link>
-            )}
+            <div className={cn(
+              "flex items-center h-full",
+              isMobile ? "absolute left-1/2 -translate-x-1/2" : "py-4"
+            )}>
+              <img
+                src={LOGO_URL}
+                alt="Full Send SimSport Logo"
+                className={cn(
+                  "w-auto object-contain",
+                  // Logo slightly smaller on mobile to match the h-16 header
+                  isMobile ? "h-10" : "h-[75px]"
+                )}
+              />
+            </div>
 
-            <nav className="hidden lg:block ml-4">
+            <nav className={cn(isMobile ? "hidden" : "block")}>
               <NavLinks />
             </nav>
           </div>
@@ -191,16 +212,10 @@ export default function MainLayout() {
               </Link>
             )}
           </div>
-
-          {!user && isMobile && (
-            <Link to="/" className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-white bg-primary rounded-full">
-              <LogIn className="w-3.5 h-3.5" />
-              Sign In
-            </Link>
-          )}
         </div>
       </header>
 
+      {/* Spacer updated from h-20 to h-16 to eliminate the finger-width gap */}
       {isMobile && <div className="h-16" />}
 
       {isMobile && mobileMenuOpen && (
@@ -212,35 +227,41 @@ export default function MainLayout() {
           <div
             className="fixed inset-x-0 top-0 z-[10001] bg-white shadow-2xl overflow-y-auto lg:hidden min-h-screen"
           >
-            {/* X Button removed to prevent conflict with WordPress theme header.
-                Menu can be closed by clicking the "Close Menu" button or the backdrop.
-            */}
-            <nav className="p-5 pt-32 flex flex-col">
+            <nav className="p-5 flex flex-col pt-10">
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className="self-end p-2 mb-4 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-8 h-8" />
+              </button>
+
               <NavLinks mobile={true} />
 
-              {user && (
+              {/* Mobile Auth at bottom of list */}
+              {user ? (
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-3 px-3 py-3 mt-4 border-t border-slate-100 text-red-600 font-semibold w-full text-left text-sm"
+                  className="flex items-center gap-3 px-3 py-4 border-t border-slate-100 text-red-600 font-semibold w-full text-left text-sm mt-6"
                 >
                   <LogOut className="w-5 h-5" />
                   Sign Out
                 </button>
+              ) : (
+                <Link
+                  to="/"
+                  className="flex items-center gap-3 px-3 py-4 border-t border-slate-100 text-primary font-bold w-full text-left text-sm mt-6"
+                >
+                  <LogIn className="w-5 h-5" />
+                  Sign In to Portal
+                </Link>
               )}
-
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="mt-6 w-full py-4 text-center text-xs text-slate-400 uppercase tracking-widest font-bold border-t border-slate-50"
-              >
-                Close Menu
-              </button>
             </nav>
           </div>
         </>
       )}
 
       <main className={cn(
-        "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 transition-all duration-300 flex-1",
+        "max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-0 md:py-10 transition-all duration-300 flex-1",
         (isMobile && mobileMenuOpen) ? "opacity-0" : "opacity-100"
       )}>
         <Outlet />
