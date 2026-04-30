@@ -23,7 +23,8 @@ export default function Portal() {
 
   if (isLoadingAuth) {
     return (
-      <div className="py-20 flex items-center justify-center bg-slate-50">
+      /* Match the content alignment for a seamless loading transition */
+      <div className="flex items-start md:items-center justify-center py-10 md:py-20 bg-slate-50">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
@@ -34,15 +35,16 @@ export default function Portal() {
   }
 
   return (
-    /* REVERTED TO TIGHT VIEW:
-       - Removed min-height and flex-centering logic.
-       - Restored -mt-4 on mobile to pull the content up.
-       - Kept padding minimal to maximize screen real estate on mobile.
-    */
-    <div className="bg-slate-50 max-w-4xl mx-auto overflow-hidden p-4 pt-0 -mt-4 md:mt-0">
+    /**
+     * FIXED SPACING:
+     * - Removed -mt-4 which can cause layout overlapping.
+     * - Used pt-0 on mobile to sit flush against the header spacer.
+     * - Maintained max-width for desktop readability.
+     */
+    <div className="bg-slate-50 max-w-4xl mx-auto overflow-hidden px-4 pt-0 md:pt-4">
 
-      {/* TIGHT HEADING SECTION */}
-      <div className="w-full text-center mb-4 md:mb-10">
+      {/* TIGHT HEADING SECTION - Reduced mobile margin-bottom */}
+      <div className="w-full text-center mb-2 md:mb-10">
         <p className="text-sm md:text-xl font-bold text-muted-foreground tracking-wider opacity-80 py-1">
           Welcome to the Member Portal. Choose an option:
         </p>

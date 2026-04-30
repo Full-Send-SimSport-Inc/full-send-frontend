@@ -248,7 +248,7 @@ export default function MainLayout() {
                 </button>
               ) : (
                 <Link
-                  to="/"
+                  to="/login"
                   className="flex items-center gap-3 px-3 py-4 border-t border-slate-100 text-primary font-bold w-full text-left text-sm mt-6"
                 >
                   <LogIn className="w-5 h-5" />

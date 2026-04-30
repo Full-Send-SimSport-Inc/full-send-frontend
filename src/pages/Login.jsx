@@ -46,11 +46,6 @@ export default function Login() {
 
       console.log("DEBUG: Final Response URL:", response.url);
 
-      /**
-       * FIX: wp-login.php returns status 200 even on failure.
-       * If the response.url still contains 'wp-login.php', the login failed.
-       * If it redirected away from wp-login.php, it succeeded.
-       */
       if (response.ok && !response.url.includes('wp-login.php')) {
         console.log("DEBUG: Login successful, redirecting...");
         // Wait a moment for cookies to settle then refresh into the portal
@@ -96,26 +91,30 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center bg-slate-50 p-4">
+    /**
+     * FIX: Changed items-center to items-start on mobile to pull content up.
+     * Changed min-h-[80vh] to a more flexible min-h-0 on mobile.
+     */
+    <div className="min-h-0 md:min-h-[80vh] flex items-start md:items-center justify-center bg-slate-50 p-4 pt-4 md:pt-0">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="max-w-md w-full mx-auto"
       >
         <Card className="shadow-2xl border-primary/10 overflow-hidden p-0">
-          <CardHeader className="space-y-1 pb-8 pt-8 bg-primary/5 border-b">
+          <CardHeader className="space-y-1 pb-6 pt-6 md:pb-8 md:pt-8 bg-primary/5 border-b">
             <div className="flex justify-center mb-2"></div>
-            <CardTitle className="text-3xl font-black text-center tracking-tight">
+            <CardTitle className="text-2xl md:text-3xl font-black text-center tracking-tight">
               {isResetMode ? 'Reset Password' : 'Sign In'}
             </CardTitle>
-            <p className="text-center text-sm text-muted-foreground font-medium">
+            <p className="text-center text-sm text-muted-foreground font-medium px-2">
               {isResetMode
                 ? 'Enter your email to receive a reset link'
                 : 'Access your Full Send SimSport profile'}
             </p>
           </CardHeader>
 
-          <CardContent className="pt-8 px-6 sm:px-10 pb-10">
+          <CardContent className="pt-6 px-6 sm:px-10 pb-8 md:pb-10">
             <AnimatePresence mode="wait">
               {resetSuccess ? (
                 <motion.div
@@ -225,15 +224,14 @@ export default function Login() {
                     </Button>
 
                     {isResetMode && (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        className="w-full text-muted-foreground"
+                        className="w-full flex items-center justify-center py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                         onClick={() => setIsResetMode(false)}
                         disabled={loading}
                       >
                         <ArrowLeft className="w-4 h-4 mr-2" /> Back to Login
-                      </Button>
+                      </button>
                     )}
                   </div>
 
