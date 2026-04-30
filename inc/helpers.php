@@ -209,6 +209,15 @@ function fs_react_app_rewrite_rules() {
     );
 }
 
+add_action('template_redirect', function() {
+    // Check if the current request is for 'join'
+    if (is_404() && trim($_SERVER['REQUEST_URI'], '/') === 'join') {
+        // Redirect to the portal with the hash fragment
+        wp_redirect(home_url('/portal/#/join'), 301);
+        exit;
+    }
+});
+
 /**
  * Hide the WordPress Admin Bar for non-administrators.
  * This ensures the React Member Portal feels like a standalone app.
