@@ -74,8 +74,8 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
     $parent_name          = sanitize_text_field($params['parent_name'] ?? '');
     $member_id_display    = fs_generate_member_id($post_id);
 
-    $subject_applicant = "Welcome to Full Send SimSport - Application Received";
-    $body_applicant = "<h2>Hi " . esc_html($applicant_first_name) . ",</h2><p>Thanks for applying to Full Send SimSport! We have received your details.</p>";
+    $subject_applicant = "Full Send SimSport Inc. - Membership Application Received";
+    $body_applicant = "<h2>Hi " . esc_html($applicant_first_name) . ",</h2><p>Thanks for applying to Full Send SimSport Inc.! We have received your details.</p>";
 
     if ($member_type === 'junior') {
         $body_applicant .= "<p><strong>Note:</strong> Since you applied as a Junior Member, we have sent a consent request to your parent/guardian (" . esc_html($parent_email) . "). Your application will be processed once they respond.</p>";
@@ -93,10 +93,10 @@ function fs_email_on_initial_application($post_id, $params, $skip_parent_email =
         $is_parent_registered = email_exists($parent_email);
         $subject_parent = "ACTION REQUIRED: Parental Consent for " . esc_html($applicant_first_name);
 
-        $p_body = "<h2>Parental Consent Required</h2><p>Hi " . esc_html($parent_name) . ",</p><p>" . esc_html($applicant_first_name) . " " . esc_html($applicant_last_name) . " has applied to join Full Send SimSport as a Junior Member.</p>";
+        $p_body = "<h2>Parental Consent Required</h2><p>Hi " . esc_html($parent_name) . ",</p><p>" . esc_html($applicant_first_name) . " " . esc_html($applicant_last_name) . " has applied to join Full Send SimSport Inc. as a Junior Member.</p>";
 
         if (!$is_parent_registered) {
-            $p_body .= "<p>As they are under 18, we require your formal consent before we can process their application.</p><div style='background-color: #3a0a59; color: #FFFFFF; padding: 15px; border-left: 5px solid #dd87fa; margin: 20px 0;'><strong>Notice:</strong> We see that you do not currently have a Full Send account.<br><br>To fully activate your child's membership, you must also <a href='" . home_url('/portal/#/join') . "' style='color: #ffe400; font-weight: bold;'>register as an Adult Member here</a>.<br><br>By registering your own account, you are automatically providing parental consent for this application.</div><p>If you do <strong>not</strong> wish to register but want to decline the junior membership request, please use the link below:</p>";
+            $p_body .= "<p>As they are under 18, we require your formal consent before we can process their application.</p><div style='background-color: #3a0a59; color: #FFFFFF; padding: 15px; border-left: 5px solid #dd87fa; margin: 20px 0;'><strong>Notice:</strong> We see that you do not currently have a Full Send SimSport Inc. account.<br><br>To fully activate your child's membership, you must also <a href='" . home_url('/portal/#/join') . "' style='color: #ffe400; font-weight: bold;'>register as an Adult Member here</a>.<br><br>By registering your own account, you are automatically providing parental consent for this application.</div><p>If you do <strong>not</strong> wish to register but want to decline the junior membership request, please use the link below:</p>";
         } else {
             $p_body .= "<p>As they are under 18, please click below to review and either provide or deny consent for their application.</p>";
         }
@@ -145,8 +145,8 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
 
         // 2. Send the custom Approval Email
         $setup_link = home_url("/portal/#/setup-account/{$post_id}/" . urlencode($email));
-        $subject = "Account Approved - Welcome to Full Send SimSport";
-        $body = "<h2>Congratulations {$first_name}!</h2><p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p><p>Please click below to set your password and complete your profile:</p><div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #3a0a59; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div>";
+        $subject = "Account Approved - Welcome to Full Send SimSport Inc.";
+        $body = "<h2>Congratulations {$first_name}!</h2><p>Your membership has been approved. Your official Member ID is: <strong>{$member_id_code}</strong></p><p>Please click below to set your password and complete your profile:</p><div style='margin: 30px 0;'><a href='{$setup_link}' style='background: #3a0a59; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Set Up My Account</a></div><p>Don't forget to join our community on Discord:</p><div style='margin: 20px 0;'><a href='https://discord.gg/EDqd38uD6n' style='background: #5865F2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;'>Join Our Discord</a></div>";
 
         fs_send_automated_email($email, $subject, $body);
 
@@ -188,7 +188,7 @@ function fs_handle_status_change_emails($post_id, $new_status, $old_status) {
             return;
         }
 
-        $subject = "Update regarding your Full Send SimSport Application";
+        $subject = "Update regarding your Full Send SimSport Inc. Membership Application";
         $body = "<h2>Hi " . esc_html($first_name) . ",</h2><p>After reviewing your application, the committee has decided not to proceed with your membership at this time.</p>";
         fs_send_automated_email($email, $subject, $body);
     }
