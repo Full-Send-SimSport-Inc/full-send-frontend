@@ -99,6 +99,7 @@ class FullSend_React_App {
     }
 
     public function initialize_custom_roles() {
+        // 1. Maintain your custom roles map exactly as it was
         $roles = [
             'executive_committee' => ['display' => 'Executive Committee', 'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]],
             'committee' => ['display' => 'Committee', 'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]],
@@ -116,6 +117,12 @@ class FullSend_React_App {
                     else $role_object->remove_cap($cap);
                 }
             }
+        }
+
+        // 2. THE SMOKING GUN FIX: Grant the portal admin capability to the native editor role
+        $editor_role = get_role('editor');
+        if ($editor_role) {
+            $editor_role->add_cap('view_portal_admin');
         }
     }
 
