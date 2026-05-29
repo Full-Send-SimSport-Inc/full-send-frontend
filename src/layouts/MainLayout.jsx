@@ -43,7 +43,7 @@ export default function MainLayout() {
   const isWPAdmin = user?.roles?.includes('administrator');
   
   // Check if user should see the limited "WP Backend" link for posting access
-  const isWPBackendUser = !isWPAdmin && user?.roles?.some(role => ['executive_committee', 'committee', 'editor'].includes(role));
+  const isWPBackendUser = !isWPAdmin && user?.roles?.some(role => ['executive_committee', 'committee', 'editor', 'author', 'contributor'].includes(role));
 
   if (isLoadingAuth) {
     return (
