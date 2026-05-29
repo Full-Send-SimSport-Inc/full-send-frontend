@@ -323,7 +323,7 @@ export default function AdminMemberManager() {
                               {myWeight >= ROLE_WEIGHTS.editor && (
                                 <SelectItem value="author">Author</SelectItem>
                               )}
-                              {myWeight >= ROLE_WEIGHTS.committee && (
+                              {myWeight >= ROLE_WEIGHTS.editor && (
                                 <SelectItem value="editor">Editor</SelectItem>
                               )}
                               {myWeight > ROLE_WEIGHTS.committee && (
@@ -435,7 +435,7 @@ export default function AdminMemberManager() {
                           {myWeight >= ROLE_WEIGHTS.editor && (
                             <SelectItem value="author">Author</SelectItem>
                           )}
-                          {myWeight >= ROLE_WEIGHTS.committee && (
+                          {myWeight >= ROLE_WEIGHTS.editor && (
                             <SelectItem value="editor">Editor</SelectItem>
                           )}
                           {myWeight > ROLE_WEIGHTS.committee && (
