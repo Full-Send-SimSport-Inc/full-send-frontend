@@ -737,7 +737,7 @@ class FS_REST_Handlers {
             }
         }
 
-        $allowed_roles = ['fs_member', 'fs_junior_member', 'contributor', 'author', 'editor', 'committee', 'executive_committee'];
+        $allowed_roles = ['fs_member', 'fs_junior_member', 'contributor', 'author', 'editor', 'committee', 'executive_committee', 'administrator'];
         if (!in_array($new_role, $allowed_roles)) {
             return new WP_Error('invalid_role', 'Invalid role selection.', ['status' => 400]);
         }
