@@ -10,6 +10,7 @@ function fs_get_role_weight($roles) {
         'administrator'       => 40,
         'executive_committee' => 30,
         'committee'           => 20,
+		'editor'			  => 15,
         'fs_member'           => 10,
         'fs_junior_member'    => 10,
         'subscriber'          => 5
@@ -58,7 +59,7 @@ function fs_generate_member_id($fs_member_post_id) {
     $highest_id_query = "SELECT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_fs_member_id' AND meta_value LIKE 'FSS-%' ORDER BY CAST(SUBSTRING(meta_value, 5) AS UNSIGNED) DESC LIMIT 1";
     $highest_id_result = $wpdb->get_var($highest_id_query);
 
-    $new_number = $highest_id_result ? ((int) str_replace('FSS-', '', $highest_id_result)) + 1 : 1000001;
+    $new_number = $highest_id_result ? ((int) str_replace('FSS-', '', $highest_id_result)) + 1 : 1000010;
     $new_member_id = 'FSS-' . $new_number;
 
     update_post_meta($fs_member_post_id, '_fs_member_id', $new_member_id);
