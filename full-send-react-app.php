@@ -99,33 +99,72 @@ class FullSend_React_App {
         ]);
     }
 
-    public function initialize_custom_roles() {
-        // 1. Maintain your custom roles map exactly as it was
-        $roles = [
-            'executive_committee' => ['display' => 'Executive Committee', 'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]],
-            'committee' => ['display' => 'Committee', 'caps' => ['read' => true, 'view_portal_admin' => true, 'edit_posts' => true]],
-            'fs_member' => ['display' => 'FS Member', 'caps' => ['read' => true]],
-            'fs_junior_member' => ['display' => 'FS Junior Member', 'caps' => ['read' => true]]
-        ];
+	public function initialize_custom_roles() {
+		// 1. Fetch the absolute blueprint capability maps from native roles
+		$editor_role_obj = get_role('editor');
+		$author_role_obj = get_role('author');
+		
+		// Fallbacks if roles somehow aren't loaded yet, though they always are in backend init
+		$editor_caps = $editor_role_obj ? $editor_role_obj->capabilities : ['read' => true, 'edit_posts' => true];
+		$author_caps = $author_role_obj ? $author_role_obj->capabilities : ['read' => true, 'edit_posts' => true];
 
-        foreach ($roles as $role_slug => $data) {
-            $role_object = get_role($role_slug);
-            if (!$role_object) {
-                add_role($role_slug, $data['display'], $data['caps']);
-            } else {
-                foreach ($data['caps'] as $cap => $grant) {
-                    if ($grant) $role_object->add_cap($cap);
-                    else $role_object->remove_cap($cap);
-                }
-            }
-        }
+		// 2. Build the structural dynamic mapping array
+		$roles = [
+			'executive_committee' => [
+				'display' => 'Executive Committee', 
+				// Inherit EVERYTHING an Editor can do, then add portal access
+				'caps'    => array_merge($editor_caps, ['view_portal_admin' => true])
+			],
+			'committee' => [
+				'display' => 'Committee', 
+				// Inherit EVERYTHING an Author can do, then add portal access
+				'caps'    => array_merge($author_caps, ['view_portal_admin' => true])
+			],
+			'fs_member' => [
+				'display' => 'FS Member', 
+				'caps'    => ['read' => true]
+			],
+			'fs_junior_member' => [
+				'display' => 'FS Junior Member', 
+				'caps'    => ['read' => true]
+			]
+		];
 
-        // 2. THE SMOKING GUN FIX: Grant the portal admin capability to the native editor role
-        $editor_role = get_role('editor');
-        if ($editor_role) {
-            $editor_role->add_cap('view_portal_admin');
-        }
-    }
+		// 3. Process the sync loop
+		foreach ($roles as $role_slug => $data) {
+			$role_object = get_role($role_slug);
+			
+			if (!$role_object) {
+				// Create role cleanly if it doesn't exist
+				add_role($role_slug, $data['display'], $data['caps']);
+			} else {
+				// CRITICAL RESET: If it already exists, overwrite capabilities explicitly 
+				// to wipe out past database state configuration anomalies.
+				
+				// First, remove old capabilities that shouldn't be there
+				foreach ($role_object->capabilities as $old_cap => $value) {
+					if (!isset($data['caps'][$old_cap])) {
+						$role_object->remove_cap($old_cap);
+					}
+				}
+				
+				// Next, systematically inject the corrected capabilities map
+				foreach ($data['caps'] as $cap => $grant) {
+					if ($grant) {
+						$role_object->add_cap($cap);
+					} else {
+						$role_object->remove_cap($cap);
+					}
+				}
+			}
+		}
+
+		// 4. Grant the portal admin capability to the native editor role
+		$editor_role = get_role('editor');
+		if ($editor_role) {
+			$editor_role->add_cap('view_portal_admin');
+		}
+	}
 
     // --- SCRIPT & STYLE MANAGEMENT ---
 
