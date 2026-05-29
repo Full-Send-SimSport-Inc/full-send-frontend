@@ -170,12 +170,20 @@ class FullSend_React_App {
 
     public function restrict_admin_access() {
         if (defined('DOING_AJAX') && DOING_AJAX) return;
+        
+        // 1. If they aren't logged in, or are a full site Admin, let standard WP behavior happen
         if (!is_user_logged_in() || current_user_can('manage_options')) return;
 
+        // 2. Allow Editors, Committee, & Exec Committee to access the backend to write posts
+        if (current_user_can('edit_posts')) return;
+
+        // 3. If they can manage the portal but don't edit posts, redirect to the portal dashboard
         if (current_user_can('view_portal_admin')) {
             wp_safe_redirect(home_url('/portal/#/admin'));
             exit;
         }
+        
+        // 4. Standard members get bounced out of wp-admin to their portal profile
         wp_safe_redirect(home_url('/portal/#/my-profile'));
         exit;
     }
@@ -185,8 +193,11 @@ class FullSend_React_App {
             header('X-FS-Debug: Redirect-Triggered');
             if (!is_user_logged_in()) return;
 
-            if (fs_check_admin_permissions()) wp_safe_redirect(home_url('/portal/#/admin'));
-            else wp_safe_redirect(home_url('/portal/#/my-profile'));
+            if (fs_check_admin_permissions()) {
+                wp_safe_redirect(home_url('/portal/#/admin'));
+            } else {
+                wp_safe_redirect(home_url('/portal/#/my-profile'));
+            }
             exit;
         }
     }
