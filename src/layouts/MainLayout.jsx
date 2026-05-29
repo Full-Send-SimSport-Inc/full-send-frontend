@@ -155,6 +155,8 @@ export default function MainLayout() {
         {mobile && isWPAdmin && (
           <a
             href="/wp-admin"
+            target="_blank"
+            rel="noopener noreferrer"
             className={cn(linkClass, "text-amber-700 hover:bg-amber-50 mt-1")}
           >
             <Settings className="w-5 h-5" />
@@ -165,6 +167,8 @@ export default function MainLayout() {
         {mobile && isWPBackendUser && (
           <a
             href="/wp-admin"
+            target="_blank"
+            rel="noopener noreferrer"
             className={cn(linkClass, "text-blue-700 hover:bg-blue-50 mt-1")}
           >
             <Settings className="w-5 h-5" />
@@ -215,13 +219,23 @@ export default function MainLayout() {
 
           <div className="hidden lg:flex items-center gap-3">
             {isWPAdmin && (
-              <a href="/wp-admin" className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 rounded-lg">
+              <a 
+                href="/wp-admin" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 rounded-lg"
+              >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>WP Admin</span>
               </a>
             )}
             {isWPBackendUser && (
-              <a href="/wp-admin" className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-lg">
+              <a 
+                href="/wp-admin" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+              >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>WP Backend</span>
               </a>
