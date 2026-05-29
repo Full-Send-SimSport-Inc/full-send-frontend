@@ -122,7 +122,8 @@ export default function AdminMemberManager() {
           wpUser: linkedUser || null,
           currentRole: currentRole,
           isDisabled: currentStatus === 'inactive',
-          canEdit: isSystemAdmin || (myWeight > targetWeight)
+          canEdit: isSystemAdmin || (myWeight > targetWeight),
+          isStatusDisabled: !isSystemAdmin && (myWeight < ROLE_WEIGHTS.committee)
         };
       }).filter(m => {
         const matchesSearch = !search || `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase().includes(search.toLowerCase());
@@ -280,7 +281,7 @@ export default function AdminMemberManager() {
                       <Select
                         value={member.status}
                         onValueChange={(status) => updateStatus.mutate({ id: member.id, status })}
-                        disabled={!member.canEdit || updateStatus.isPending}
+                        disabled={!member.canEdit || member.isStatusDisabled || updateStatus.isPending}
                       >
                         <SelectTrigger className={cn("w-32 h-8 text-[11px] font-bold",
                           member.status === 'active' && "text-green-700 bg-green-50 border-green-200",
@@ -391,7 +392,7 @@ export default function AdminMemberManager() {
                     <Select
                       value={member.status}
                       onValueChange={(status) => updateStatus.mutate({ id: member.id, status })}
-                      disabled={!member.canEdit || updateStatus.isPending}
+                      disabled={!member.canEdit || member.isStatusDisabled || updateStatus.isPending}
                     >
                       <SelectTrigger className={cn("w-full h-8 text-[10px] font-bold",
                         member.status === 'active' && "text-green-700 bg-green-50",
