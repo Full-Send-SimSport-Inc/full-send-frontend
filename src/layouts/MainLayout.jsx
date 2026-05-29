@@ -38,9 +38,12 @@ export default function MainLayout() {
   };
 
   const isActuallyAdmin = user?.isAdmin === true ||
-    user?.roles?.some(role => ['administrator', 'executive_committee', 'committee'].includes(role));
+    user?.roles?.some(role => ['administrator', 'executive_committee', 'committee', 'editor'].includes(role));
 
   const isWPAdmin = user?.roles?.includes('administrator');
+  
+  // Check if user should see the limited "WP Backend" link for posting access
+  const isWPBackendUser = !isWPAdmin && user?.roles?.some(role => ['executive_committee', 'committee', 'editor'].includes(role));
 
   if (isLoadingAuth) {
     return (
@@ -58,6 +61,9 @@ export default function MainLayout() {
     const activeClass = "bg-primary text-primary-foreground shadow-sm";
     const adminActiveClass = "bg-blue-600 text-white shadow-sm";
     const inactiveClass = "text-muted-foreground hover:text-foreground hover:bg-slate-100";
+
+    // Determine specific access restrictions for the editor role
+    const isFullAdmin = user?.roles?.some(role => ['administrator', 'executive_committee', 'committee'].includes(role)) || (user?.isAdmin === true && !user?.roles?.includes('editor'));
 
     return (
       <div className={cn("flex", mobile ? "flex-col gap-0.5" : "flex-row gap-1 items-center")}>
@@ -106,13 +112,15 @@ export default function MainLayout() {
               </div>
             )}
 
-            <Link
-              to="/admin"
-              className={cn(linkClass, location.pathname === '/admin' ? adminActiveClass : inactiveClass)}
-            >
-              <LayoutDashboard className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-              Dashboard
-            </Link>
+            {isFullAdmin && (
+              <Link
+                to="/admin"
+                className={cn(linkClass, location.pathname === '/admin' ? adminActiveClass : inactiveClass)}
+              >
+                <LayoutDashboard className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+                Dashboard
+              </Link>
+            )}
 
             <Link
               to="/admin/members"
@@ -122,21 +130,25 @@ export default function MainLayout() {
               Members
             </Link>
 
-            <Link
-              to="/admin/email"
-              className={cn(linkClass, location.pathname.startsWith('/admin/email') ? adminActiveClass : inactiveClass)}
-            >
-              <Mail className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-              Email
-            </Link>
+            {isFullAdmin && (
+              <>
+                <Link
+                  to="/admin/email"
+                  className={cn(linkClass, location.pathname.startsWith('/admin/email') ? adminActiveClass : inactiveClass)}
+                >
+                  <Mail className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+                  Email
+                </Link>
 
-            <Link
-              to="/admin/agm"
-              className={cn(linkClass, location.pathname.startsWith('/admin/agm') ? adminActiveClass : inactiveClass)}
-            >
-              <ShieldCheck className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-              AGMs
-            </Link>
+                <Link
+                  to="/admin/agm"
+                  className={cn(linkClass, location.pathname.startsWith('/admin/agm') ? adminActiveClass : inactiveClass)}
+                >
+                  <ShieldCheck className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+                  AGMs
+                </Link>
+              </>
+            )}
           </>
         )}
 
@@ -149,6 +161,16 @@ export default function MainLayout() {
             WordPress Admin
           </a>
         )}
+
+        {mobile && isWPBackendUser && (
+          <a
+            href="/wp-admin"
+            className={cn(linkClass, "text-blue-700 hover:bg-blue-50 mt-1")}
+          >
+            <Settings className="w-5 h-5" />
+            WP Backend
+          </a>
+        )}
       </div>
     );
   };
@@ -157,7 +179,6 @@ export default function MainLayout() {
     <div className="bg-slate-50 min-h-screen relative flex flex-col">
       <header className={cn(
         "bg-white border-b shrink-0 transition-all duration-200",
-        // Reduced mobile header height from h-20 to h-16
         isMobile ? "fixed top-0 left-0 right-0 z-[9999] h-16" : "sticky top-0 z-10 shadow-sm h-[110px]",
         (isMobile && mobileMenuOpen) ? "opacity-0 pointer-events-none" : "opacity-100"
       )}>
@@ -182,7 +203,6 @@ export default function MainLayout() {
                 alt="Full Send SimSport Logo"
                 className={cn(
                   "w-auto object-contain",
-                  // Logo slightly smaller on mobile to match the h-16 header
                   isMobile ? "h-10" : "h-[75px]"
                 )}
               />
@@ -200,6 +220,12 @@ export default function MainLayout() {
                 <span>WP Admin</span>
               </a>
             )}
+            {isWPBackendUser && (
+              <a href="/wp-admin" className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-50 rounded-lg">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>WP Backend</span>
+              </a>
+            )}
             {user ? (
               <button onClick={handleLogout} className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg">
                 <LogOut className="w-4 h-4" />
@@ -215,7 +241,6 @@ export default function MainLayout() {
         </div>
       </header>
 
-      {/* Spacer updated from h-20 to h-16 to eliminate the finger-width gap */}
       {isMobile && <div className="h-16" />}
 
       {isMobile && mobileMenuOpen && (
@@ -237,7 +262,6 @@ export default function MainLayout() {
 
               <NavLinks mobile={true} />
 
-              {/* Mobile Auth at bottom of list */}
               {user ? (
                 <button
                   onClick={handleLogout}
