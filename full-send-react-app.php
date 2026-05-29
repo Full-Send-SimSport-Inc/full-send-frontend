@@ -65,7 +65,8 @@ class FullSend_React_App {
 
         // 4. Access Control & Redirects
         add_action('admin_init', [$this, 'restrict_admin_access']);
-        add_action('template_redirect', [$this, 'handle_frontend_redirects']);
+        add_action('admin_menu', [$this, 'restrict_custom_tables_to_admins'], 999);
+		add_action('template_redirect', [$this, 'handle_frontend_redirects']);
         add_action('wp_logout', [$this, 'handle_logout']);
         add_filter('authenticate', [$this, 'check_disabled_account'], 30, 3);
 
@@ -186,6 +187,16 @@ class FullSend_React_App {
         // 4. Standard members get bounced out of wp-admin to their portal profile
         wp_safe_redirect(home_url('/portal/#/my-profile'));
         exit;
+    }
+
+	/**
+     * Hides the fs_member and agm_meeting CPTs from the sidebar for non-admins.
+     */
+    public function restrict_custom_tables_to_admins() {
+        if ( ! current_user_can('manage_options') ) {
+            remove_menu_page('edit.php?post_type=fs_member');
+            remove_menu_page('edit.php?post_type=agm_meeting');
+        }
     }
 
     public function handle_frontend_redirects() {
