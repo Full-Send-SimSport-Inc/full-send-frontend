@@ -65,6 +65,9 @@ export default function MainLayout() {
     // Determine specific access restrictions for the editor role
     const isFullAdmin = user?.roles?.some(role => ['administrator', 'executive_committee', 'committee'].includes(role)) || (user?.isAdmin === true && !user?.roles?.includes('editor'));
 
+    // Strictly limit AGM visibility to executive committee, administrators, or explicit super admins
+    const isExecOrHigher = user?.roles?.some(role => ['administrator', 'executive_committee'].includes(role)) || (user?.isAdmin === true && !user?.roles?.some(role => ['committee', 'editor'].includes(role)));
+
     return (
       <div className={cn("flex", mobile ? "flex-col gap-0.5" : "flex-row gap-1 items-center")}>
         <a
@@ -140,13 +143,15 @@ export default function MainLayout() {
                   Email
                 </Link>
 
-                <Link
-                  to="/admin/agm"
-                  className={cn(linkClass, location.pathname.startsWith('/admin/agm') ? adminActiveClass : inactiveClass)}
-                >
-                  <ShieldCheck className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-                  AGMs
-                </Link>
+                {isExecOrHigher && (
+                  <Link
+                    to="/admin/agm"
+                    className={cn(linkClass, location.pathname.startsWith('/admin/agm') ? adminActiveClass : inactiveClass)}
+                  >
+                    <ShieldCheck className={mobile ? "w-5 h-5" : "w-4 h-4"} />
+                    AGMs
+                  </Link>
+                )}
               </>
             )}
           </>
