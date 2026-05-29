@@ -38,3 +38,5 @@ src/components/admin/desktop.ini
 src/components/join/desktop.ini
 src/hooks/desktop.ini
 src/pages/desktop.ini
+dist/index.html
+package-lock.json

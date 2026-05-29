@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ShieldCheck, User, Search, Download, Mail, Lock, UserX, Crown, Calendar, ArrowLeft, FileText } from 'lucide-react';
+import { ShieldCheck, User, Search, Download, Mail, Lock, UserX, Crown, Calendar, ArrowLeft, FileText, PenTool } from 'lucide-react';
 import { toast } from "sonner";
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -16,6 +16,8 @@ const ROLE_WEIGHTS = {
   'executive_committee': 30,
   'committee': 20,
   'editor': 15,
+  'author': 13,
+  'contributor': 11,
   'fs_member': 10,
   'fs_junior_member': 10,
   'subscriber': 5
@@ -61,6 +63,8 @@ export default function AdminMemberManager() {
     if (roleStr === 'fs_member') return 'Adult Member';
     if (roleStr === 'fs_junior_member') return 'Junior Member';
     if (roleStr === 'editor') return 'Editor';
+    if (roleStr === 'author') return 'Author';
+    if (roleStr === 'contributor') return 'Contributor';
 
     return roleStr
       .split('_')
@@ -74,6 +78,8 @@ export default function AdminMemberManager() {
     if (roleArray.includes('executive_committee')) return 'executive_committee';
     if (roleArray.includes('committee')) return 'committee';
     if (roleArray.includes('editor')) return 'editor';
+    if (roleArray.includes('author')) return 'author';
+    if (roleArray.includes('contributor')) return 'contributor';
     if (roleArray.includes('fs_junior_member')) return 'fs_junior_member';
     return 'fs_member';
   };
@@ -196,6 +202,8 @@ export default function AdminMemberManager() {
               <SelectItem value="all">All Roles</SelectItem>
               <SelectItem value="fs_member">Adult Members</SelectItem>
               <SelectItem value="fs_junior_member">Junior Members</SelectItem>
+              <SelectItem value="contributor">Contributors</SelectItem>
+              <SelectItem value="author">Authors</SelectItem>
               <SelectItem value="editor">Editors</SelectItem>
               <SelectItem value="committee">Committee</SelectItem>
               <SelectItem value="executive_committee">Executive Committee</SelectItem>
@@ -239,13 +247,15 @@ export default function AdminMemberManager() {
                           "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
                           member.currentRole === 'administrator' || member.currentRole === 'executive_committee' ? "bg-amber-100" :
                           member.currentRole === 'committee' ? "bg-primary/10" : 
-                          member.currentRole === 'editor' ? "bg-blue-50" : "bg-slate-100"
+                          member.currentRole === 'editor' ? "bg-blue-50" : 
+                          member.currentRole === 'author' || member.currentRole === 'contributor' ? "bg-purple-50" : "bg-slate-100"
                         )}>
                           {member.isDisabled ? <UserX className="w-5 h-5 text-muted-foreground" />
                           : member.currentRole === 'administrator' ? <Crown className="w-5 h-5 text-amber-600" />
                           : member.currentRole === 'executive_committee' ? <ShieldCheck className="w-5 h-5 text-amber-600" />
                           : member.currentRole === 'committee' ? <ShieldCheck className="w-5 h-5 text-primary" />
                           : member.currentRole === 'editor' ? <FileText className="w-5 h-5 text-blue-600" />
+                          : member.currentRole === 'author' || member.currentRole === 'contributor' ? <PenTool className="w-5 h-5 text-purple-600" />
                           : <User className="w-5 h-5 text-slate-500" />}
                         </div>
                         <div className="flex flex-col">
@@ -307,6 +317,12 @@ export default function AdminMemberManager() {
                             <SelectContent>
                               <SelectItem value="fs_member">Adult Member</SelectItem>
                               <SelectItem value="fs_junior_member">Junior Member</SelectItem>
+                              {myWeight >= ROLE_WEIGHTS.editor && (
+                                <SelectItem value="contributor">Contributor</SelectItem>
+                              )}
+                              {myWeight >= ROLE_WEIGHTS.editor && (
+                                <SelectItem value="author">Author</SelectItem>
+                              )}
                               {myWeight >= ROLE_WEIGHTS.committee && (
                                 <SelectItem value="editor">Editor</SelectItem>
                               )}
@@ -341,10 +357,12 @@ export default function AdminMemberManager() {
                     <div className={cn(
                       "w-9 h-9 rounded-full flex items-center justify-center",
                       member.currentRole === 'administrator' || member.currentRole === 'executive_committee' ? "bg-amber-100" : 
-                      member.currentRole === 'editor' ? "bg-blue-50" : "bg-slate-100"
+                      member.currentRole === 'editor' ? "bg-blue-50" : 
+                      member.currentRole === 'author' || member.currentRole === 'contributor' ? "bg-purple-50" : "bg-slate-100"
                     )}>
                       {member.isDisabled ? <UserX className="w-4 h-4 text-muted-foreground" /> 
                       : member.currentRole === 'editor' ? <FileText className="w-4 h-4 text-blue-600" />
+                      : member.currentRole === 'author' || member.currentRole === 'contributor' ? <PenTool className="w-4 h-4 text-purple-600" />
                       : <User className="w-4 h-4 text-slate-500" />}
                     </div>
                     <div className="flex flex-col min-w-0">
@@ -411,6 +429,12 @@ export default function AdminMemberManager() {
                         <SelectContent>
                           <SelectItem value="fs_member">Adult</SelectItem>
                           <SelectItem value="fs_junior_member">Junior</SelectItem>
+                          {myWeight >= ROLE_WEIGHTS.editor && (
+                            <SelectItem value="contributor">Contributor</SelectItem>
+                          )}
+                          {myWeight >= ROLE_WEIGHTS.editor && (
+                            <SelectItem value="author">Author</SelectItem>
+                          )}
                           {myWeight >= ROLE_WEIGHTS.committee && (
                             <SelectItem value="editor">Editor</SelectItem>
                           )}

@@ -11,6 +11,8 @@ function fs_get_role_weight($roles) {
         'executive_committee' => 30,
         'committee'           => 20,
 		'editor'			  => 15,
+		'author'			  => 13,
+		'contributor'		  => 11,
         'fs_member'           => 10,
         'fs_junior_member'    => 10,
         'subscriber'          => 5
