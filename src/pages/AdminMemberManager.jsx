@@ -102,6 +102,7 @@ export default function AdminMemberManager() {
 
   const myWeight = useMemo(() => getWeight(me?.roles), [me]);
   const isSystemAdmin = me?.roles?.includes('administrator');
+  const canViewProfiles = isSystemAdmin || myWeight > ROLE_WEIGHTS.editor;
 
   const unifiedData = useMemo(() => {
     return members
@@ -260,9 +261,15 @@ export default function AdminMemberManager() {
                           : <User className="w-5 h-5 text-slate-500" />}
                         </div>
                         <div className="flex flex-col">
-                          <Link to={`/admin/members/${member.id}`} className="font-bold text-sm hover:underline hover:text-primary">
-                            {member.first_name} {member.last_name}
-                          </Link>
+                          {canViewProfiles ? (
+                            <Link to={`/admin/members/${member.id}`} className="font-bold text-sm hover:underline hover:text-primary">
+                              {member.first_name} {member.last_name}
+                            </Link>
+                          ) : (
+                            <span className="font-bold text-sm text-slate-800">
+                              {member.first_name} {member.last_name}
+                            </span>
+                          )}
                           <p className="text-xs text-muted-foreground leading-none mt-1">{member.email}</p>
                         </div>
                       </div>
@@ -367,9 +374,15 @@ export default function AdminMemberManager() {
                       : <User className="w-4 h-4 text-slate-500" />}
                     </div>
                     <div className="flex flex-col min-w-0">
-                      <Link to={`/admin/members/${member.id}`} className="font-bold text-sm truncate hover:text-primary">
-                        {member.first_name} {member.last_name}
-                      </Link>
+                      {canViewProfiles ? (
+                        <Link to={`/admin/members/${member.id}`} className="font-bold text-sm truncate hover:text-primary">
+                          {member.first_name} {member.last_name}
+                        </Link>
+                      ) : (
+                        <span className="font-bold text-sm text-slate-800 truncate">
+                          {member.first_name} {member.last_name}
+                        </span>
+                      )}
                       <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
                     </div>
                   </div>
